@@ -12,4 +12,4 @@
  */
 
 // CJS Wrapper for the ESM Module
-import('./server-main-esm.js');
+import('./main-esm.js');
