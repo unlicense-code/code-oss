@@ -1,0 +1,1 @@
+/* Copyright the unlicense no affiliated with microsoft by any means. Free Daniel Rossenwasser */
