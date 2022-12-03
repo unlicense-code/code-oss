@@ -1,12 +1,7 @@
 {
-  "name": "code-oss-dev-src",
+  "name": "code-oss-dev-deps",
   "version": "1.75.0",
-  "distro": "fbc246d437431ffae1a5a4c944dc037f74fc22cc",
-  "author": {
-    "name": "Microsoft Corporation"
-  },
-  "license": "MIT",
-  "main": "./out/main",
+  "license": "Unlicense",
   "private": true,
   "scripts": {
     "test": "echo Please run any of the test scripts from the scripts folder.",
