@@ -1,0 +1,3 @@
+[submodule "build/vscode-loader"]
+	path = build/vscode-loader
+	url = https://github.com/microsoft/vscode-loader.git
