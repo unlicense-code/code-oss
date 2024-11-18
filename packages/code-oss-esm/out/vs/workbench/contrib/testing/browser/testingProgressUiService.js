@@ -46,7 +46,7 @@ let TestingProgressTrigger = class TestingProgressTrigger extends Disposable {
         if (result.request.preserveFocus === true) {
             return;
         }
-        const cfg = getTestingConfiguration(this.configurationService, "testing.openTesting" /* TestingConfigKeys.OpenTesting */);
+        const cfg = getTestingConfiguration(this.configurationService, "testing.automaticallyOpenResults" /* TestingConfigKeys.OpenResults */);
         if (cfg === "neverOpen" /* AutoOpenTesting.NeverOpen */) {
             return;
         }

@@ -39,7 +39,8 @@ export declare class NativeExtensionService extends AbstractExtensionService imp
     private _sendExtensionHostCrashTelemetry;
     protected _resolveAuthority(remoteAuthority: string): Promise<ResolverResult>;
     private _getCanonicalURI;
-    protected _resolveExtensions(): Promise<ResolvedExtensions>;
+    protected _resolveExtensions(): AsyncIterable<ResolvedExtensions>;
+    private _doResolveExtensions;
     private _startLocalExtensionHost;
     protected _onExtensionHostExit(code: number): Promise<void>;
     private _handleNoResolverFound;

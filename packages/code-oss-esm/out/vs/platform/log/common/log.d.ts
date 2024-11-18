@@ -157,6 +157,7 @@ export declare abstract class AbstractLogger extends Disposable implements ILogg
     setLevel(level: LogLevel): void;
     getLevel(): LogLevel;
     protected checkLogLevel(level: LogLevel): boolean;
+    protected canLog(level: LogLevel): boolean;
     abstract trace(message: string, ...args: any[]): void;
     abstract debug(message: string, ...args: any[]): void;
     abstract info(message: string, ...args: any[]): void;
@@ -166,7 +167,6 @@ export declare abstract class AbstractLogger extends Disposable implements ILogg
 }
 export declare abstract class AbstractMessageLogger extends AbstractLogger implements ILogger {
     private readonly logAlways?;
-    protected abstract log(level: LogLevel, message: string): void;
     constructor(logAlways?: boolean | undefined);
     protected checkLogLevel(level: LogLevel): boolean;
     trace(message: string, ...args: any[]): void;
@@ -175,6 +175,7 @@ export declare abstract class AbstractMessageLogger extends AbstractLogger imple
     warn(message: string, ...args: any[]): void;
     error(message: string | Error, ...args: any[]): void;
     flush(): void;
+    protected abstract log(level: LogLevel, message: string): void;
 }
 export declare class ConsoleMainLogger extends AbstractLogger implements ILogger {
     private useColors;

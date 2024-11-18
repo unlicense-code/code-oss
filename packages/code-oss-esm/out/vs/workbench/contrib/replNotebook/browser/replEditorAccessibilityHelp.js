@@ -1,39 +1,57 @@
+import { ContextKeyExpr } from '../../../../platform/contextkey/common/contextkey.js';
 import { localize } from '../../../../nls.js';
 import { AccessibleContentProvider } from '../../../../platform/accessibility/browser/accessibleView.js';
-import { IEditorService } from '../../../services/editor/common/editorService.js';
 import { ICodeEditorService } from '../../../../editor/browser/services/codeEditorService.js';
-import { IS_COMPOSITE_NOTEBOOK } from '../../notebook/common/notebookContextKeys.js';
-export class ReplEditorAccessibilityHelp {
+import { IS_COMPOSITE_NOTEBOOK, NOTEBOOK_CELL_LIST_FOCUSED } from '../../notebook/common/notebookContextKeys.js';
+export class ReplEditorInputAccessibilityHelp {
     constructor() {
         this.priority = 105;
-        this.name = 'REPL Editor';
-        this.when = IS_COMPOSITE_NOTEBOOK;
+        this.name = 'REPL Editor Input';
+        this.when = ContextKeyExpr.and(IS_COMPOSITE_NOTEBOOK, NOTEBOOK_CELL_LIST_FOCUSED.negate());
         this.type = "help" /* AccessibleViewType.Help */;
     }
     getProvider(accessor) {
-        const activeEditor = accessor.get(ICodeEditorService).getActiveCodeEditor()
-            || accessor.get(ICodeEditorService).getFocusedCodeEditor()
-            || accessor.get(IEditorService).activeEditorPane;
-        if (!activeEditor) {
-            return;
-        }
-        return getAccessibilityHelpProvider(accessor, activeEditor);
+        return getAccessibilityHelpProvider(accessor.get(ICodeEditorService), getAccessibilityInputHelpText());
     }
 }
-function getAccessibilityHelpText() {
+function getAccessibilityInputHelpText() {
     return [
-        localize('replEditor.overview', 'You are in a REPL Editor which contains in input box to evaluate expressions and a list of previously executed expressions and their output.'),
+        localize('replEditor.inputOverview', 'You are in a REPL Editor Input box which will accept code to be executed in the REPL.'),
         localize('replEditor.execute', 'The Execute command{0} will evaluate the expression in the input box.', '<keybinding:repl.execute>'),
-        localize('replEditor.focusHistory', 'The Focus History command{0} will move focus to the list of previously executed items.', '<keybinding:interactive.history.focus>'),
-        localize('replEditor.accessibilityView', 'Run the Open Accessbility View command{0} while navigating the history for an accessible view of the item\'s output.', '<keybinding:editor.action.accessibleView>'),
-        localize('replEditor.focusLastItemAdded', 'The Focus Last executed command{0} will move focus to the last executed item.', '<keybinding:repl.focusLastItemExecuted>'),
-        localize('replEditor.focusReplInput', 'The Focus Input Editor command{0} will move focus to the REPL input box.', '<keybinding:interactive.input.focus>'),
-        localize('replEditor.cellNavigation', 'The up and down arrows will also move focus between previously executed items.'),
-        localize('replEditor.focusInOutput', 'The Focus Output command{0} will set focus on the output when focused on a previously executed item.', '<keybinding:notebook.cell.focusInOutput>'),
-        localize('replEditor.autoFocus', 'The setting `replEditor.autoFocusAppendedCell` controls whether focus is automatically moved to items as they are executed in the REPL. This is helpful when code is being sent to the REPL from another file.'),
+        localize('replEditor.configReadExecution', 'The setting `accessibility.replEditor.readLastExecutionOutput` controls if output will be automatically read when execution completes.'),
+        localize('replEditor.autoFocusRepl', 'The setting `accessibility.replEditor.autoFocusReplExecution` controls if focus will automatically move to the REPL after executing code.'),
+        localize('replEditor.focusLastItemAdded', 'The Focus Last executed command{0} will move focus to the last executed item in the REPL history.', '<keybinding:repl.focusLastItemExecuted>'),
+        localize('replEditor.inputAccessibilityView', 'When you run the Open Accessbility View command{0} from this input box, the output from the last execution will be shown in the accessibility view.', '<keybinding:editor.action.accessibleView>'),
+        localize('replEditor.focusReplInput', 'The Focus Input Editor command{0} will bring the focus back to this editor.', '<keybinding:repl.input.focus>'),
     ].join('\n');
 }
-function getAccessibilityHelpProvider(accessor, editor) {
-    const helpText = getAccessibilityHelpText();
-    return new AccessibleContentProvider("replEditor" /* AccessibleViewProviderId.ReplEditor */, { type: "help" /* AccessibleViewType.Help */ }, () => helpText, () => editor.focus(), "accessibility.verbosity.replEditor" /* AccessibilityVerbositySettingId.ReplEditor */);
+export class ReplEditorHistoryAccessibilityHelp {
+    constructor() {
+        this.priority = 105;
+        this.name = 'REPL Editor History';
+        this.when = ContextKeyExpr.and(IS_COMPOSITE_NOTEBOOK, NOTEBOOK_CELL_LIST_FOCUSED);
+        this.type = "help" /* AccessibleViewType.Help */;
+    }
+    getProvider(accessor) {
+        return getAccessibilityHelpProvider(accessor.get(ICodeEditorService), getAccessibilityHistoryHelpText());
+    }
+}
+function getAccessibilityHistoryHelpText() {
+    return [
+        localize('replEditor.historyOverview', 'You are in a REPL History which is a list of cells that have been executed in the REPL. Each cell has an input, an output, and the cell container.'),
+        localize('replEditor.focusCellEditor', 'The Edit Cell command{0} will move focus to the read-only editor for the input of the cell.', '<keybinding:notebook.cell.edit>'),
+        localize('replEditor.cellNavigation', 'The Quit Edit command{0} will move focus to the cell container, where the up and down arrows will also move focus between cells in the history.', '<keybinding:notebook.cell.quitEdit>'),
+        localize('replEditor.accessibilityView', 'Run the Open Accessbility View command{0} while navigating the history for an accessible view of the item\'s output.', '<keybinding:editor.action.accessibleView>'),
+        localize('replEditor.focusInOutput', 'The Focus Output command{0} will set focus on the output when focused on a previously executed item.', '<keybinding:notebook.cell.focusInOutput>'),
+        localize('replEditor.focusReplInputFromHistory', 'The Focus Input Editor command{0} will move focus to the REPL input box.', '<keybinding:repl.input.focus>'),
+        localize('replEditor.focusLastItemAdded', 'The Focus Last executed command{0} will move focus to the last executed item in the REPL history.', '<keybinding:repl.focusLastItemExecuted>'),
+    ].join('\n');
+}
+function getAccessibilityHelpProvider(editorService, helpText) {
+    const activeEditor = editorService.getActiveCodeEditor()
+        || editorService.getFocusedCodeEditor();
+    if (!activeEditor) {
+        return;
+    }
+    return new AccessibleContentProvider("replEditor" /* AccessibleViewProviderId.ReplEditor */, { type: "help" /* AccessibleViewType.Help */ }, () => helpText, () => activeEditor.focus(), "accessibility.verbosity.replEditor" /* AccessibilityVerbositySettingId.ReplEditor */);
 }

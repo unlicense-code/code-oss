@@ -9,8 +9,7 @@ class EditorFontZoomIn extends EditorAction {
     constructor() {
         super({
             id: 'editor.action.fontZoomIn',
-            label: nls.localize('EditorFontZoomIn.label', "Increase Editor Font Size"),
-            alias: 'Increase Editor Font Size',
+            label: nls.localize2('EditorFontZoomIn.label', "Increase Editor Font Size"),
             precondition: undefined
         });
     }
@@ -22,8 +21,7 @@ class EditorFontZoomOut extends EditorAction {
     constructor() {
         super({
             id: 'editor.action.fontZoomOut',
-            label: nls.localize('EditorFontZoomOut.label', "Decrease Editor Font Size"),
-            alias: 'Decrease Editor Font Size',
+            label: nls.localize2('EditorFontZoomOut.label', "Decrease Editor Font Size"),
             precondition: undefined
         });
     }
@@ -35,8 +33,7 @@ class EditorFontZoomReset extends EditorAction {
     constructor() {
         super({
             id: 'editor.action.fontZoomReset',
-            label: nls.localize('EditorFontZoomReset.label', "Reset Editor Font Size"),
-            alias: 'Reset Editor Font Size',
+            label: nls.localize2('EditorFontZoomReset.label', "Reset Editor Font Size"),
             precondition: undefined
         });
     }

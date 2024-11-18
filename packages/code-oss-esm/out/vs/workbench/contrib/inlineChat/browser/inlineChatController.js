@@ -54,6 +54,7 @@ import { IInlineChatSavingService } from './inlineChatSavingService.js';
 import { IInlineChatSessionService } from './inlineChatSessionService.js';
 import { InlineChatZoneWidget } from './inlineChatZoneWidget.js';
 import { ChatContextKeys } from '../../chat/common/chatContextKeys.js';
+import { IStorageService } from '../../../../platform/storage/common/storage.js';
 export var State;
 (function (State) {
     State["CREATE_SESSION"] = "CREATE_SESSION";
@@ -88,14 +89,16 @@ export class InlineChatRunOptions {
         return true;
     }
 }
-let InlineChatController = InlineChatController_1 = class InlineChatController {
+let InlineChatController = class InlineChatController {
+    static { InlineChatController_1 = this; }
     static get(editor) {
         return editor.getContribution(INLINE_CHAT_ID);
     }
+    static { this._storageKey = 'inlineChatController.state'; }
     get chatWidget() {
         return this._ui.value.widget.chatWidget;
     }
-    constructor(_editor, _instaService, _inlineChatSessionService, _inlineChatSavingService, _editorWorkerService, _logService, _configurationService, _dialogService, contextKeyService, _chatService, _editorService, notebookEditorService) {
+    constructor(_editor, _instaService, _inlineChatSessionService, _inlineChatSavingService, _editorWorkerService, _logService, _configurationService, _dialogService, contextKeyService, _chatService, _editorService, _storageService, notebookEditorService) {
         this._editor = _editor;
         this._instaService = _instaService;
         this._inlineChatSessionService = _inlineChatSessionService;
@@ -106,6 +109,7 @@ let InlineChatController = InlineChatController_1 = class InlineChatController {
         this._dialogService = _dialogService;
         this._chatService = _chatService;
         this._editorService = _editorService;
+        this._storageService = _storageService;
         this._isDisposed = false;
         this._store = new DisposableStore();
         this._messages = this._store.add(new Emitter());
@@ -115,7 +119,6 @@ let InlineChatController = InlineChatController_1 = class InlineChatController {
         this.onWillStartSession = this._onWillStartSession.event;
         this._sessionStore = this._store.add(new DisposableStore());
         this._stashedSession = this._store.add(new MutableDisposable());
-        this._forcedPlaceholder = undefined;
         this._ctxVisible = CTX_INLINE_CHAT_VISIBLE.bindTo(contextKeyService);
         this._ctxEditing = CTX_INLINE_CHAT_EDITING.bindTo(contextKeyService);
         this._ctxUserDidEdit = CTX_INLINE_CHAT_USER_DID_EDIT.bindTo(contextKeyService);
@@ -193,17 +196,6 @@ let InlineChatController = InlineChatController_1 = class InlineChatController {
         this._store.dispose();
         this._isDisposed = true;
         this._log('DISPOSED controller');
-    }
-    saveViewState() {
-        if (!this._ui.rawValue) {
-            return undefined;
-        }
-        // only take select lm
-        const { selectedLanguageModelId } = this._ui.rawValue.widget.chatWidget.getViewState();
-        return { selectedLanguageModelId };
-    }
-    restoreViewState(state) {
-        this._uiInitViewState = state;
     }
     _log(message, ...more) {
         if (message instanceof Error) {
@@ -344,8 +336,7 @@ let InlineChatController = InlineChatController_1 = class InlineChatController {
         }));
         this._sessionStore.add(this._session.wholeRange.onDidChange(handleWholeRangeChange));
         handleWholeRangeChange();
-        this._ui.value.widget.setChatModel(this._session.chatModel, this._uiInitViewState);
-        this._uiInitViewState = undefined;
+        this._ui.value.widget.setChatModel(this._session.chatModel, this._retrieveWidgetState());
         this._updatePlaceholder();
         const isModelEmpty = !this._session.chatModel.hasRequests;
         this._ui.value.widget.updateToolbar(true);
@@ -465,7 +456,7 @@ let InlineChatController = InlineChatController_1 = class InlineChatController {
             return "PAUSE" /* State.PAUSE */;
         }
         if (message & 1 /* Message.ACCEPT_SESSION */) {
-            this._ui.value.widget.selectAll(false);
+            this._ui.value.widget.selectAll();
             return "DONE" /* State.ACCEPT */;
         }
         if (!request?.message.text) {
@@ -483,7 +474,7 @@ let InlineChatController = InlineChatController_1 = class InlineChatController {
         assertType(request);
         assertType(request.response);
         this._showWidget(this._session.headless, false);
-        this._ui.value.widget.selectAll(false);
+        this._ui.value.widget.selectAll();
         this._ui.value.widget.updateInfo('');
         this._ui.value.widget.toggleStatus(true);
         const { response } = request;
@@ -608,7 +599,7 @@ let InlineChatController = InlineChatController_1 = class InlineChatController {
         // (2) we must wait for all edits that came in via progress to complete
         await responsePromise.p;
         await progressiveEditsQueue.whenIdle();
-        if (response.result?.errorDetails) {
+        if (response.result?.errorDetails && !response.result.errorDetails.responseIsFiltered) {
             await this._session.undoChangesUntil(response.requestId);
         }
         store.dispose();
@@ -737,10 +728,25 @@ let InlineChatController = InlineChatController_1 = class InlineChatController {
         this._sessionStore.clear();
         this._ctxVisible.reset();
         this._ctxUserDidEdit.reset();
-        this._ui.rawValue?.hide();
+        if (this._ui.rawValue) {
+            // persist selected LM in memento
+            const { selectedLanguageModelId } = this._ui.rawValue.widget.chatWidget.getViewState();
+            const state = { selectedLanguageModelId };
+            this._storageService.store(InlineChatController_1._storageKey, state, 0 /* StorageScope.PROFILE */, 0 /* StorageTarget.USER */);
+            this._ui.rawValue.hide();
+        }
         // Return focus to the editor only if the current focus is within the editor widget
         if (this._editor.hasWidgetFocus()) {
             this._editor.focus();
+        }
+    }
+    _retrieveWidgetState() {
+        try {
+            const state = JSON.parse(this._storageService.get(InlineChatController_1._storageKey, 0 /* StorageScope.PROFILE */) ?? '{}');
+            return state;
+        }
+        catch {
+            return undefined;
         }
     }
     _updateCtxResponseType() {
@@ -800,28 +806,9 @@ let InlineChatController = InlineChatController_1 = class InlineChatController {
         }
     }
     _updatePlaceholder() {
-        this._ui.value.widget.placeholder = this._getPlaceholderText();
-    }
-    _getPlaceholderText() {
-        return this._forcedPlaceholder ?? this._session?.agent.description ?? '';
+        this._ui.value.widget.placeholder = this._session?.agent.description ?? '';
     }
     // ---- controller API
-    showSaveHint() {
-        if (!this._session) {
-            return;
-        }
-        const status = localize('savehint', "Accept or discard changes to continue saving.");
-        this._ui.value.widget.updateStatus(status, { classes: ['warn'] });
-        if (this._ui.value.position) {
-            this._editor.revealLineInCenterIfOutsideViewport(this._ui.value.position.lineNumber);
-        }
-        else {
-            const hunk = this._session.hunkData.getInfo().find(info => info.getState() === 0 /* HunkState.Pending */);
-            if (hunk) {
-                this._editor.revealLineInCenterIfOutsideViewport(hunk.getRangesN()[0].startLineNumber);
-            }
-        }
-    }
     acceptInput() {
         return this.chatWidget.acceptInput();
     }
@@ -1004,7 +991,8 @@ InlineChatController = InlineChatController_1 = __decorate([
     __param(8, IContextKeyService),
     __param(9, IChatService),
     __param(10, IEditorService),
-    __param(11, INotebookEditorService)
+    __param(11, IStorageService),
+    __param(12, INotebookEditorService)
 ], InlineChatController);
 export { InlineChatController };
 async function moveToPanelChat(accessor, model) {

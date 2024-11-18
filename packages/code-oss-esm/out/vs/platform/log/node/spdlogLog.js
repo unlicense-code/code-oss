@@ -112,10 +112,10 @@ export class SpdLogLogger extends AbstractMessageLogger {
     }
     flush() {
         if (this._logger) {
-            this._logger.flush();
+            this.flushLogger();
         }
         else {
-            this._loggerCreationPromise.then(() => this.flush());
+            this._loggerCreationPromise.then(() => this.flushLogger());
         }
     }
     dispose() {
@@ -126,6 +126,11 @@ export class SpdLogLogger extends AbstractMessageLogger {
             this._loggerCreationPromise.then(() => this.disposeLogger());
         }
         super.dispose();
+    }
+    flushLogger() {
+        if (this._logger) {
+            this._logger.flush();
+        }
     }
     disposeLogger() {
         if (this._logger) {

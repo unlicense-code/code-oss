@@ -11,8 +11,8 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
-import * as dom from '../../../../base/browser/dom.js';
-import * as cssJs from '../../../../base/browser/cssValue.js';
+import * as cssValue from '../../../../base/browser/cssValue.js';
+import * as domStylesheets from '../../../../base/browser/domStylesheets.js';
 import { Disposable } from '../../../../base/common/lifecycle.js';
 import { IConfigurationService } from '../../../../platform/configuration/common/configuration.js';
 import { ILifecycleService } from '../../../services/lifecycle/common/lifecycle.js';
@@ -34,7 +34,7 @@ let WebviewIconManager = class WebviewIconManager extends Disposable {
     }
     get styleElement() {
         if (!this._styleElement) {
-            this._styleElement = dom.createStyleSheet(undefined, undefined, this._store);
+            this._styleElement = domStylesheets.createStyleSheet(undefined, undefined, this._store);
             this._styleElement.className = 'webview-icons';
         }
         return this._styleElement;
@@ -55,7 +55,7 @@ let WebviewIconManager = class WebviewIconManager extends Disposable {
             for (const [key, value] of this._icons) {
                 const webviewSelector = `.show-file-icons .webview-${key}-name-file-icon::before`;
                 try {
-                    cssRules.push(`.monaco-workbench.vs ${webviewSelector}, .monaco-workbench.hc-light ${webviewSelector} { content: ""; background-image: ${cssJs.asCSSUrl(value.light)}; }`, `.monaco-workbench.vs-dark ${webviewSelector}, .monaco-workbench.hc-black ${webviewSelector} { content: ""; background-image: ${cssJs.asCSSUrl(value.dark)}; }`);
+                    cssRules.push(`.monaco-workbench.vs ${webviewSelector}, .monaco-workbench.hc-light ${webviewSelector} { content: ""; background-image: ${cssValue.asCSSUrl(value.light)}; }`, `.monaco-workbench.vs-dark ${webviewSelector}, .monaco-workbench.hc-black ${webviewSelector} { content: ""; background-image: ${cssValue.asCSSUrl(value.dark)}; }`);
                 }
                 catch {
                     // noop

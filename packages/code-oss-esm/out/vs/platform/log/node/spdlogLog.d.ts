@@ -8,5 +8,6 @@ export declare class SpdLogLogger extends AbstractMessageLogger implements ILogg
     protected log(level: LogLevel, message: string): void;
     flush(): void;
     dispose(): void;
+    private flushLogger;
     private disposeLogger;
 }

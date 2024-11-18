@@ -38,6 +38,7 @@ import { Categories } from '../../../../platform/action/common/actionCommonCateg
 import { IEditorGroupsService } from '../../../services/editor/common/editorGroupsService.js';
 import { IHoverService, nativeHoverDelegate } from '../../../../platform/hover/browser/hover.js';
 import { Event } from '../../../../base/common/event.js';
+import { joinStrings } from '../../../../base/common/strings.js';
 class LanguageStatusViewModel {
     constructor(combined, dedicated) {
         this.combined = combined;
@@ -195,7 +196,7 @@ let LanguageStatus = class LanguageStatus {
                 ariaLabel: localize('langStatus.aria', "Editor Language Status: {0}", ariaLabels.join(', next: ')),
                 tooltip: element,
                 command: ShowTooltipCommand,
-                text: computeText(text, isOneBusy),
+                text: isOneBusy ? '$(loading~spin)' : text,
             };
             if (!this._combinedEntry) {
                 this._combinedEntry = this._statusBarService.addEntry(props, LanguageStatus_1._id, 1 /* StatusbarAlignment.RIGHT */, { id: 'status.editor.mode', alignment: 0 /* StatusbarAlignment.LEFT */, compact: true });
@@ -402,5 +403,5 @@ export class ResetAction extends Action2 {
     }
 }
 function computeText(text, loading) {
-    return loading ? '$(loading~spin)' : text;
+    return joinStrings([text !== '' && text, loading && '$(loading~spin)'], '\u00A0\u00A0');
 }

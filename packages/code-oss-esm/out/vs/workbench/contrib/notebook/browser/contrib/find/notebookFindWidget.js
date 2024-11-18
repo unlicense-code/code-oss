@@ -39,16 +39,19 @@ let NotebookFindContrib = class NotebookFindContrib extends Disposable {
         super();
         this.notebookEditor = notebookEditor;
         this.instantiationService = instantiationService;
-        this.widget = new Lazy(() => this._register(this.instantiationService.createInstance(NotebookFindWidget, this.notebookEditor)));
+        this._widget = new Lazy(() => this._register(this.instantiationService.createInstance(NotebookFindWidget, this.notebookEditor)));
+    }
+    get widget() {
+        return this._widget.value;
     }
     show(initialInput, options) {
-        return this.widget.value.show(initialInput, options);
+        return this._widget.value.show(initialInput, options);
     }
     hide() {
-        this.widget.rawValue?.hide();
+        this._widget.rawValue?.hide();
     }
     replace(searchString) {
-        return this.widget.value.replace(searchString);
+        return this._widget.value.replace(searchString);
     }
 };
 NotebookFindContrib = __decorate([
@@ -58,6 +61,7 @@ export { NotebookFindContrib };
 let NotebookFindWidget = class NotebookFindWidget extends SimpleFindReplaceWidget {
     constructor(_notebookEditor, contextViewService, contextKeyService, configurationService, contextMenuService, hoverService, instantiationService) {
         super(contextViewService, contextKeyService, configurationService, contextMenuService, instantiationService, hoverService, new FindReplaceState(), _notebookEditor);
+        this._isFocused = false;
         this._showTimeout = null;
         this._hideTimeout = null;
         this._findModel = new FindModel(this._notebookEditor, this._state, this._configurationService);
@@ -88,6 +92,12 @@ let NotebookFindWidget = class NotebookFindWidget extends SimpleFindReplaceWidge
         this._register(DOM.addDisposableListener(this.getDomNode(), DOM.EventType.FOCUS, e => {
             this._previousFocusElement = DOM.isHTMLElement(e.relatedTarget) ? e.relatedTarget : undefined;
         }, true));
+    }
+    get findModel() {
+        return this._findModel;
+    }
+    get isFocused() {
+        return this._isFocused;
     }
     _onFindInputKeyDown(e) {
         if (e.equals(3 /* KeyCode.Enter */)) {
@@ -173,10 +183,12 @@ let NotebookFindWidget = class NotebookFindWidget extends SimpleFindReplaceWidge
     findFirst() { }
     onFocusTrackerFocus() {
         this._findWidgetFocused.set(true);
+        this._isFocused = true;
     }
     onFocusTrackerBlur() {
         this._previousFocusElement = undefined;
         this._findWidgetFocused.reset();
+        this._isFocused = false;
     }
     onReplaceInputFocusTrackerFocus() {
         // throw new Error('Method not implemented.');

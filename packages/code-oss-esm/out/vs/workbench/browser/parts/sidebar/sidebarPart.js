@@ -122,10 +122,12 @@ let SidebarPart = class SidebarPart extends AbstractPaneCompositePart {
                 position: () => this.getCompositeBarPosition() === CompositeBarPosition.BOTTOM ? 3 /* HoverPosition.ABOVE */ : 2 /* HoverPosition.BELOW */,
             },
             fillExtraContextMenuActions: actions => {
-                const viewsSubmenuAction = this.getViewsSubmenuAction();
-                if (viewsSubmenuAction) {
-                    actions.push(new Separator());
-                    actions.push(viewsSubmenuAction);
+                if (this.getCompositeBarPosition() === CompositeBarPosition.TITLE) {
+                    const viewsSubmenuAction = this.getViewsSubmenuAction();
+                    if (viewsSubmenuAction) {
+                        actions.push(new Separator());
+                        actions.push(viewsSubmenuAction);
+                    }
                 }
             },
             compositeSize: 0,

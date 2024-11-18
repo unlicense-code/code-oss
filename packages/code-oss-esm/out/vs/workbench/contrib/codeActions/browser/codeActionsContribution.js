@@ -11,7 +11,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
-import { Emitter } from '../../../../base/common/event.js';
+import { Emitter, Event } from '../../../../base/common/event.js';
 import { HierarchicalKind } from '../../../../base/common/hierarchicalKind.js';
 import { Disposable } from '../../../../base/common/lifecycle.js';
 import { editorConfigurationBaseNode } from '../../../../editor/common/config/editorConfigurationSchema.js';
@@ -109,59 +109,38 @@ export const notebookEditorConfiguration = Object.freeze({
     }
 });
 let CodeActionsContribution = class CodeActionsContribution extends Disposable {
-    constructor(codeActionsExtensionPoint, keybindingService, languageFeatures) {
+    constructor(keybindingService, languageFeatures) {
         super();
         this.languageFeatures = languageFeatures;
-        this._contributedCodeActions = [];
-        this.settings = new Set();
-        this._onDidChangeContributions = this._register(new Emitter());
+        this._onDidChangeSchemaContributions = this._register(new Emitter());
+        this._allProvidedCodeActionKinds = [];
         // TODO: @justschen caching of code actions based on extensions loaded: https://github.com/microsoft/vscode/issues/216019
-        languageFeatures.codeActionProvider.onDidChange(() => {
-            this.updateSettingsFromCodeActionProviders();
-            this.updateConfigurationSchemaFromContribs();
-        }, 2000);
-        codeActionsExtensionPoint.setHandler(extensionPoints => {
-            this._contributedCodeActions = extensionPoints.flatMap(x => x.value).filter(x => Array.isArray(x.actions));
-            this.updateConfigurationSchema(this._contributedCodeActions);
-            this._onDidChangeContributions.fire();
-        });
+        this._register(Event.runAndSubscribe(Event.debounce(languageFeatures.codeActionProvider.onDidChange, () => { }, 1000), () => {
+            this._allProvidedCodeActionKinds = this.getAllProvidedCodeActionKinds();
+            this.updateConfigurationSchema(this._allProvidedCodeActionKinds);
+            this._onDidChangeSchemaContributions.fire();
+        }));
         keybindingService.registerSchemaContribution({
-            getSchemaAdditions: () => this.getSchemaAdditions(),
-            onDidChange: this._onDidChangeContributions.event,
+            getSchemaAdditions: () => this.getKeybindingSchemaAdditions(),
+            onDidChange: this._onDidChangeSchemaContributions.event,
         });
     }
-    updateSettingsFromCodeActionProviders() {
-        const providers = this.languageFeatures.codeActionProvider.allNoModel();
-        providers.forEach(provider => {
-            if (provider.providedCodeActionKinds) {
-                provider.providedCodeActionKinds.forEach(kind => {
-                    if (!this.settings.has(kind) && CodeActionKind.Source.contains(new HierarchicalKind(kind))) {
-                        this.settings.add(kind);
-                    }
-                });
+    getAllProvidedCodeActionKinds() {
+        const out = new Map();
+        for (const provider of this.languageFeatures.codeActionProvider.allNoModel()) {
+            for (const kind of provider.providedCodeActionKinds ?? []) {
+                out.set(kind, new HierarchicalKind(kind));
             }
-        });
-    }
-    updateConfigurationSchema(codeActionContributions) {
-        const newProperties = {};
-        const newNotebookProperties = {};
-        for (const [sourceAction, props] of this.getSourceActions(codeActionContributions)) {
-            this.settings.add(sourceAction);
-            newProperties[sourceAction] = createCodeActionsAutoSave(nls.localize('codeActionsOnSave.generic', "Controls whether '{0}' actions should be run on file save.", props.title));
-            newNotebookProperties[sourceAction] = createNotebookCodeActionsAutoSave(nls.localize('codeActionsOnSave.generic', "Controls whether '{0}' actions should be run on file save.", props.title));
         }
-        codeActionsOnSaveSchema.properties = newProperties;
-        notebookCodeActionsOnSaveSchema.properties = newNotebookProperties;
-        Registry.as(Extensions.Configuration)
-            .notifyConfigurationSchemaUpdated(editorConfiguration);
+        return Array.from(out.values());
     }
-    updateConfigurationSchemaFromContribs() {
+    updateConfigurationSchema(allProvidedKinds) {
         const properties = { ...codeActionsOnSaveSchema.properties };
         const notebookProperties = { ...notebookCodeActionsOnSaveSchema.properties };
-        for (const codeActionKind of this.settings) {
-            if (!properties[codeActionKind]) {
-                properties[codeActionKind] = createCodeActionsAutoSave(nls.localize('codeActionsOnSave.generic', "Controls whether '{0}' actions should be run on file save.", codeActionKind));
-                notebookProperties[codeActionKind] = createNotebookCodeActionsAutoSave(nls.localize('codeActionsOnSave.generic', "Controls whether '{0}' actions should be run on file save.", codeActionKind));
+        for (const codeActionKind of allProvidedKinds) {
+            if (CodeActionKind.Source.contains(codeActionKind) && !properties[codeActionKind.value]) {
+                properties[codeActionKind.value] = createCodeActionsAutoSave(nls.localize('codeActionsOnSave.generic', "Controls whether '{0}' actions should be run on file save.", codeActionKind.value));
+                notebookProperties[codeActionKind.value] = createNotebookCodeActionsAutoSave(nls.localize('codeActionsOnSave.generic', "Controls whether '{0}' actions should be run on file save.", codeActionKind.value));
             }
         }
         codeActionsOnSaveSchema.properties = properties;
@@ -169,20 +148,8 @@ let CodeActionsContribution = class CodeActionsContribution extends Disposable {
         Registry.as(Extensions.Configuration)
             .notifyConfigurationSchemaUpdated(editorConfiguration);
     }
-    getSourceActions(contributions) {
-        const sourceActions = new Map();
-        for (const contribution of contributions) {
-            for (const action of contribution.actions) {
-                const kind = new HierarchicalKind(action.kind);
-                if (CodeActionKind.Source.contains(kind)) {
-                    sourceActions.set(kind.value, action);
-                }
-            }
-        }
-        return sourceActions;
-    }
-    getSchemaAdditions() {
-        const conditionalSchema = (command, actions) => {
+    getKeybindingSchemaAdditions() {
+        const conditionalSchema = (command, kinds) => {
             return {
                 if: {
                     required: ['command'],
@@ -197,10 +164,7 @@ let CodeActionsContribution = class CodeActionsContribution extends Disposable {
                             properties: {
                                 'kind': {
                                     anyOf: [
-                                        {
-                                            enum: actions.map(action => action.kind),
-                                            enumDescriptions: actions.map(action => action.description ?? action.title),
-                                        },
+                                        { enum: Array.from(kinds) },
                                         { type: 'string' },
                                     ]
                                 }
@@ -210,25 +174,24 @@ let CodeActionsContribution = class CodeActionsContribution extends Disposable {
                 }
             };
         };
-        const getActions = (ofKind) => {
-            const allActions = this._contributedCodeActions.flatMap(desc => desc.actions);
-            const out = new Map();
-            for (const action of allActions) {
-                if (!out.has(action.kind) && ofKind.contains(new HierarchicalKind(action.kind))) {
-                    out.set(action.kind, action);
+        const filterProvidedKinds = (ofKind) => {
+            const out = new Set();
+            for (const providedKind of this._allProvidedCodeActionKinds) {
+                if (ofKind.contains(providedKind)) {
+                    out.add(providedKind.value);
                 }
             }
-            return Array.from(out.values());
+            return Array.from(out);
         };
         return [
-            conditionalSchema(codeActionCommandId, getActions(HierarchicalKind.Empty)),
-            conditionalSchema(refactorCommandId, getActions(CodeActionKind.Refactor)),
-            conditionalSchema(sourceActionCommandId, getActions(CodeActionKind.Source)),
+            conditionalSchema(codeActionCommandId, filterProvidedKinds(HierarchicalKind.Empty)),
+            conditionalSchema(refactorCommandId, filterProvidedKinds(CodeActionKind.Refactor)),
+            conditionalSchema(sourceActionCommandId, filterProvidedKinds(CodeActionKind.Source)),
         ];
     }
 };
 CodeActionsContribution = __decorate([
-    __param(1, IKeybindingService),
-    __param(2, ILanguageFeaturesService)
+    __param(0, IKeybindingService),
+    __param(1, ILanguageFeaturesService)
 ], CodeActionsContribution);
 export { CodeActionsContribution };

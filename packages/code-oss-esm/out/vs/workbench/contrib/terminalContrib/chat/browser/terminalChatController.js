@@ -38,15 +38,12 @@ let TerminalChatController = class TerminalChatController extends Disposable {
     get scopedContextKeyService() {
         return this._terminalChatWidget?.value.inlineChatWidget.scopedContextKeyService ?? this._contextKeyService;
     }
-    constructor(_ctx, chatCodeBlockContextProviderService, _chatService, _contextKeyService, _instantiationService, _terminalService, _viewsService) {
+    constructor(_ctx, chatCodeBlockContextProviderService, _contextKeyService, _instantiationService, _terminalService) {
         super();
         this._ctx = _ctx;
-        this._chatService = _chatService;
         this._contextKeyService = _contextKeyService;
         this._instantiationService = _instantiationService;
         this._terminalService = _terminalService;
-        this._viewsService = _viewsService;
-        this._terminalAgentName = 'terminal';
         this._forcedPlaceholder = undefined;
         this._register(chatCodeBlockContextProviderService.registerProvider({
             getCodeBlockContext: (editor) => {
@@ -114,44 +111,28 @@ let TerminalChatController = class TerminalChatController extends Disposable {
         return this._terminalChatWidget?.rawValue?.hasFocus() ?? false;
     }
     async viewInChat() {
-        //TODO: is this necessary? better way?
-        const widget = await showChatView(this._viewsService);
-        const currentRequest = this.terminalChatWidget?.inlineChatWidget.chatWidget.viewModel?.model.getRequests().find(r => r.id === this._currentRequestId);
-        if (!widget || !currentRequest?.response) {
-            return;
+        const chatModel = this.terminalChatWidget?.inlineChatWidget.chatWidget.viewModel?.model;
+        if (chatModel) {
+            await this._instantiationService.invokeFunction(moveToPanelChat, chatModel);
         }
-        const message = [];
-        for (const item of currentRequest.response.response.value) {
-            if (item.kind === 'textEditGroup') {
-                for (const group of item.edits) {
-                    message.push({
-                        kind: 'textEdit',
-                        edits: group,
-                        uri: item.uri
-                    });
-                }
-            }
-            else {
-                message.push(item);
-            }
-        }
-        this._chatService.addCompleteRequest(widget.viewModel.sessionId, 
-        // DEBT: Add hardcoded agent name until its removed
-        `@${this._terminalAgentName} ${currentRequest.message.text}`, currentRequest.variableData, currentRequest.attempt, {
-            message,
-            result: currentRequest.response.result,
-            followups: currentRequest.response.followups
-        });
-        widget.focusLastMessage();
         this._terminalChatWidget?.rawValue?.hide();
     }
 };
 TerminalChatController = TerminalChatController_1 = __decorate([
     __param(1, IChatCodeBlockContextProviderService),
-    __param(2, IChatService),
-    __param(3, IContextKeyService),
-    __param(4, IInstantiationService),
-    __param(5, ITerminalService),
-    __param(6, IViewsService)
+    __param(2, IContextKeyService),
+    __param(3, IInstantiationService),
+    __param(4, ITerminalService)
 ], TerminalChatController);
 export { TerminalChatController };
+async function moveToPanelChat(accessor, model) {
+    const viewsService = accessor.get(IViewsService);
+    const chatService = accessor.get(IChatService);
+    const widget = await showChatView(viewsService);
+    if (widget && widget.viewModel && model) {
+        for (const request of model.getRequests().slice()) {
+            await chatService.adoptRequest(widget.viewModel.model.sessionId, request);
+        }
+        widget.focusLastMessage();
+    }
+}

@@ -13,6 +13,7 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 };
 import * as nls from '../../../../nls.js';
 import * as dom from '../../../../base/browser/dom.js';
+import * as domStylesheetsJs from '../../../../base/browser/domStylesheets.js';
 import * as cssJs from '../../../../base/browser/cssValue.js';
 import { Action } from '../../../../base/common/actions.js';
 import { IConfigurationService } from '../../../../platform/configuration/common/configuration.js';
@@ -168,7 +169,7 @@ let TerminalViewPane = class TerminalViewPane extends ViewPane {
         }
         this._parentDomElement = container;
         this._parentDomElement.classList.add('integrated-terminal');
-        dom.createStyleSheet(this._parentDomElement);
+        domStylesheetsJs.createStyleSheet(this._parentDomElement);
         this._instantiationService.createInstance(TerminalThemeIconStyle, this._parentDomElement);
         if (!this.shouldShowWelcome()) {
             this._createTabsView();
@@ -557,7 +558,7 @@ let TerminalThemeIconStyle = class TerminalThemeIconStyle extends Themable {
         this._terminalService = _terminalService;
         this._terminalGroupService = _terminalGroupService;
         this._registerListeners();
-        this._styleElement = dom.createStyleSheet(container);
+        this._styleElement = domStylesheetsJs.createStyleSheet(container);
         this._register(toDisposable(() => this._styleElement.remove()));
         this.updateStyles();
     }

@@ -42,6 +42,7 @@ export function getSimpleEditorOptions(configurationService) {
         accessibilitySupport: configurationService.getValue('editor.accessibilitySupport'),
         cursorBlinking: configurationService.getValue('editor.cursorBlinking'),
         experimentalEditContextEnabled: configurationService.getValue('editor.experimentalEditContextEnabled'),
+        defaultColorDecorators: false,
     };
 }
 export function getSimpleCodeEditorWidgetOptions() {

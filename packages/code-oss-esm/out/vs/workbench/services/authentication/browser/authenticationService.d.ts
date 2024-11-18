@@ -38,6 +38,7 @@ export declare class AuthenticationService extends Disposable implements IAuthen
     private _declaredProviders;
     get declaredProviders(): AuthenticationProviderInformation[];
     private _registerEnvContributedAuthenticationProviders;
+    private _registerAuthenticationExtentionPointHandler;
     registerDeclaredAuthenticationProvider(provider: AuthenticationProviderInformation): void;
     unregisterDeclaredAuthenticationProvider(id: string): void;
     isAuthenticationProviderRegistered(id: string): boolean;

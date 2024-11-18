@@ -9,6 +9,7 @@ import { Command } from '../../../../../common/languages.js';
 import { IModelService } from '../../../../../common/services/model.js';
 import { InlineCompletionsModel } from '../../model/inlineCompletionsModel.js';
 import { InlineEdit } from '../../model/inlineEdit.js';
+import { InlineCompletionItem } from '../../model/provideInlineCompletions.js';
 export declare class InlineEditsViewAndDiffProducer extends Disposable {
     private readonly _editor;
     private readonly _edit;
@@ -31,9 +32,10 @@ export declare class InlineEditWithChanges {
     readonly isCollapsed: boolean;
     readonly userJumpedToIt: boolean;
     readonly commands: readonly Command[];
+    readonly inlineCompletion: InlineCompletionItem;
     readonly lineEdit: SingleLineEdit;
     readonly originalLineRange: import("../../../../../common/core/lineRange.js").LineRange;
     readonly modifiedLineRange: import("../../../../../common/core/lineRange.js").LineRange;
-    constructor(originalText: AbstractText, edit: TextEdit, isCollapsed: boolean, userJumpedToIt: boolean, commands: readonly Command[]);
+    constructor(originalText: AbstractText, edit: TextEdit, isCollapsed: boolean, userJumpedToIt: boolean, commands: readonly Command[], inlineCompletion: InlineCompletionItem);
     equals(other: InlineEditWithChanges): boolean;
 }

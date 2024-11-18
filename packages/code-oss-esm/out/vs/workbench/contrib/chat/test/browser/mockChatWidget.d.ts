@@ -11,6 +11,5 @@ export declare class MockChatWidgetService implements IChatWidgetService {
     readonly lastFocusedWidget: IChatWidget | undefined;
     getWidgetByInputUri(uri: URI): IChatWidget | undefined;
     getWidgetBySessionId(sessionId: string): IChatWidget | undefined;
-    getWidgetByLocation(location: ChatAgentLocation): IChatWidget[];
-    getAllWidgets(location: ChatAgentLocation): ReadonlyArray<IChatWidget>;
+    getWidgetsByLocations(location: ChatAgentLocation): ReadonlyArray<IChatWidget>;
 }

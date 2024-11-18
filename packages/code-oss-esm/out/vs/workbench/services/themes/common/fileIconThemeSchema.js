@@ -5,7 +5,7 @@
 import * as nls from '../../../../nls.js';
 import { Registry } from '../../../../platform/registry/common/platform.js';
 import { Extensions as JSONExtensions } from '../../../../platform/jsonschemas/common/jsonContributionRegistry.js';
-import { fontWeightRegex, fontStyleRegex, fontSizeRegex, fontIdRegex } from './productIconThemeSchema.js';
+import { fontWeightRegex, fontStyleRegex, fontSizeRegex, fontIdRegex, fontCharacterRegex, fontColorRegex } from './productIconThemeSchema.js';
 const schemaId = 'vscode://schemas/icon-theme';
 const schema = {
     type: 'object',
@@ -200,12 +200,15 @@ const schema = {
                     },
                     fontCharacter: {
                         type: 'string',
-                        description: nls.localize('schema.fontCharacter', 'When using a glyph font: The character in the font to use.')
+                        description: nls.localize('schema.fontCharacter', 'When using a glyph font: The character in the font to use.'),
+                        pattern: fontCharacterRegex,
+                        patternErrorMessage: nls.localize('schema.fontCharacter.formatError', 'The fontCharacter must be a single letter or a backslash and followed by unicode code points in hexadecimal.')
                     },
                     fontColor: {
                         type: 'string',
                         format: 'color-hex',
-                        description: nls.localize('schema.fontColor', 'When using a glyph font: The color to use.')
+                        description: nls.localize('schema.fontColor', 'When using a glyph font: The color to use.'),
+                        pattern: fontColorRegex
                     },
                     fontSize: {
                         type: 'string',

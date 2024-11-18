@@ -19,7 +19,7 @@ declare abstract class AbstractSettingsModel extends EditorModel {
     private removeDuplicateResults;
     filterSettings(filter: string, groupFilter: IGroupFilter, settingMatcher: ISettingMatcher): ISettingMatch[];
     getPreference(key: string): ISetting | undefined;
-    protected collectMetadata(groups: ISearchResultGroup[]): IStringDictionary<IFilterMetadata>;
+    protected collectMetadata(groups: ISearchResultGroup[]): IStringDictionary<IFilterMetadata> | null;
     protected get filterGroups(): ISettingsGroup[];
     abstract settingsGroups: ISettingsGroup[];
     abstract findValueMatches(filter: string, setting: ISetting): IRange[];

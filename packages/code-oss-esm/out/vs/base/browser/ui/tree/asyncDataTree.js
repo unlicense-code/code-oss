@@ -3,21 +3,21 @@
  *  Licensed under the MIT License. See License.txt in the project root for license information.
  *--------------------------------------------------------------------------------------------*/
 import { ElementsDragAndDropData } from '../list/listView.js';
-import { ComposedTreeDelegate, AbstractFindController } from './abstractTree.js';
+import { ComposedTreeDelegate, TreeFindMode as TreeFindMode, FindFilter, FindController } from './abstractTree.js';
 import { getVisibleState, isFilterResult } from './indexTreeModel.js';
 import { CompressibleObjectTree, ObjectTree } from './objectTree.js';
 import { ObjectTreeElementCollapseState, TreeError, WeakMapper } from './tree.js';
-import { createCancelablePromise, Promises, timeout, TimeoutTimer } from '../../../common/async.js';
+import { createCancelablePromise, Promises, ThrottledDelayer, timeout } from '../../../common/async.js';
 import { Codicon } from '../../../common/codicons.js';
 import { ThemeIcon } from '../../../common/themables.js';
 import { isCancellationError, onUnexpectedError } from '../../../common/errors.js';
 import { Emitter, Event } from '../../../common/event.js';
 import { Iterable } from '../../../common/iterator.js';
-import { DisposableStore, dispose } from '../../../common/lifecycle.js';
-import { isIterable, isNumber } from '../../../common/types.js';
+import { DisposableStore, dispose, toDisposable } from '../../../common/lifecycle.js';
+import { isIterable } from '../../../common/types.js';
 import { CancellationTokenSource } from '../../../common/cancellation.js';
-import { FuzzyScore } from '../../../common/filters.js';
 import { splice } from '../../../common/arrays.js';
+import { localize } from '../../../../nls.js';
 function createAsyncDataTreeNode(props) {
     return {
         ...props,
@@ -159,283 +159,101 @@ class AsyncDataTreeNodeListDragAndDrop {
         this.dnd.dispose();
     }
 }
-class AsyncFindTreeNode {
-    get children() {
-        return this._children.values();
-    }
-    constructor(element, id, sorter) {
-        this.element = element;
-        this.id = id;
-        this.sorter = sorter;
-        this._children = [];
-    }
-    addChild(child) {
-        if (!this.sorter) {
-            this._children.push(child);
-            return;
-        }
-        const index = this._children.findIndex(existingChild => this.sorter.compare(child.element, existingChild.element) < 0);
-        if (index !== -1) {
-            this._children.splice(index, 0, child);
-        }
-        else {
-            this._children.push(child);
-        }
-    }
-}
-class AsyncFindTree {
-    get rootNodes() {
-        return [...this.root.children];
-    }
-    get totalLeafs() {
-        return this._totalLeafs;
-    }
-    get totalNodes() {
-        return this.cachedNodes.size;
-    }
-    get results() {
-        return [...this._results];
-    }
-    constructor(dataSource, identityProvider, sorter) {
-        this.dataSource = dataSource;
-        this.identityProvider = identityProvider;
-        this.sorter = sorter;
-        this.cachedNodes = new Map();
-        this.root = new AsyncFindTreeNode(undefined, '_AsyncFindTreeRoot_', this.sorter);
-        this._totalLeafs = 0;
-        this._results = [];
-        if (!dataSource.getParent) {
-            throw new Error('Data source must implement `getParent`');
-        }
-    }
-    add(result) {
-        this._results.push(result);
-        const element = result.element;
-        const elementId = this.identityProvider.getId(element).toString();
-        if (this.cachedNodes.has(elementId)) {
-            return;
-        }
-        this._totalLeafs++;
-        const node = new AsyncFindTreeNode(element, elementId, this.sorter);
-        this.cachedNodes.set(elementId, node);
-        // Set up parents up till root
-        let currentNode = node;
-        while (true) {
-            let currentParentElement = this.dataSource.getParent(currentNode.element);
-            // is root
-            if (currentParentElement === currentNode.element) {
-                this.root.addChild(currentNode);
-                break;
-            }
-            currentParentElement = currentParentElement;
-            // is already in the tree
-            const parentId = this.identityProvider.getId(currentParentElement).toString();
-            const parentNode = this.cachedNodes.get(parentId);
-            if (parentNode) {
-                parentNode.addChild(currentNode);
-                break;
-            }
-            // create parent node
-            const newParent = new AsyncFindTreeNode(currentParentElement, parentId, this.sorter);
-            this.cachedNodes.set(parentId, newParent);
-            newParent.addChild(currentNode);
-            currentNode = newParent;
-        }
-    }
-}
-class AsyncFindFilter {
-    constructor(_filter) {
-        this._filter = _filter;
-        this.pattern = '';
-        this.findFilterData = new Map();
-        this.disposables = new DisposableStore();
-    }
-    setFindResults(findResults) {
-        this.findFilterData = new Map(findResults.
-            filter(result => result.filterdata !== undefined).
-            map(result => [result.element, result.filterdata]));
+class AsyncFindFilter extends FindFilter {
+    constructor(findProvider, // remove public
+    keyboardNavigationLabelProvider, filter) {
+        super(keyboardNavigationLabelProvider, filter);
+        this.findProvider = findProvider;
+        this.isFindSessionActive = false;
     }
     filter(element, parentVisibility) {
-        let visibility = 1 /* TreeVisibility.Visible */;
-        if (this._filter) {
-            const result = this._filter.filter(element, parentVisibility);
-            if (typeof result === 'boolean') {
-                visibility = result ? 1 /* TreeVisibility.Visible */ : 0 /* TreeVisibility.Hidden */;
-            }
-            else if (isFilterResult(result)) {
-                visibility = getVisibleState(result.visibility);
-            }
-            else {
-                visibility = result;
-            }
-            if (visibility === 0 /* TreeVisibility.Hidden */) {
-                return false;
-            }
+        const filterResult = super.filter(element, parentVisibility);
+        if (!this.isFindSessionActive || this.findMode === TreeFindMode.Highlight || !this.findProvider.isVisible) {
+            return filterResult;
         }
-        const filterData = this.findFilterData.get(element.element);
-        if (filterData !== undefined) {
-            return { data: filterData, visibility };
+        const visibility = isFilterResult(filterResult) ? filterResult.visibility : filterResult;
+        if (getVisibleState(visibility) === 0 /* TreeVisibility.Hidden */) {
+            return 0 /* TreeVisibility.Hidden */;
         }
-        return { data: FuzzyScore.Default, visibility };
-    }
-    dispose() {
-        dispose(this.disposables);
+        return this.findProvider.isVisible(element) ? filterResult : 0 /* TreeVisibility.Hidden */;
     }
 }
-class AsyncFindController extends AbstractFindController {
-    constructor(user, tree, findProvider, filter, sorter, dataSource, identityProvider, contextViewProvider, options, asTreeElement) {
-        super(tree, filter, contextViewProvider, { ...options, placeholder: findProvider.placeholder, toggles: findProvider.toggles });
-        this.user = user;
-        this.tree = tree;
+class AsyncFindController extends FindController {
+    constructor(tree, findProvider, filter, contextViewProvider, options) {
+        super(tree, filter, contextViewProvider, options);
         this.findProvider = findProvider;
-        this.sorter = sorter;
-        this.dataSource = dataSource;
-        this.identityProvider = identityProvider;
-        this.asTreeElement = asTreeElement;
-        this.nodes = new Map();
-        this.previousFocus = [];
-        this.previousSelection = [];
-        this.sessionId = 0;
-        this.active = false;
-        this.store = new DisposableStore();
-        this.model = tree.getModel();
-        this.scheduler = this.store.add(new TimeoutTimer());
-    }
-    setFindModeActive(active) {
-        if (this.active === active) {
-            return;
-        }
-        if (active) {
-            this.activateFindMode();
-        }
-        else {
-            this.deactivateFindMode();
-        }
-        this.active = active;
-    }
-    activateFindMode() {
-        this.sessionId++;
-        // store tree view state
-        this.previousScrollTop = this.tree.scrollTop;
-        this.previousFocus = this.tree.getFocus();
-        this.previousSelection = this.tree.getSelection();
-        this.tree.scrollTop = 0;
-        const findModel = this.tree.createNewModel({ filter: this.filter });
-        this.tree.setModel(findModel);
-    }
-    deactivateFindMode() {
-        const focus = this.tree.getFocus()[0];
-        this.tree.setModel(this.model);
-        if (focus && focus.element && this.findProvider.revealResultInTree) {
-            this.findProvider.revealResultInTree(focus.element);
-        }
-        else {
-            this.tree.scrollTop = this.previousScrollTop ?? 0;
-            this.tree.setFocus(this.previousFocus);
-            this.tree.setSelection(this.previousSelection);
-        }
-        this.activeTokenSource = undefined;
-        this.nodes.clear();
-    }
-    applyPattern(pattern) {
-        this.renderMessage(false);
-        this.scheduler.cancel();
-        this.activeTokenSource?.cancel();
-        if (!pattern) {
-            this.setFindModeActive(false);
-            return;
-        }
-        this.activeTokenSource = new CancellationTokenSource();
-        const results = this.findProvider.getFindResults(pattern, this.sessionId, this.activeTokenSource.token, this.toggles.states());
-        this.pocessFindResults(results, this.activeTokenSource.token);
-    }
-    async pocessFindResults(results, token) {
-        if (!this.dataSource.getParent || !this.identityProvider) {
-            return;
-        }
-        // Remove all nodes
-        this.clearFindResults();
-        const findTree = new AsyncFindTree(this.dataSource, this.identityProvider, this.sorter);
-        for await (const result of results) {
-            if (token.isCancellationRequested) {
-                return;
+        this.filter = filter;
+        this.activeSession = false;
+        this.asyncWorkInProgress = false;
+        this.taskQueue = new ThrottledDelayer(250);
+        // Always make sure to end the session before disposing
+        this.disposables.add(toDisposable(async () => {
+            if (this.activeSession) {
+                await this.findProvider.endSession?.();
             }
-            findTree.add(result);
+        }));
+    }
+    applyPattern(_pattern) {
+        this.renderMessage(false);
+        this.activeTokenSource?.cancel();
+        this.activeTokenSource = new CancellationTokenSource();
+        this.taskQueue.trigger(() => this.applyPatternAsync());
+    }
+    async applyPatternAsync() {
+        const token = this.activeTokenSource?.token;
+        if (!token || token.isCancellationRequested) {
+            return;
         }
+        const pattern = this.pattern;
+        if (pattern === '') {
+            if (this.activeSession) {
+                this.asyncWorkInProgress = true;
+                await this.deactivateFindSession();
+                this.asyncWorkInProgress = false;
+                if (!token.isCancellationRequested) {
+                    this.filter.reset();
+                    super.applyPattern('');
+                }
+            }
+            return;
+        }
+        if (!this.activeSession) {
+            this.activateFindSession();
+        }
+        this.asyncWorkInProgress = true;
+        const findMetadata = await this.findProvider.find(pattern, { matchType: this.matchType, findMode: this.mode }, token);
         if (token.isCancellationRequested) {
             return;
         }
-        // Redraw at the end
-        this.setFindResults(findTree);
-        this.activeTokenSource?.dispose();
-        this.activeTokenSource = undefined;
-    }
-    clearFindResults() {
-        this.schedule(() => {
-            if (!this.active) {
-                this.setFindModeActive(true);
-                return;
-            }
-            else {
-                this.filter.setFindResults([]);
-                this.tree.setChildren(null, []);
-            }
-        }, 600);
-    }
-    setFindResults(findTree) {
-        const rootChildren = [];
-        for (const rootNodes of findTree.rootNodes) {
-            rootChildren.push(this.asTreeElement(this.findNodeToAsyncNode(rootNodes, null)));
+        this.asyncWorkInProgress = false;
+        this.filter.reset();
+        super.applyPattern(pattern);
+        if (findMetadata.warningMessage) {
+            this.renderMessage(true, findMetadata.warningMessage);
         }
-        this.schedule(() => {
-            this.setFindModeActive(true);
-            this.filter.setFindResults(findTree.results);
-            this.tree.setChildren(null, rootChildren);
-            this.renderMessage(rootChildren.length === 0);
-            this.alertResults(findTree.totalLeafs);
-        }, 0);
     }
-    findNodeToAsyncNode(node, parent) {
-        const children = [];
-        if (node.element === undefined) {
-            throw new TreeError(this.user, 'Found node without an element');
-        }
-        const asyncNode = {
-            element: node.element,
-            parent,
-            children,
-            hasChildren: false,
-            defaultCollapseState: ObjectTreeElementCollapseState.PreserveOrExpanded,
-            stale: false,
-            refreshPromise: undefined,
-            slow: false,
-            forceExpanded: false
-        };
-        for (const child of node.children) {
-            children.push(this.findNodeToAsyncNode(child, asyncNode));
-        }
-        asyncNode.hasChildren = !!children.length;
-        this.nodes.set(node.element, asyncNode);
-        return asyncNode;
+    activateFindSession() {
+        this.activeSession = true;
+        this.filter.isFindSessionActive = true;
+        this.findProvider.startSession?.();
     }
-    schedule(fn, delay) {
-        if (delay === 0) {
-            this.scheduler.cancel();
-            fn();
-            return;
+    async deactivateFindSession() {
+        this.activeSession = false;
+        this.filter.isFindSessionActive = false;
+        await this.findProvider.endSession?.();
+    }
+    render() {
+        if (!this.asyncWorkInProgress) {
+            super.render();
         }
-        this.scheduler.cancelAndSet(fn, delay);
     }
     onDidToggleChange(e) {
-        super.onDidToggleChange(e);
+        // TODO@benibenj handle toggles nicely across all controllers and between controller and filter
+        this.toggles.set(e.id, e.isChecked);
+        this.filter.findMode = this.mode;
+        this.filter.findMatchType = this.matchType;
+        this.placeholder = this.mode === TreeFindMode.Filter ? localize('type to filter', "Type to filter") : localize('type to search', "Type to search");
         this.applyPattern(this.pattern);
-    }
-    getDataNode(element) {
-        return this.nodes.get(element);
-    }
-    dispose() {
-        super.dispose();
-        this.store.dispose();
     }
 }
 function asObjectTreeOptions(options) {
@@ -560,14 +378,12 @@ export class AsyncDataTree {
         this.sorter = options.sorter;
         this.getDefaultCollapseState = e => options.collapseByDefault ? (options.collapseByDefault(e) ? ObjectTreeElementCollapseState.PreserveOrCollapsed : ObjectTreeElementCollapseState.PreserveOrExpanded) : undefined;
         let asyncFindEnabled = false;
-        if (options.findResultsProvider && (options.findWidgetEnabled ?? true) && options.keyboardNavigationLabelProvider && options.contextViewProvider) {
-            if (!this.dataSource.getParent || !this.identityProvider) {
-                throw new TreeError(this.user, 'Find Provider requires `getParent` and `identityProvider`');
-            }
+        let findFilter;
+        if (options.findProvider && (options.findWidgetEnabled ?? true) && options.keyboardNavigationLabelProvider && options.contextViewProvider) {
             asyncFindEnabled = true;
+            findFilter = new AsyncFindFilter(options.findProvider, options.keyboardNavigationLabelProvider, options.filter);
         }
-        this.tree = this.createTree(user, container, delegate, renderers, { ...options, findWidgetEnabled: !asyncFindEnabled });
-        this.model = this.tree.getModel();
+        this.tree = this.createTree(user, container, delegate, renderers, { ...options, findWidgetEnabled: !asyncFindEnabled, filter: findFilter ?? options.filter });
         this.root = createAsyncDataTreeNode({
             element: undefined,
             parent: null,
@@ -583,9 +399,8 @@ export class AsyncDataTree {
         this.nodes.set(null, this.root);
         this.tree.onDidChangeCollapseState(this._onDidChangeCollapseState, this, this.disposables);
         if (asyncFindEnabled) {
-            const findFilter = this.disposables.add(new AsyncFindFilter(this.tree.options.filter));
             const findOptions = { styles: options.findWidgetStyles, showNotFoundMessage: options.showNotFoundMessage };
-            this.findController = this.disposables.add(new AsyncFindController(user, this.tree, options.findResultsProvider, findFilter, this.sorter, this.dataSource, this.identityProvider, options.contextViewProvider, findOptions, node => this.asTreeElement(node)));
+            this.findController = this.disposables.add(new AsyncFindController(this.tree, options.findProvider, findFilter, this.tree.options.contextViewProvider, findOptions));
             this.onDidChangeFindOpenState = this.findController.onDidChangeOpenState;
             this.onDidChangeFindMode = Event.None;
             this.onDidChangeFindMatchType = Event.None;
@@ -666,9 +481,6 @@ export class AsyncDataTree {
     }
     layout(height, width) {
         this.tree.layout(height, width);
-        if (isNumber(width)) {
-            this.findController?.layout(width);
-        }
     }
     style(styles) {
         this.tree.style(styles);
@@ -715,7 +527,7 @@ export class AsyncDataTree {
         }
     }
     resort(element = this.root.element, recursive = true) {
-        this.model.resort(this.getDataNode(element), recursive);
+        this.tree.resort(this.getDataNode(element), recursive);
     }
     hasNode(element) {
         return element === this.root.element || this.nodes.has(element);
@@ -892,10 +704,6 @@ export class AsyncDataTree {
     }
     // Implementation
     getDataNode(element) {
-        const asyncFindNode = this.findController?.getDataNode(element);
-        if (asyncFindNode) {
-            return asyncFindNode;
-        }
         const node = this.nodes.get((element === this.root.element ? null : element));
         if (!node) {
             const nodeIdentity = this.identityProvider?.getId(element).toString();
@@ -976,8 +784,8 @@ export class AsyncDataTree {
             return this.setChildren(node, children, recursive, viewStateContext);
         }
         catch (err) {
-            if (node !== this.root && this.model.has(node)) {
-                this.model.setCollapsed(node);
+            if (node !== this.root && this.tree.hasElement(node)) {
+                this.tree.collapse(node);
             }
             if (isCancellationError(err)) {
                 return [];
@@ -1031,7 +839,7 @@ export class AsyncDataTree {
         for (const child of node.children) {
             nodesToForget.set(child.element, child);
             if (this.identityProvider) {
-                childrenTreeNodesById.set(child.id, { node: child, collapsed: this.model.has(child) && this.model.isCollapsed(child) });
+                childrenTreeNodesById.set(child.id, { node: child, collapsed: this.tree.hasElement(child) && this.tree.isCollapsed(child) });
             }
         }
         const childrenToRefresh = [];
@@ -1107,9 +915,9 @@ export class AsyncDataTree {
                 }
             }
         };
-        this.model.setChildren(node === this.root ? null : node, children, objectTreeOptions);
+        this.tree.setChildren(node === this.root ? null : node, children, objectTreeOptions);
         if (node !== this.root) {
-            this.model.setCollapsible(node, node.hasChildren);
+            this.tree.setCollapsible(node, node.hasChildren);
         }
         this._onDidRender.fire();
     }

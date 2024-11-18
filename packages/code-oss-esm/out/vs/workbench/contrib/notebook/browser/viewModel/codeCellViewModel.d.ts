@@ -1,9 +1,9 @@
 import { Emitter, Event, PauseableEmitter } from '../../../../../base/common/event.js';
+import { IObservable } from '../../../../../base/common/observable.js';
 import { ICodeEditorService } from '../../../../../editor/browser/services/codeEditorService.js';
 import * as editorCommon from '../../../../../editor/common/editorCommon.js';
 import { ITextModelService } from '../../../../../editor/common/services/resolverService.js';
 import { IConfigurationService } from '../../../../../platform/configuration/common/configuration.js';
-import { IInstantiationService } from '../../../../../platform/instantiation/common/instantiation.js';
 import { IUndoRedoService } from '../../../../../platform/undoRedo/common/undoRedo.js';
 import { CellFindMatch, CodeCellLayoutChangeEvent, CodeCellLayoutInfo, ICellOutputViewModel, ICellViewModel } from '../notebookBrowser.js';
 import { NotebookOptionsChangeEvent } from '../notebookOptions.js';
@@ -59,8 +59,9 @@ export declare class CodeCellViewModel extends BaseCellViewModel implements ICel
     get layoutInfo(): CodeCellLayoutInfo;
     private _outputViewModels;
     get outputsViewModels(): ICellOutputViewModel[];
-    readonly excecutionError: import("../../../../../base/common/observable.js").ISettableObservable<ICellExecutionError | undefined, void>;
-    constructor(viewType: string, model: NotebookCellTextModel, initialNotebookLayoutInfo: NotebookLayoutInfo | null, viewContext: ViewContext, configurationService: IConfigurationService, _notebookService: INotebookService, modelService: ITextModelService, undoRedoService: IUndoRedoService, codeEditorService: ICodeEditorService, instantiationService: IInstantiationService);
+    get executionError(): IObservable<ICellExecutionError | undefined>;
+    private readonly _executionError;
+    constructor(viewType: string, model: NotebookCellTextModel, initialNotebookLayoutInfo: NotebookLayoutInfo | null, viewContext: ViewContext, configurationService: IConfigurationService, _notebookService: INotebookService, modelService: ITextModelService, undoRedoService: IUndoRedoService, codeEditorService: ICodeEditorService);
     updateExecutionState(e: ICellExecutionStateChangedEvent): void;
     updateOptions(e: NotebookOptionsChangeEvent): void;
     pauseLayout(): void;

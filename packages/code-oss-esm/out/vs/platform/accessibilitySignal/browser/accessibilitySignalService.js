@@ -226,11 +226,11 @@ export class Sound {
     static { this.diffLineInserted = Sound.register({ fileName: 'diffLineInserted.mp3' }); }
     static { this.diffLineDeleted = Sound.register({ fileName: 'diffLineDeleted.mp3' }); }
     static { this.diffLineModified = Sound.register({ fileName: 'diffLineModified.mp3' }); }
-    static { this.chatRequestSent = Sound.register({ fileName: 'chatRequestSent.mp3' }); }
-    static { this.chatResponseReceived1 = Sound.register({ fileName: 'chatResponseReceived1.mp3' }); }
-    static { this.chatResponseReceived2 = Sound.register({ fileName: 'chatResponseReceived2.mp3' }); }
-    static { this.chatResponseReceived3 = Sound.register({ fileName: 'chatResponseReceived3.mp3' }); }
-    static { this.chatResponseReceived4 = Sound.register({ fileName: 'chatResponseReceived4.mp3' }); }
+    static { this.requestSent = Sound.register({ fileName: 'requestSent.mp3' }); }
+    static { this.responseReceived1 = Sound.register({ fileName: 'responseReceived1.mp3' }); }
+    static { this.responseReceived2 = Sound.register({ fileName: 'responseReceived2.mp3' }); }
+    static { this.responseReceived3 = Sound.register({ fileName: 'responseReceived3.mp3' }); }
+    static { this.responseReceived4 = Sound.register({ fileName: 'responseReceived4.mp3' }); }
     static { this.clear = Sound.register({ fileName: 'clear.mp3' }); }
     static { this.save = Sound.register({ fileName: 'save.mp3' }); }
     static { this.format = Sound.register({ fileName: 'format.mp3' }); }
@@ -424,7 +424,7 @@ export class AccessibilitySignal {
     }); }
     static { this.chatRequestSent = AccessibilitySignal.register({
         name: localize('accessibilitySignals.chatRequestSent', 'Chat Request Sent'),
-        sound: Sound.chatRequestSent,
+        sound: Sound.requestSent,
         legacySoundSettingsKey: 'audioCues.chatRequestSent',
         legacyAnnouncementSettingsKey: 'accessibility.alert.chatRequestSent',
         announcementMessage: localize('accessibility.signals.chatRequestSent', 'Chat Request Sent'),
@@ -435,13 +435,27 @@ export class AccessibilitySignal {
         legacySoundSettingsKey: 'audioCues.chatResponseReceived',
         sound: {
             randomOneOf: [
-                Sound.chatResponseReceived1,
-                Sound.chatResponseReceived2,
-                Sound.chatResponseReceived3,
-                Sound.chatResponseReceived4
+                Sound.responseReceived1,
+                Sound.responseReceived2,
+                Sound.responseReceived3,
+                Sound.responseReceived4
             ]
         },
         settingsKey: 'accessibility.signals.chatResponseReceived'
+    }); }
+    static { this.codeActionTriggered = AccessibilitySignal.register({
+        name: localize('accessibilitySignals.codeActionRequestTriggered', 'Code Action Request Triggered'),
+        sound: Sound.voiceRecordingStarted,
+        legacySoundSettingsKey: 'audioCues.codeActionRequestTriggered',
+        legacyAnnouncementSettingsKey: 'accessibility.alert.codeActionRequestTriggered',
+        announcementMessage: localize('accessibility.signals.codeActionRequestTriggered', 'Code Action Request Triggered'),
+        settingsKey: 'accessibility.signals.codeActionTriggered',
+    }); }
+    static { this.codeActionApplied = AccessibilitySignal.register({
+        name: localize('accessibilitySignals.codeActionApplied', 'Code Action Applied'),
+        legacySoundSettingsKey: 'audioCues.codeActionApplied',
+        sound: Sound.voiceRecordingStopped,
+        settingsKey: 'accessibility.signals.codeActionApplied'
     }); }
     static { this.progress = AccessibilitySignal.register({
         name: localize('accessibilitySignals.progress', 'Progress'),

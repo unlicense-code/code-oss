@@ -43,7 +43,7 @@ import { IWorkspaceTrustManagementService } from '../../../../platform/workspace
 import { IWorkbenchEnvironmentService } from '../../environment/common/environmentService.js';
 import { IWorkbenchExtensionEnablementService, IWorkbenchExtensionManagementService } from '../../extensionManagement/common/extensionManagement.js';
 import { WebWorkerExtensionHost } from '../browser/webWorkerExtensionHost.js';
-import { AbstractExtensionService, ExtensionHostCrashTracker, ResolvedExtensions, checkEnabledAndProposedAPI, extensionIsEnabled } from '../common/abstractExtensionService.js';
+import { AbstractExtensionService, ExtensionHostCrashTracker, LocalExtensions, RemoteExtensions, ResolverExtensions, checkEnabledAndProposedAPI, extensionIsEnabled, isResolverExtension } from '../common/abstractExtensionService.js';
 import { parseExtensionDevOptions } from '../common/extensionDevOptions.js';
 import { extensionHostKindToString, extensionRunningPreferenceToString } from '../common/extensionHostKind.js';
 import { IExtensionManifestPropertiesService } from '../common/extensionManifestPropertiesService.js';
@@ -57,12 +57,13 @@ import { IHostService } from '../../host/browser/host.js';
 import { ILifecycleService } from '../../lifecycle/common/lifecycle.js';
 import { IRemoteAgentService } from '../../remote/common/remoteAgentService.js';
 import { IRemoteExplorerService } from '../../remote/common/remoteExplorerService.js';
+import { AsyncIterableObject } from '../../../../base/common/async.js';
 let NativeExtensionService = class NativeExtensionService extends AbstractExtensionService {
     constructor(instantiationService, notificationService, environmentService, telemetryService, extensionEnablementService, fileService, productService, extensionManagementService, contextService, configurationService, extensionManifestPropertiesService, logService, remoteAgentService, remoteExtensionsScannerService, lifecycleService, remoteAuthorityResolverService, _nativeHostService, _hostService, _remoteExplorerService, _extensionGalleryService, _workspaceTrustManagementService, dialogService) {
         const extensionsProposedApi = instantiationService.createInstance(ExtensionsProposedApi);
         const extensionScanner = instantiationService.createInstance(CachedExtensionScanner);
         const extensionHostFactory = new NativeExtensionHostFactory(extensionsProposedApi, extensionScanner, () => this._getExtensionRegistrySnapshotWhenReady(), instantiationService, environmentService, extensionEnablementService, configurationService, remoteAgentService, remoteAuthorityResolverService, logService);
-        super(extensionsProposedApi, extensionHostFactory, new NativeExtensionHostKindPicker(environmentService, configurationService, logService), instantiationService, notificationService, environmentService, telemetryService, extensionEnablementService, fileService, productService, extensionManagementService, contextService, configurationService, extensionManifestPropertiesService, logService, remoteAgentService, remoteExtensionsScannerService, lifecycleService, remoteAuthorityResolverService, dialogService);
+        super({ hasLocalProcess: true, allowRemoteExtensionsInLocalWebWorker: false }, extensionsProposedApi, extensionHostFactory, new NativeExtensionHostKindPicker(environmentService, configurationService, logService), instantiationService, notificationService, environmentService, telemetryService, extensionEnablementService, fileService, productService, extensionManagementService, contextService, configurationService, extensionManifestPropertiesService, logService, remoteAgentService, remoteExtensionsScannerService, lifecycleService, remoteAuthorityResolverService, dialogService);
         this._nativeHostService = _nativeHostService;
         this._hostService = _hostService;
         this._remoteExplorerService = _remoteExplorerService;
@@ -209,7 +210,10 @@ let NativeExtensionService = class NativeExtensionService extends AbstractExtens
         // we can only reach this if there was no resolver extension that can return the cannonical uri
         throw new Error(`Cannot get canonical URI because no extension is installed to resolve ${getRemoteAuthorityPrefix(remoteAuthority)}`);
     }
-    async _resolveExtensions() {
+    _resolveExtensions() {
+        return new AsyncIterableObject(emitter => this._doResolveExtensions(emitter));
+    }
+    async _doResolveExtensions(emitter) {
         this._extensionScanner.startScanningExtensions();
         const remoteAuthority = this._environmentService.remoteAuthority;
         let remoteEnv = null;
@@ -244,6 +248,11 @@ let NativeExtensionService = class NativeExtensionService extends AbstractExtens
             if (isCI) {
                 this._logService.info(`Finished waiting on IWorkspaceTrustManagementService.workspaceResolved.`);
             }
+            const localExtensions = await this._scanAllLocalExtensions();
+            const resolverExtensions = localExtensions.filter(extension => isResolverExtension(extension));
+            if (resolverExtensions.length) {
+                emitter.emitOne(new ResolverExtensions(resolverExtensions));
+            }
             let resolverResult;
             try {
                 resolverResult = await this._resolveAuthorityInitial(remoteAuthority);
@@ -259,7 +268,7 @@ let NativeExtensionService = class NativeExtensionService extends AbstractExtens
                 }
                 this._remoteAuthorityResolverService._setResolvedAuthorityError(remoteAuthority, err);
                 // Proceed with the local extension host
-                return this._startLocalExtensionHost();
+                return this._startLocalExtensionHost(emitter);
             }
             // set the resolved authority
             this._remoteAuthorityResolverService._setResolvedAuthority(resolverResult.authority, resolverResult.options);
@@ -282,20 +291,23 @@ let NativeExtensionService = class NativeExtensionService extends AbstractExtens
             if (!remoteEnv) {
                 this._notificationService.notify({ severity: Severity.Error, message: nls.localize('getEnvironmentFailure', "Could not fetch remote environment") });
                 // Proceed with the local extension host
-                return this._startLocalExtensionHost();
+                return this._startLocalExtensionHost(emitter);
             }
             updateProxyConfigurationsScope(remoteEnv.useHostProxy ? 1 /* ConfigurationScope.APPLICATION */ : 2 /* ConfigurationScope.MACHINE */);
         }
         else {
             this._remoteAuthorityResolverService._setCanonicalURIProvider(async (uri) => uri);
         }
-        return this._startLocalExtensionHost(remoteExtensions);
+        return this._startLocalExtensionHost(emitter, remoteExtensions);
     }
-    async _startLocalExtensionHost(remoteExtensions = []) {
+    async _startLocalExtensionHost(emitter, remoteExtensions = []) {
         // Ensure that the workspace trust state has been fully initialized so
         // that the extension host can start with the correct set of extensions.
         await this._workspaceTrustManagementService.workspaceTrustInitialized;
-        return new ResolvedExtensions(await this._scanAllLocalExtensions(), remoteExtensions, /*hasLocalProcess*/ true, /*allowRemoteExtensionsInLocalWebWorker*/ false);
+        if (remoteExtensions.length) {
+            emitter.emitOne(new RemoteExtensions(remoteExtensions));
+        }
+        emitter.emitOne(new LocalExtensions(await this._scanAllLocalExtensions()));
     }
     async _onExtensionHostExit(code) {
         // Dispose everything associated with the extension host

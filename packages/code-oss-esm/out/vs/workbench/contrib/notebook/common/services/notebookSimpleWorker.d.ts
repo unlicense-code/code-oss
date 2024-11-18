@@ -1,3 +1,4 @@
+import { IDiffResult } from '../../../../../base/common/diff/diff.js';
 import { IDisposable } from '../../../../../base/common/lifecycle.js';
 import { URI } from '../../../../../base/common/uri.js';
 import { IRequestHandler, IWorkerServer } from '../../../../../base/common/worker/simpleWorker.js';
@@ -41,6 +42,7 @@ export declare class NotebookEditorSimpleWorker implements IRequestHandler, IDis
     $acceptCellModelChanged(strURL: string, handle: number, event: IModelChangedEvent): void;
     $acceptRemovedModel(strURL: string): void;
     $computeDiff(originalUrl: string, modifiedUrl: string): Promise<INotebookDiffResult>;
+    $computeDiffWithCellIds(original: MirrorNotebookDocument, modified: MirrorNotebookDocument): Promise<IDiffResult | undefined>;
     $canPromptRecommendation(modelUrl: string): boolean;
     protected _getModel(uri: string): MirrorNotebookDocument;
 }

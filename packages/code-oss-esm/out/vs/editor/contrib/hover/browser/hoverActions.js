@@ -22,7 +22,7 @@ export class ShowOrFocusHoverAction extends EditorAction {
     constructor() {
         super({
             id: SHOW_OR_FOCUS_HOVER_ACTION_ID,
-            label: nls.localize({
+            label: nls.localize2({
                 key: 'showOrFocusHover',
                 comment: [
                     'Label for action that will trigger the showing/focusing of a hover in the editor.',
@@ -51,7 +51,6 @@ export class ShowOrFocusHoverAction extends EditorAction {
                         }
                     }]
             },
-            alias: 'Show or Focus Hover',
             precondition: undefined,
             kbOpts: {
                 kbExpr: EditorContextKeys.editorTextFocus,
@@ -99,14 +98,13 @@ export class ShowDefinitionPreviewHoverAction extends EditorAction {
     constructor() {
         super({
             id: SHOW_DEFINITION_PREVIEW_HOVER_ACTION_ID,
-            label: nls.localize({
+            label: nls.localize2({
                 key: 'showDefinitionPreviewHover',
                 comment: [
                     'Label for action that will trigger the showing of definition preview hover in the editor.',
                     'This allows for users to show the definition preview hover without using the mouse.'
                 ]
             }, "Show Definition Preview Hover"),
-            alias: 'Show Definition Preview Hover',
             precondition: undefined,
             metadata: {
                 description: nls.localize2('showDefinitionPreviewHoverDescription', 'Show the definition preview hover in the editor.'),
@@ -137,13 +135,12 @@ export class ScrollUpHoverAction extends EditorAction {
     constructor() {
         super({
             id: SCROLL_UP_HOVER_ACTION_ID,
-            label: nls.localize({
+            label: nls.localize2({
                 key: 'scrollUpHover',
                 comment: [
                     'Action that allows to scroll up in the hover widget with the up arrow when the hover widget is focused.'
                 ]
             }, "Scroll Up Hover"),
-            alias: 'Scroll Up Hover',
             precondition: EditorContextKeys.hoverFocused,
             kbOpts: {
                 kbExpr: EditorContextKeys.hoverFocused,
@@ -167,13 +164,12 @@ export class ScrollDownHoverAction extends EditorAction {
     constructor() {
         super({
             id: SCROLL_DOWN_HOVER_ACTION_ID,
-            label: nls.localize({
+            label: nls.localize2({
                 key: 'scrollDownHover',
                 comment: [
                     'Action that allows to scroll down in the hover widget with the up arrow when the hover widget is focused.'
                 ]
             }, "Scroll Down Hover"),
-            alias: 'Scroll Down Hover',
             precondition: EditorContextKeys.hoverFocused,
             kbOpts: {
                 kbExpr: EditorContextKeys.hoverFocused,
@@ -197,13 +193,12 @@ export class ScrollLeftHoverAction extends EditorAction {
     constructor() {
         super({
             id: SCROLL_LEFT_HOVER_ACTION_ID,
-            label: nls.localize({
+            label: nls.localize2({
                 key: 'scrollLeftHover',
                 comment: [
                     'Action that allows to scroll left in the hover widget with the left arrow when the hover widget is focused.'
                 ]
             }, "Scroll Left Hover"),
-            alias: 'Scroll Left Hover',
             precondition: EditorContextKeys.hoverFocused,
             kbOpts: {
                 kbExpr: EditorContextKeys.hoverFocused,
@@ -227,13 +222,12 @@ export class ScrollRightHoverAction extends EditorAction {
     constructor() {
         super({
             id: SCROLL_RIGHT_HOVER_ACTION_ID,
-            label: nls.localize({
+            label: nls.localize2({
                 key: 'scrollRightHover',
                 comment: [
                     'Action that allows to scroll right in the hover widget with the right arrow when the hover widget is focused.'
                 ]
             }, "Scroll Right Hover"),
-            alias: 'Scroll Right Hover',
             precondition: EditorContextKeys.hoverFocused,
             kbOpts: {
                 kbExpr: EditorContextKeys.hoverFocused,
@@ -257,13 +251,12 @@ export class PageUpHoverAction extends EditorAction {
     constructor() {
         super({
             id: PAGE_UP_HOVER_ACTION_ID,
-            label: nls.localize({
+            label: nls.localize2({
                 key: 'pageUpHover',
                 comment: [
                     'Action that allows to page up in the hover widget with the page up command when the hover widget is focused.'
                 ]
             }, "Page Up Hover"),
-            alias: 'Page Up Hover',
             precondition: EditorContextKeys.hoverFocused,
             kbOpts: {
                 kbExpr: EditorContextKeys.hoverFocused,
@@ -288,13 +281,12 @@ export class PageDownHoverAction extends EditorAction {
     constructor() {
         super({
             id: PAGE_DOWN_HOVER_ACTION_ID,
-            label: nls.localize({
+            label: nls.localize2({
                 key: 'pageDownHover',
                 comment: [
                     'Action that allows to page down in the hover widget with the page down command when the hover widget is focused.'
                 ]
             }, "Page Down Hover"),
-            alias: 'Page Down Hover',
             precondition: EditorContextKeys.hoverFocused,
             kbOpts: {
                 kbExpr: EditorContextKeys.hoverFocused,
@@ -319,13 +311,12 @@ export class GoToTopHoverAction extends EditorAction {
     constructor() {
         super({
             id: GO_TO_TOP_HOVER_ACTION_ID,
-            label: nls.localize({
+            label: nls.localize2({
                 key: 'goToTopHover',
                 comment: [
                     'Action that allows to go to the top of the hover widget with the home command when the hover widget is focused.'
                 ]
             }, "Go To Top Hover"),
-            alias: 'Go To Bottom Hover',
             precondition: EditorContextKeys.hoverFocused,
             kbOpts: {
                 kbExpr: EditorContextKeys.hoverFocused,
@@ -350,13 +341,12 @@ export class GoToBottomHoverAction extends EditorAction {
     constructor() {
         super({
             id: GO_TO_BOTTOM_HOVER_ACTION_ID,
-            label: nls.localize({
+            label: nls.localize2({
                 key: 'goToBottomHover',
                 comment: [
                     'Action that allows to go to the bottom in the hover widget with the end command when the hover widget is focused.'
                 ]
             }, "Go To Bottom Hover"),
-            alias: 'Go To Bottom Hover',
             precondition: EditorContextKeys.hoverFocused,
             kbOpts: {
                 kbExpr: EditorContextKeys.hoverFocused,

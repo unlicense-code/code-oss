@@ -7,13 +7,13 @@ export declare const Extensions: {
 };
 export type IconDefaults = ThemeIcon | IconDefinition;
 export interface IconDefinition {
-    font?: IconFontContribution;
-    fontCharacter: string;
+    readonly font?: IconFontContribution;
+    readonly fontCharacter: string;
 }
 export interface IconContribution {
     readonly id: string;
     description: string | undefined;
-    deprecationMessage?: string;
+    readonly deprecationMessage?: string;
     readonly defaults: IconDefaults;
 }
 export declare namespace IconContribution {

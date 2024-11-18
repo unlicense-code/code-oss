@@ -51,9 +51,7 @@ let PostEditWidget = class PostEditWidget extends Disposable {
         this.editor.layoutContentWidget(this);
         this._register(toDisposable((() => this.editor.removeContentWidget(this))));
         this._register(this.editor.onDidChangeCursorPosition(e => {
-            if (!range.containsPosition(e.position)) {
-                this.dispose();
-            }
+            this.dispose();
         }));
         this._register(Event.runAndSubscribe(_keybindingService.onDidUpdateKeybindings, () => {
             this._updateButtonTitle();
@@ -98,7 +96,9 @@ let PostEditWidget = class PostEditWidget extends Disposable {
                 };
             })
         ], {
-            onHide: () => { },
+            onHide: () => {
+                this.editor.focus();
+            },
             onSelect: (item) => {
                 this._actionWidgetService.hide(false);
                 const i = this.edits.allEdits.findIndex(edit => edit === item);

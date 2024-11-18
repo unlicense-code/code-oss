@@ -31,7 +31,7 @@ import { showExtensionsWithIdsCommandId } from '../../extensions/browser/extensi
 import { IExtensionsWorkbenchService } from '../../extensions/common/extensions.js';
 import { ChatAgentLocation, IChatAgentService } from '../common/chatAgents.js';
 import { ChatContextKeys } from '../common/chatContextKeys.js';
-import { CHAT_VIEW_ID } from './chat.js';
+import { ChatViewId } from './chat.js';
 import { CHAT_EDITING_SIDEBAR_PANEL_ID, CHAT_SIDEBAR_PANEL_ID, ChatViewPane } from './chatViewPane.js';
 const chatParticipantExtensionPoint = extensionsRegistry.ExtensionsRegistry.registerExtensionPoint({
     extensionPoint: 'chatParticipants',
@@ -274,7 +274,7 @@ let ChatExtensionPointHandler = class ChatExtensionPointHandler {
         // Register View. Name must be hardcoded because we want to show it even when the extension fails to load due to an API version incompatibility.
         const name = 'GitHub Copilot';
         const viewDescriptor = [{
-                id: CHAT_VIEW_ID,
+                id: ChatViewId,
                 containerIcon: this._viewContainer.icon,
                 containerTitle: this._viewContainer.title.value,
                 singleViewPaneContainerTitle: this._viewContainer.title.value,
@@ -294,7 +294,7 @@ let ChatExtensionPointHandler = class ChatExtensionPointHandler {
                     order: 1
                 },
                 ctorDescriptor: new SyncDescriptor(ChatViewPane, [{ location: ChatAgentLocation.Panel }]),
-                when: ContextKeyExpr.or(ChatContextKeys.panelParticipantRegistered, ChatContextKeys.extensionInvalid, ChatContextKeys.ChatSetup.running)
+                when: ContextKeyExpr.or(ChatContextKeys.panelParticipantRegistered, ChatContextKeys.extensionInvalid, ChatContextKeys.setupRunning)
             }];
         Registry.as(ViewExtensions.ViewsRegistry).registerViews(viewDescriptor, this._viewContainer);
         return toDisposable(() => {
@@ -384,7 +384,7 @@ let ChatCompatibilityNotifier = class ChatCompatibilityNotifier extends Disposab
         const commandButton = `[${showExtensionLabel}](command:${showExtensionsWithIdsCommandId}?${encodeURIComponent(JSON.stringify([['GitHub.copilot-chat']]))})`;
         const versionMessage = `GitHub Copilot Chat version: ${chatExtension.version}`;
         const viewsRegistry = Registry.as(ViewExtensions.ViewsRegistry);
-        this._register(viewsRegistry.registerViewWelcomeContent(CHAT_VIEW_ID, {
+        this._register(viewsRegistry.registerViewWelcomeContent(ChatViewId, {
             content: [mainMessage, commandButton, versionMessage].join('\n\n'),
             when: ChatContextKeys.extensionInvalid,
         }));

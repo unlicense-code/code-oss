@@ -4,12 +4,13 @@
  *--------------------------------------------------------------------------------------------*/
 import { observableFromEvent } from '../../../../base/common/observable.js';
 import { localize } from '../../../../nls.js';
+import { Registry } from '../../../../platform/registry/common/platform.js';
+import { Extensions } from '../../../common/configuration.js';
 export var TestingConfigKeys;
 (function (TestingConfigKeys) {
-    TestingConfigKeys["AutoRunDelay"] = "testing.autoRun.delay";
     TestingConfigKeys["AutoOpenPeekView"] = "testing.automaticallyOpenPeekView";
     TestingConfigKeys["AutoOpenPeekViewDuringContinuousRun"] = "testing.automaticallyOpenPeekViewDuringAutoRun";
-    TestingConfigKeys["OpenTesting"] = "testing.openTesting";
+    TestingConfigKeys["OpenResults"] = "testing.automaticallyOpenResults";
     TestingConfigKeys["FollowRunningTest"] = "testing.followRunningTest";
     TestingConfigKeys["DefaultGutterClickAction"] = "testing.defaultGutterClickAction";
     TestingConfigKeys["GutterEnabled"] = "testing.gutterEnabled";
@@ -61,12 +62,6 @@ export const testingConfiguration = {
     title: localize('testConfigurationTitle', "Testing"),
     type: 'object',
     properties: {
-        ["testing.autoRun.delay" /* TestingConfigKeys.AutoRunDelay */]: {
-            type: 'integer',
-            minimum: 0,
-            description: localize('testing.autoRun.delay', "How long to wait, in milliseconds, after a test is marked as outdated and starting a new run."),
-            default: 1000,
-        },
         ["testing.automaticallyOpenPeekView" /* TestingConfigKeys.AutoOpenPeekView */]: {
             description: localize('testing.automaticallyOpenPeekView', "Configures when the error Peek view is automatically opened."),
             enum: [
@@ -110,7 +105,7 @@ export const testingConfiguration = {
         ["testing.followRunningTest" /* TestingConfigKeys.FollowRunningTest */]: {
             description: localize('testing.followRunningTest', 'Controls whether the running test should be followed in the Test Explorer view.'),
             type: 'boolean',
-            default: true,
+            default: false,
         },
         ["testing.defaultGutterClickAction" /* TestingConfigKeys.DefaultGutterClickAction */]: {
             description: localize('testing.defaultGutterClickAction', 'Controls the action to take when left-clicking on a test decoration in the gutter.'),
@@ -138,7 +133,7 @@ export const testingConfiguration = {
             type: 'boolean',
             default: true,
         },
-        ["testing.openTesting" /* TestingConfigKeys.OpenTesting */]: {
+        ["testing.automaticallyOpenResults" /* TestingConfigKeys.OpenResults */]: {
             enum: [
                 "neverOpen" /* AutoOpenTesting.NeverOpen */,
                 "openOnTestStart" /* AutoOpenTesting.OpenOnTestStart */,
@@ -194,5 +189,12 @@ export const testingConfiguration = {
         },
     }
 };
+Registry.as(Extensions.ConfigurationMigration)
+    .registerConfigurationMigrations([{
+        key: 'testing.openTesting',
+        migrateFn: (value) => {
+            return [["testing.automaticallyOpenResults" /* TestingConfigKeys.OpenResults */, { value }]];
+        }
+    }]);
 export const getTestingConfiguration = (config, key) => config.getValue(key);
 export const observeTestingConfiguration = (config, key) => observableFromEvent(config.onDidChangeConfiguration, () => getTestingConfiguration(config, key));

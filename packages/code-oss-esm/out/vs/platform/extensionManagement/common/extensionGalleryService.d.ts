@@ -41,6 +41,7 @@ declare abstract class AbstractExtensionGalleryService implements IExtensionGall
     private readonly extensionsGalleryUrl;
     private readonly extensionsGallerySearchUrl;
     private readonly extensionsControlUrl;
+    private readonly extensionUrlTemplate;
     private readonly commonHeadersPromise;
     private readonly extensionsEnabledWithApiProposalVersion;
     constructor(storageService: IStorageService | undefined, requestService: IRequestService, logService: ILogService, environmentService: IEnvironmentService, telemetryService: ITelemetryService, fileService: IFileService, productService: IProductService, configurationService: IConfigurationService);
@@ -49,6 +50,7 @@ declare abstract class AbstractExtensionGalleryService implements IExtensionGall
     getExtensions(extensionInfos: ReadonlyArray<IExtensionInfo>, token: CancellationToken): Promise<IGalleryExtension[]>;
     getExtensions(extensionInfos: ReadonlyArray<IExtensionInfo>, options: IExtensionQueryOptions, token: CancellationToken): Promise<IGalleryExtension[]>;
     private doGetExtensions;
+    private getExtensionsUsingResourceApi;
     getCompatibleExtension(extension: IGalleryExtension, includePreRelease: boolean, targetPlatform: TargetPlatform, productVersion?: IProductVersion): Promise<IGalleryExtension | null>;
     isExtensionCompatible(extension: IGalleryExtension, includePreRelease: boolean, targetPlatform: TargetPlatform, productVersion?: IProductVersion): Promise<boolean>;
     private areApiProposalsCompatible;
@@ -57,6 +59,7 @@ declare abstract class AbstractExtensionGalleryService implements IExtensionGall
     private queryGalleryExtensions;
     private toGalleryExtensionWithCriteria;
     private queryRawGalleryExtensions;
+    private getLatestRawGalleryExtension;
     reportStatistic(publisher: string, name: string, version: string, type: StatisticType): Promise<void>;
     download(extension: IGalleryExtension, location: URI, operation: InstallOperation): Promise<void>;
     downloadSignatureArchive(extension: IGalleryExtension, location: URI): Promise<void>;

@@ -3,6 +3,7 @@ import { EditorAction, IActionOptions, ServicesAccessor } from '../../../browser
 import { ICodeEditorService } from '../../../browser/services/codeEditorService.js';
 import { IEditorContribution } from '../../../common/editorCommon.js';
 import { IMarkerNavigationService } from './markerNavigationService.js';
+import * as nls from '../../../../nls.js';
 import { IContextKeyService } from '../../../../platform/contextkey/common/contextkey.js';
 import { IInstantiationService } from '../../../../platform/instantiation/common/instantiation.js';
 import { IMarker } from '../../../../platform/markers/common/markers.js';
@@ -34,7 +35,7 @@ declare class MarkerNavigationAction extends EditorAction {
 }
 export declare class NextMarkerAction extends MarkerNavigationAction {
     static ID: string;
-    static LABEL: string;
+    static LABEL: nls.ILocalizedString;
     constructor();
 }
 export {};

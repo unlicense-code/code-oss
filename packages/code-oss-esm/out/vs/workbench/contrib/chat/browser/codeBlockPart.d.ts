@@ -69,7 +69,6 @@ export declare class CodeBlockPart extends Disposable {
     private readonly vulnsListElement;
     private currentCodeBlockData;
     private currentScrollWidth;
-    private readonly disposableStore;
     private isDisposed;
     private resourceContextKey;
     constructor(options: ChatEditorOptions, menuId: MenuId, delegate: IChatRendererDelegate, overflowWidgetsDomNode: HTMLElement | undefined, instantiationService: IInstantiationService, contextKeyService: IContextKeyService, modelService: IModelService, configurationService: IConfigurationService, accessibilityService: IAccessibilityService);
@@ -82,7 +81,7 @@ export declare class CodeBlockPart extends Disposable {
     private getEditorOptionsFromConfig;
     layout(width: number): void;
     private getContentHeight;
-    render(data: ICodeBlockData, width: number, editable: boolean | undefined): Promise<void>;
+    render(data: ICodeBlockData, width: number): Promise<void>;
     reset(): void;
     private clearWidgets;
     private updateEditor;

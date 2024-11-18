@@ -64,9 +64,10 @@ export class ExtensionPointUserDelta {
     }
 }
 export class ExtensionPoint {
-    constructor(name, defaultExtensionKind) {
+    constructor(name, defaultExtensionKind, canHandleResolver) {
         this.name = name;
         this.defaultExtensionKind = defaultExtensionKind;
+        this.canHandleResolver = canHandleResolver;
         this._handler = null;
         this._users = null;
         this._delta = null;
@@ -552,7 +553,7 @@ export class ExtensionsRegistryImpl {
         if (this._extensionPoints.has(desc.extensionPoint)) {
             throw new Error('Duplicate extension point: ' + desc.extensionPoint);
         }
-        const result = new ExtensionPoint(desc.extensionPoint, desc.defaultExtensionKind);
+        const result = new ExtensionPoint(desc.extensionPoint, desc.defaultExtensionKind, desc.canHandleResolver);
         this._extensionPoints.set(desc.extensionPoint, result);
         if (desc.activationEventsGenerator) {
             ImplicitActivationEvents.register(desc.extensionPoint, desc.activationEventsGenerator);

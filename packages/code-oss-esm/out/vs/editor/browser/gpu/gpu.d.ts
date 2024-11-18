@@ -1,3 +1,4 @@
+import type { ViewConfigurationChangedEvent, ViewLinesChangedEvent, ViewLinesDeletedEvent, ViewLinesInsertedEvent, ViewScrollChangedEvent, ViewTokensChangedEvent } from '../../common/viewEvents.js';
 import type { ViewportData } from '../../common/viewLayout/viewLinesViewportData.js';
 import type { ViewLineOptions } from '../viewParts/viewLines/viewLineOptions.js';
 export declare const enum BindingId {
@@ -13,6 +14,12 @@ export declare const enum BindingId {
 export interface IGpuRenderStrategy {
     readonly wgsl: string;
     readonly bindGroupEntries: GPUBindGroupEntry[];
+    onLinesDeleted(e: ViewLinesDeletedEvent): boolean;
+    onConfigurationChanged(e: ViewConfigurationChangedEvent): boolean;
+    onTokensChanged(e: ViewTokensChangedEvent): boolean;
+    onLinesInserted(e: ViewLinesInsertedEvent): boolean;
+    onLinesChanged(e: ViewLinesChangedEvent): boolean;
+    onScrollChanged(e?: ViewScrollChangedEvent): boolean;
     /**
      * Resets the render strategy, clearing all data and setting up for a new frame.
      */

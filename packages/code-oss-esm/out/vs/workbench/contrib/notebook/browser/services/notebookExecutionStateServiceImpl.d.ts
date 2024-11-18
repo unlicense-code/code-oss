@@ -16,12 +16,14 @@ export declare class NotebookExecutionStateService extends Disposable implements
     private readonly _notebookListeners;
     private readonly _cellListeners;
     private readonly _lastFailedCells;
+    private readonly _lastCompletedCellHandles;
     private readonly _onDidChangeExecution;
     onDidChangeExecution: import("../../../../../base/common/event.js").Event<ICellExecutionStateChangedEvent | IExecutionStateChangedEvent>;
     private readonly _onDidChangeLastRunFailState;
     onDidChangeLastRunFailState: import("../../../../../base/common/event.js").Event<INotebookFailStateChangedEvent>;
     constructor(_instantiationService: IInstantiationService, _logService: ILogService, _notebookService: INotebookService, _accessibilitySignalService: IAccessibilitySignalService);
     getLastFailedCellForNotebook(notebook: URI): number | undefined;
+    getLastCompletedCellForNotebook(notebook: URI): number | undefined;
     forceCancelNotebookExecutions(notebookUri: URI): void;
     getCellExecution(cellUri: URI): INotebookCellExecution | undefined;
     getExecution(notebook: URI): INotebookExecution | undefined;

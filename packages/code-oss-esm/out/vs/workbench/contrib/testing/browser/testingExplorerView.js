@@ -607,7 +607,6 @@ let TestingExplorerViewModel = class TestingExplorerViewModel extends Disposable
             accessibilityProvider: instantiationService.createInstance(ListAccessibilityProvider),
             filter: this.filter,
             findWidgetEnabled: false,
-            openOnSingleClick: false,
         });
         // saves the collapse state so that if items are removed or refreshed, they
         // retain the same state (#170169)
@@ -652,8 +651,17 @@ let TestingExplorerViewModel = class TestingExplorerViewModel extends Disposable
             }
         }));
         this._register(this.tree.onDidOpen(e => {
-            if (e.element instanceof TestItemTreeElement && !e.element.children.size && e.element.test.item.uri) {
-                commandService.executeCommand('vscode.revealTest', e.element.test.item.extId);
+            if (!(e.element instanceof TestItemTreeElement)) {
+                return;
+            }
+            filterState.didSelectTestInExplorer(e.element.test.item.extId);
+            if (!e.element.children.size && e.element.test.item.uri) {
+                if (!this.tryPeekError(e.element)) {
+                    commandService.executeCommand('vscode.revealTest', e.element.test.item.extId, {
+                        openToSide: e.sideBySide,
+                        preserveFocus: true,
+                    });
+                }
             }
         }));
         this._register(this.tree);
@@ -675,18 +683,6 @@ let TestingExplorerViewModel = class TestingExplorerViewModel extends Disposable
         this._register(onDidChangeVisibility(visible => {
             if (visible) {
                 filterState.focusInput();
-            }
-        }));
-        this._register(this.tree.onDidChangeSelection(evt => {
-            if (dom.isMouseEvent(evt.browserEvent) && (evt.browserEvent.altKey || evt.browserEvent.shiftKey)) {
-                return; // don't focus when alt-clicking to multi select
-            }
-            const selected = evt.elements[0];
-            if (selected && evt.browserEvent && selected instanceof TestItemTreeElement) {
-                filterState.didSelectTestInExplorer(selected.test.item.extId);
-                if (selected.children.size === 0 && selected.test.expand === 0 /* TestItemExpandState.NotExpandable */) {
-                    this.tryPeekError(selected);
-                }
             }
         }));
         let followRunningTests = getTestingConfiguration(configurationService, "testing.followRunningTest" /* TestingConfigKeys.FollowRunningTest */);

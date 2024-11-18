@@ -1,7 +1,6 @@
 import { Disposable, IReference } from '../../../../../base/common/lifecycle.js';
 import { IObservable, ITransaction } from '../../../../../base/common/observable.js';
 import { URI } from '../../../../../base/common/uri.js';
-import { IBulkEditService } from '../../../../../editor/browser/services/bulkEditService.js';
 import { OffsetEdit } from '../../../../../editor/common/core/offsetEdit.js';
 import { IDocumentDiff } from '../../../../../editor/common/diff/documentDiffProvider.js';
 import { TextEdit } from '../../../../../editor/common/languages.js';
@@ -16,20 +15,20 @@ import { IChatAgentResult } from '../../common/chatAgents.js';
 import { ChatEditKind, IModifiedFileEntry, WorkingSetEntryState } from '../../common/chatEditingService.js';
 import { IChatService } from '../../common/chatService.js';
 export declare class ChatEditingModifiedFileEntry extends Disposable implements IModifiedFileEntry {
-    readonly resource: URI;
     private readonly _multiDiffEntryDelegate;
     private _telemetryInfo;
-    readonly bulkEditService: IBulkEditService;
     private readonly _chatService;
     private readonly _editorWorkerService;
     private readonly _undoRedoService;
     private readonly _fileService;
     static readonly scheme = "modified-file-entry";
-    static lastEntryId: number;
+    private static lastEntryId;
     readonly entryId: string;
-    readonly docSnapshot: ITextModel;
-    private readonly doc;
+    private readonly docSnapshot;
     private readonly originalContent;
+    private readonly doc;
+    private readonly docFileEditorModel;
+    private _allEditsAreFromUs;
     private readonly _onDidDelete;
     get onDidDelete(): import("../../../../../base/common/event.js").Event<void>;
     get originalURI(): URI;
@@ -55,9 +54,9 @@ export declare class ChatEditingModifiedFileEntry extends Disposable implements 
     get telemetryInfo(): IModifiedEntryTelemetryInfo;
     readonly createdInRequestId: string | undefined;
     get lastModifyingRequestId(): string;
-    constructor(resource: URI, resourceRef: IReference<IResolvedTextEditorModel>, _multiDiffEntryDelegate: {
+    constructor(resourceRef: IReference<IResolvedTextEditorModel>, _multiDiffEntryDelegate: {
         collapse: (transaction: ITransaction | undefined) => void;
-    }, _telemetryInfo: IModifiedEntryTelemetryInfo, kind: ChatEditKind, modelService: IModelService, textModelService: ITextModelService, languageService: ILanguageService, bulkEditService: IBulkEditService, _chatService: IChatService, _editorWorkerService: IEditorWorkerService, _undoRedoService: IUndoRedoService, _fileService: IFileService);
+    }, _telemetryInfo: IModifiedEntryTelemetryInfo, kind: ChatEditKind, modelService: IModelService, textModelService: ITextModelService, languageService: ILanguageService, _chatService: IChatService, _editorWorkerService: IEditorWorkerService, _undoRedoService: IUndoRedoService, _fileService: IFileService);
     private _clearCurrentEditLineDecoration;
     updateTelemetryInfo(telemetryInfo: IModifiedEntryTelemetryInfo): void;
     createSnapshot(requestId: string | undefined): ISnapshotEntry;

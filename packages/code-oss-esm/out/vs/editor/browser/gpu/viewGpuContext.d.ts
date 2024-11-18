@@ -9,10 +9,24 @@ import { IConfigurationService } from '../../../platform/configuration/common/co
 import { INotificationService } from '../../../platform/notification/common/notification.js';
 import { RectangleRenderer } from './rectangleRenderer.js';
 import type { ViewContext } from '../../common/viewModel/viewContext.js';
+declare const enum GpuRenderLimits {
+    maxGpuLines = 3000,
+    maxGpuCols = 200
+}
 export declare class ViewGpuContext extends Disposable {
     private readonly _instantiationService;
     private readonly _notificationService;
     private readonly configurationService;
+    /**
+     * The temporary hard cap for lines rendered by the GPU renderer. This can be removed once more
+     * dynamic allocation is implemented in https://github.com/microsoft/vscode/issues/227091
+     */
+    readonly maxGpuLines = GpuRenderLimits.maxGpuLines;
+    /**
+     * The temporary hard cap for line columns rendered by the GPU renderer. This can be removed
+     * once more dynamic allocation is implemented in https://github.com/microsoft/vscode/issues/227108
+     */
+    readonly maxGpuCols = GpuRenderLimits.maxGpuCols;
     readonly canvas: FastDomNode<HTMLCanvasElement>;
     readonly ctx: GPUCanvasContext;
     readonly device: Promise<GPUDevice>;
@@ -43,4 +57,9 @@ export declare class ViewGpuContext extends Disposable {
      * decorations that use class names.
      */
     static canRender(options: ViewLineOptions, viewportData: ViewportData, lineNumber: number): boolean;
+    /**
+     * Like {@link canRender} but returned detailed information about why the line cannot be rendered.
+     */
+    static canRenderDetailed(options: ViewLineOptions, viewportData: ViewportData, lineNumber: number): string[];
 }
+export {};

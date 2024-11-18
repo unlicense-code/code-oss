@@ -13,7 +13,8 @@ import { IModelContentChangedEvent } from '../../../../common/textModelEvents.js
 import { GhostTextOrReplacement } from './ghostText.js';
 import { InlineCompletionWithUpdatedRange } from './inlineCompletionsSource.js';
 import { InlineEdit } from './inlineEdit.js';
-import { SuggestItemInfo } from './suggestWidgetAdaptor.js';
+import { InlineCompletionItem } from './provideInlineCompletions.js';
+import { SuggestItemInfo } from './suggestWidgetAdapter.js';
 export declare class InlineCompletionsModel extends Disposable {
     readonly textModel: ITextModel;
     readonly selectedSuggestItem: IObservable<SuggestItemInfo | undefined>;
@@ -105,6 +106,7 @@ export declare class InlineCompletionsModel extends Disposable {
     extractReproSample(): Repro;
     private _jumpedTo;
     jump(): void;
+    handleInlineCompletionShown(inlineCompletion: InlineCompletionItem): Promise<void>;
 }
 interface Repro {
     documentValue: string;

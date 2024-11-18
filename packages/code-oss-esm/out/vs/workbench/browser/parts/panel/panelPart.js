@@ -115,6 +115,13 @@ let PanelPart = class PanelPart extends AbstractPaneCompositePart {
         };
     }
     fillExtraContextMenuActions(actions) {
+        if (this.getCompositeBarPosition() === CompositeBarPosition.TITLE) {
+            const viewsSubmenuAction = this.getViewsSubmenuAction();
+            if (viewsSubmenuAction) {
+                actions.push(new Separator());
+                actions.push(viewsSubmenuAction);
+            }
+        }
         const panelPositionMenu = this.menuService.getMenuActions(MenuId.PanelPositionMenu, this.contextKeyService, { shouldForwardArgs: true });
         const panelAlignMenu = this.menuService.getMenuActions(MenuId.PanelAlignmentMenu, this.contextKeyService, { shouldForwardArgs: true });
         const positionActions = getContextMenuActions(panelPositionMenu).secondary;

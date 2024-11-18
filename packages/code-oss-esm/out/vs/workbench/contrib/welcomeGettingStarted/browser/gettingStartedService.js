@@ -309,7 +309,7 @@ let WalkthroughsService = class WalkthroughsService extends Disposable {
         const hadLastFoucs = await this.hostService.hadLastFocus();
         if (hadLastFoucs && sectionToOpen && this.configurationService.getValue('workbench.welcomePage.walkthroughs.openOnInstall')) {
             this.telemetryService.publicLog2('gettingStarted.didAutoOpenWalkthrough', { id: sectionToOpen });
-            this.commandService.executeCommand('workbench.action.openWalkthrough', sectionToOpen, true);
+            this.commandService.executeCommand('workbench.action.openWalkthrough', sectionToOpen);
         }
     }
     unregisterExtensionWalkthroughContributions(extension) {

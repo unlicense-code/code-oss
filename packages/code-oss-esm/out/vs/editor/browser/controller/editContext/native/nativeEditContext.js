@@ -51,6 +51,7 @@ let NativeEditContext = class NativeEditContext extends AbstractEditContext {
         this.domNode.setClassName(`native-edit-context`);
         this.textArea = new FastDomNode(document.createElement('textarea'));
         this.textArea.setClassName(NativeEditContext_1.TEXT_AREA_CLASS_NAME);
+        this.textArea.setAttribute('modeluri', context.viewModel.model.uri.path);
         this._updateDomAttributes();
         overflowGuardContainer.appendChild(this.domNode);
         overflowGuardContainer.appendChild(this.textArea);

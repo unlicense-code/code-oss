@@ -285,6 +285,7 @@ let SearchWidget = class SearchWidget extends Widget {
         this._toggleReplaceButtonListener.value = this.toggleReplaceButton.onDidClick(() => this.onToggleReplaceButton());
     }
     renderSearchInput(parent, options) {
+        const history = options.searchHistory || [];
         const inputOptions = {
             label: nls.localize('label.Search', 'Search: Type Search Term and press Enter to search'),
             validation: (value) => this.validateSearchInput(value),
@@ -292,7 +293,7 @@ let SearchWidget = class SearchWidget extends Widget {
             appendCaseSensitiveLabel: appendKeyBindingLabel('', this.keybindingService.lookupKeybinding("toggleSearchCaseSensitive" /* Constants.SearchCommandIds.ToggleCaseSensitiveCommandId */)),
             appendWholeWordsLabel: appendKeyBindingLabel('', this.keybindingService.lookupKeybinding("toggleSearchWholeWord" /* Constants.SearchCommandIds.ToggleWholeWordCommandId */)),
             appendRegexLabel: appendKeyBindingLabel('', this.keybindingService.lookupKeybinding("toggleSearchRegex" /* Constants.SearchCommandIds.ToggleRegexCommandId */)),
-            history: options.searchHistory,
+            history: new Set(history),
             showHistoryHint: () => showHistoryKeybindingHint(this.keybindingService),
             flexibleHeight: true,
             flexibleMaxHeight: SearchWidget_1.INPUT_MAX_HEIGHT,

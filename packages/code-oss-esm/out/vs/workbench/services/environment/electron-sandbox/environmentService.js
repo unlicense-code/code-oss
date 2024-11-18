@@ -27,6 +27,7 @@ export class NativeWorkbenchEnvironmentService extends AbstractNativeEnvironment
     get window() {
         return {
             id: this.configuration.windowId,
+            handle: this.configuration.handle,
             colorScheme: this.configuration.colorScheme,
             maximized: this.configuration.maximized,
             accessibilitySupport: this.configuration.accessibilitySupport,

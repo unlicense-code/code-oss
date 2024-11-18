@@ -412,7 +412,8 @@ let NativeLocalProcessExtensionHost = class NativeLocalProcessExtensionHost {
             loggers: [...this._loggerService.getRegisteredLoggers()],
             logsLocation: this._environmentService.extHostLogsPath,
             autoStart: (this.startup === 1 /* ExtensionHostStartup.EagerAutoStart */),
-            uiKind: UIKind.Desktop
+            uiKind: UIKind.Desktop,
+            handle: this._environmentService.window.handle
         };
     }
     _onExtHostProcessExit(code, signal) {

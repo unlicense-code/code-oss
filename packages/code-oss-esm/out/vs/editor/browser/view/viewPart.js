@@ -26,6 +26,7 @@ export var PartFingerprint;
     PartFingerprint[PartFingerprint["TextArea"] = 7] = "TextArea";
     PartFingerprint[PartFingerprint["ViewLines"] = 8] = "ViewLines";
     PartFingerprint[PartFingerprint["Minimap"] = 9] = "Minimap";
+    PartFingerprint[PartFingerprint["ViewLinesGpu"] = 10] = "ViewLinesGpu";
 })(PartFingerprint || (PartFingerprint = {}));
 export class PartFingerprints {
     static write(target, partId) {

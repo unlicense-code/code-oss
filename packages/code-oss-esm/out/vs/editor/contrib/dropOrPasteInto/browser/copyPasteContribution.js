@@ -4,14 +4,12 @@
  *--------------------------------------------------------------------------------------------*/
 import { HierarchicalKind } from '../../../../base/common/hierarchicalKind.js';
 import * as nls from '../../../../nls.js';
-import { Extensions as ConfigurationExtensions } from '../../../../platform/configuration/common/configurationRegistry.js';
-import { Registry } from '../../../../platform/registry/common/platform.js';
 import { EditorAction, EditorCommand, registerEditorAction, registerEditorCommand, registerEditorContribution } from '../../../browser/editorExtensions.js';
-import { editorConfigurationBaseNode } from '../../../common/config/editorConfigurationSchema.js';
 import { EditorContextKeys } from '../../../common/editorContextKeys.js';
 import { registerEditorFeature } from '../../../common/editorFeatures.js';
-import { CopyPasteController, changePasteTypeCommandId, pasteWidgetVisibleCtx, pasteAsPreferenceConfig } from './copyPasteController.js';
+import { CopyPasteController, changePasteTypeCommandId, pasteWidgetVisibleCtx } from './copyPasteController.js';
 import { DefaultPasteProvidersFeature, DefaultTextPasteOrDropEditProvider } from './defaultProviders.js';
+export const pasteAsCommandId = 'editor.action.pasteAs';
 registerEditorContribution(CopyPasteController.ID, CopyPasteController, 0 /* EditorContributionInstantiation.Eager */); // eager because it listens to events on the container dom node of the editor
 registerEditorFeature(DefaultPasteProvidersFeature);
 registerEditorCommand(new class extends EditorCommand {
@@ -56,9 +54,8 @@ registerEditorAction(class PasteAsAction extends EditorAction {
     }; }
     constructor() {
         super({
-            id: 'editor.action.pasteAs',
-            label: nls.localize('pasteAs', "Paste As..."),
-            alias: 'Paste As...',
+            id: pasteAsCommandId,
+            label: nls.localize2('pasteAs', "Paste As..."),
             precondition: EditorContextKeys.writable,
             metadata: {
                 description: 'Paste as',
@@ -83,27 +80,11 @@ registerEditorAction(class extends EditorAction {
     constructor() {
         super({
             id: 'editor.action.pasteAsText',
-            label: nls.localize('pasteAsText', "Paste as Text"),
-            alias: 'Paste as Text',
+            label: nls.localize2('pasteAsText', "Paste as Text"),
             precondition: EditorContextKeys.writable,
         });
     }
     run(_accessor, editor) {
         return CopyPasteController.get(editor)?.pasteAs({ providerId: DefaultTextPasteOrDropEditProvider.id });
-    }
-});
-Registry.as(ConfigurationExtensions.Configuration).registerConfiguration({
-    ...editorConfigurationBaseNode,
-    properties: {
-        [pasteAsPreferenceConfig]: {
-            type: 'array',
-            scope: 5 /* ConfigurationScope.LANGUAGE_OVERRIDABLE */,
-            description: nls.localize('preferredDescription', "Configures the preferred type of edit to use when pasting content.\n\nThis is an ordered list of edit kinds. The first available edit of a preferred kind will be used."),
-            default: [],
-            items: {
-                type: 'string',
-                description: nls.localize('kind', "The kind identifier of the paste edit."),
-            }
-        },
     }
 });

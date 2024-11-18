@@ -9,7 +9,7 @@ import { ColorScheme } from '../../../../platform/theme/common/theme.js';
 import { ThemeIcon } from '../../../../base/common/themables.js';
 import { ITerminalProfileResolverService } from '../common/terminal.js';
 import { ansiColorMap } from '../common/terminalColorRegistry.js';
-import { createStyleSheet } from '../../../../base/browser/dom.js';
+import { createStyleSheet } from '../../../../base/browser/domStylesheets.js';
 import { DisposableStore } from '../../../../base/common/lifecycle.js';
 export function getColorClass(terminalOrColorKey) {
     let color = undefined;

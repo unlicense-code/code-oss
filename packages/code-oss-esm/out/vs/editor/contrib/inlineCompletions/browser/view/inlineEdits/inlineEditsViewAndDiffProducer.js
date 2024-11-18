@@ -76,7 +76,7 @@ let InlineEditsViewAndDiffProducer = class InlineEditsViewAndDiffProducer extend
                 }
                 const edits = innerChanges.map(c => new SingleTextEdit(addRangeToPos(rangeStartPos, c.originalRange), this._modifiedModel.get().getValueInRange(c.modifiedRange)));
                 const diffEdits = new TextEdit(edits);
-                return new InlineEditWithChanges(text, diffEdits, inlineEdit.isCollapsed, inlineEdit.renderExplicitly, inlineEdit.commands); //inlineEdit.showInlineIfPossible);
+                return new InlineEditWithChanges(text, diffEdits, inlineEdit.isCollapsed, inlineEdit.renderExplicitly, inlineEdit.commands, inlineEdit.inlineCompletion); //inlineEdit.showInlineIfPossible);
             });
         });
         this._inlineEdit = derivedOpts({ owner: this, equalsFn: equalsIfDefined(itemEquals()) }, reader => this._inlineEditPromise.read(reader)?.read(reader));
@@ -90,12 +90,13 @@ InlineEditsViewAndDiffProducer = InlineEditsViewAndDiffProducer_1 = __decorate([
 ], InlineEditsViewAndDiffProducer);
 export { InlineEditsViewAndDiffProducer };
 export class InlineEditWithChanges {
-    constructor(originalText, edit, isCollapsed, userJumpedToIt, commands) {
+    constructor(originalText, edit, isCollapsed, userJumpedToIt, commands, inlineCompletion) {
         this.originalText = originalText;
         this.edit = edit;
         this.isCollapsed = isCollapsed;
         this.userJumpedToIt = userJumpedToIt;
         this.commands = commands;
+        this.inlineCompletion = inlineCompletion;
         this.lineEdit = SingleLineEdit.fromSingleTextEdit(this.edit.toSingle(this.originalText), this.originalText);
         this.originalLineRange = this.lineEdit.lineRange;
         this.modifiedLineRange = this.lineEdit.toLineEdit().getNewLineRanges()[0];
@@ -105,6 +106,7 @@ export class InlineEditWithChanges {
             this.edit.equals(other.edit) &&
             this.isCollapsed === other.isCollapsed &&
             this.userJumpedToIt === other.userJumpedToIt &&
-            this.commands === other.commands;
+            this.commands === other.commands &&
+            this.inlineCompletion === other.inlineCompletion;
     }
 }

@@ -206,6 +206,7 @@ export class MenuId {
     static { this.ChatInputSide = new MenuId('ChatInputSide'); }
     static { this.ChatEditingWidgetToolbar = new MenuId('ChatEditingWidgetToolbar'); }
     static { this.ChatEditingEditorContent = new MenuId('ChatEditingEditorContent'); }
+    static { this.ChatEditingEditorHunk = new MenuId('ChatEditingEditorHunk'); }
     static { this.ChatEditingWidgetModifiedFilesToolbar = new MenuId('ChatEditingWidgetModifiedFilesToolbar'); }
     static { this.ChatInputResourceAttachmentContext = new MenuId('ChatInputResourceAttachmentContext'); }
     static { this.ChatInlineResourceAnchorContext = new MenuId('ChatInlineResourceAnchorContext'); }

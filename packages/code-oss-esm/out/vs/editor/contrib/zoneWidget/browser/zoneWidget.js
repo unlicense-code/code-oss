@@ -3,6 +3,7 @@
  *  Licensed under the MIT License. See License.txt in the project root for license information.
  *--------------------------------------------------------------------------------------------*/
 import * as dom from '../../../../base/browser/dom.js';
+import * as domStylesheetsJs from '../../../../base/browser/domStylesheets.js';
 import { Sash } from '../../../../base/browser/ui/sash/sash.js';
 import { Color, RGBA } from '../../../../base/common/color.js';
 import { IdGenerator } from '../../../../base/common/idGenerator.js';
@@ -66,7 +67,7 @@ class Arrow {
     }
     dispose() {
         this.hide();
-        dom.removeCSSRulesContainingSelector(this._ruleName);
+        domStylesheetsJs.removeCSSRulesContainingSelector(this._ruleName);
     }
     set color(value) {
         if (this._color !== value) {
@@ -81,8 +82,8 @@ class Arrow {
         }
     }
     _updateStyle() {
-        dom.removeCSSRulesContainingSelector(this._ruleName);
-        dom.createCSSRule(`.monaco-editor ${this._ruleName}`, `border-style: solid; border-color: transparent; border-bottom-color: ${this._color}; border-width: ${this._height}px; bottom: -${this._height}px !important; margin-left: -${this._height}px; `);
+        domStylesheetsJs.removeCSSRulesContainingSelector(this._ruleName);
+        domStylesheetsJs.createCSSRule(`.monaco-editor ${this._ruleName}`, `border-style: solid; border-color: transparent; border-bottom-color: ${this._color}; border-width: ${this._height}px; bottom: -${this._height}px !important; margin-left: -${this._height}px; `);
     }
     show(where) {
         if (where.column === 1) {

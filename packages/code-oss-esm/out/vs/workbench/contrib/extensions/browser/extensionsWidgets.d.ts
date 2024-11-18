@@ -85,6 +85,7 @@ export declare class RemoteBadgeWidget extends ExtensionWidget {
 export declare class ExtensionPackCountWidget extends ExtensionWidget {
     private readonly parent;
     private element;
+    private countBadge;
     constructor(parent: HTMLElement);
     private clear;
     render(): void;

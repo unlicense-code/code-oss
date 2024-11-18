@@ -25,7 +25,8 @@ import { IThemeService } from '../../../../platform/theme/common/themeService.js
 import { STATUS_BAR_BACKGROUND, STATUS_BAR_FOREGROUND, STATUS_BAR_NO_FOLDER_BACKGROUND, STATUS_BAR_ITEM_HOVER_BACKGROUND, STATUS_BAR_BORDER, STATUS_BAR_NO_FOLDER_FOREGROUND, STATUS_BAR_NO_FOLDER_BORDER, STATUS_BAR_ITEM_COMPACT_HOVER_BACKGROUND, STATUS_BAR_ITEM_FOCUS_BORDER, STATUS_BAR_FOCUS_BORDER } from '../../../common/theme.js';
 import { IWorkspaceContextService } from '../../../../platform/workspace/common/workspace.js';
 import { contrastBorder, activeContrastBorder } from '../../../../platform/theme/common/colorRegistry.js';
-import { EventHelper, createStyleSheet, addDisposableListener, EventType, clearNode, getWindow } from '../../../../base/browser/dom.js';
+import { EventHelper, addDisposableListener, EventType, clearNode, getWindow } from '../../../../base/browser/dom.js';
+import { createStyleSheet } from '../../../../base/browser/domStylesheets.js';
 import { IStorageService } from '../../../../platform/storage/common/storage.js';
 import { IWorkbenchLayoutService } from '../../../services/layout/browser/layoutService.js';
 import { registerSingleton } from '../../../../platform/instantiation/common/extensions.js';

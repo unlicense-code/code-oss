@@ -82,6 +82,8 @@ export class ExplorerItem {
         this._unknown = _unknown;
         this.error = undefined;
         this._isExcluded = false;
+        // Find
+        this.markedAsFindResult = false;
         this._isDirectoryResolved = false;
     }
     get isExcluded() {
@@ -147,7 +149,11 @@ export class ExplorerItem {
         this._parent?.addChild(this);
     }
     getId() {
-        return this.root.resource.toString() + '::' + this.resource.toString();
+        let id = this.root.resource.toString() + '::' + this.resource.toString();
+        if (this.isMarkedAsFiltered()) {
+            id += '::findFilterResult';
+        }
+        return id;
     }
     toString() {
         return `ExplorerItem: ${this.name}`;
@@ -405,6 +411,17 @@ export class ExplorerItem {
             }
         }
         return null;
+    }
+    isMarkedAsFiltered() {
+        return this.markedAsFindResult;
+    }
+    markItemAndParentsAsFiltered() {
+        this.markedAsFindResult = true;
+        this.parent?.markItemAndParentsAsFiltered();
+    }
+    unmarkItemAndChildren() {
+        this.markedAsFindResult = false;
+        this.children.forEach(child => child.unmarkItemAndChildren());
     }
 }
 __decorate([

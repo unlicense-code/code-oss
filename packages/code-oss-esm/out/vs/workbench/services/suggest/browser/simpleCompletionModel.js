@@ -18,11 +18,9 @@ var Refilter;
     Refilter[Refilter["Incr"] = 2] = "Incr";
 })(Refilter || (Refilter = {}));
 export class SimpleCompletionModel {
-    constructor(_items, _lineContext, replacementIndex, replacementLength) {
+    constructor(_items, _lineContext) {
         this._items = _items;
         this._lineContext = _lineContext;
-        this.replacementIndex = replacementIndex;
-        this.replacementLength = replacementLength;
         this._refilterKind = 1 /* Refilter.All */;
         this._fuzzyScoreOptions = FuzzyScoreOptions.default;
         // TODO: Pass in options
@@ -75,7 +73,7 @@ export class SimpleCompletionModel {
             // filter and score against. In theory each suggestion uses a
             // different word, but in practice not - that's why we cache
             // TODO: Fix
-            const overwriteBefore = this.replacementLength; // item.position.column - item.editStart.column;
+            const overwriteBefore = item.completion.replacementLength; // item.position.column - item.editStart.column;
             const wordLen = overwriteBefore + characterCountDelta; // - (item.position.column - this._column);
             if (word.length !== wordLen) {
                 word = wordLen === 0 ? '' : leadingLineContent.slice(-wordLen);

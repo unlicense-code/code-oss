@@ -9,10 +9,12 @@ import { HorizontalPosition } from '../view/renderingContext.js';
 import { ViewContext } from '../../common/viewModel/viewContext.js';
 import * as viewEvents from '../../common/viewEvents.js';
 import { ViewEventHandler } from '../../common/viewEventHandler.js';
+import type { ViewLinesGpu } from '../viewParts/viewLinesGpu/viewLinesGpu.js';
 export interface IPointerHandlerHelper {
     viewDomNode: HTMLElement;
     linesContentDomNode: HTMLElement;
     viewLinesDomNode: HTMLElement;
+    viewLinesGpu: ViewLinesGpu | undefined;
     focusTextArea(): void;
     dispatchTextAreaEvent(event: CustomEvent): void;
     /**

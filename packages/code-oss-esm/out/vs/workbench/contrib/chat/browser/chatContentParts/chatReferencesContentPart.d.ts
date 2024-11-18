@@ -15,6 +15,7 @@ import { IDisposableReference } from './chatCollections.js';
 import { IChatContentPart } from './chatContentParts.js';
 export interface IChatReferenceListItem extends IChatContentReference {
     title?: string;
+    description?: string;
     state?: WorkingSetEntryState;
 }
 export type IChatCollapsibleListItem = IChatReferenceListItem | IChatWarningMessage;

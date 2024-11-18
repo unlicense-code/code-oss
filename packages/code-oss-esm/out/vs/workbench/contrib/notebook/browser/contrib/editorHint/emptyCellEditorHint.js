@@ -41,10 +41,6 @@ let EmptyCellEditorHintContribution = class EmptyCellEditorHintContribution exte
         return { clickable: false };
     }
     _shouldRenderHint() {
-        const shouldRenderHint = super._shouldRenderHint();
-        if (!shouldRenderHint) {
-            return false;
-        }
         const model = this.editor.getModel();
         if (!model) {
             return false;
@@ -54,7 +50,11 @@ let EmptyCellEditorHintContribution = class EmptyCellEditorHintContribution exte
             return false;
         }
         const activeEditor = getNotebookEditorFromEditorPane(this._editorService.activeEditorPane);
-        if (!activeEditor) {
+        if (!activeEditor || !activeEditor.isDisposed) {
+            return false;
+        }
+        const shouldRenderHint = super._shouldRenderHint();
+        if (!shouldRenderHint) {
             return false;
         }
         const activeCell = activeEditor.getActiveCell();

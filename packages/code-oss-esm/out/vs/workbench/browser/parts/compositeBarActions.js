@@ -455,10 +455,11 @@ let CompositeActionViewItem = class CompositeActionViewItem extends CompositeBar
         return { verticallyBefore: top, horizontallyBefore: left };
     }
     showContextMenu(container) {
-        const actions = [this.toggleCompositePinnedAction, this.toggleCompositeBadgeAction];
+        const actions = [];
         if (this.compositeBarActionItem.keybindingId) {
             actions.push(createConfigureKeybindingAction(this.commandService, this.keybindingService, this.compositeBarActionItem.keybindingId));
         }
+        actions.push(this.toggleCompositePinnedAction, this.toggleCompositeBadgeAction);
         const compositeContextMenuActions = this.compositeContextMenuActionsProvider(this.compositeBarActionItem.id);
         if (compositeContextMenuActions.length) {
             actions.push(...compositeContextMenuActions);

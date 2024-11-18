@@ -1,6 +1,6 @@
 import { ICommandAction } from '../../../../platform/action/common/action.js';
 import { ContextKeyExpression } from '../../../../platform/contextkey/common/contextkey.js';
-export declare const revealInsideBarCommand: {
+export declare const revealInSideBarCommand: {
     id: string;
     title: string;
 };

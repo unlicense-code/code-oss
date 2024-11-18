@@ -9,6 +9,7 @@ import { HorizontalPosition } from '../view/renderingContext.js';
 import { ViewContext } from '../../common/viewModel/viewContext.js';
 import { IViewModel } from '../../common/viewModel.js';
 import { InjectedText } from '../../common/modelLineProjectionData.js';
+import type { ViewLinesGpu } from '../viewParts/viewLinesGpu/viewLinesGpu.js';
 declare const enum HitTestResultType {
     Unknown = 0,
     Content = 1
@@ -54,6 +55,7 @@ export declare class HitTestContext {
     readonly viewModel: IViewModel;
     readonly layoutInfo: EditorLayoutInfo;
     readonly viewDomNode: HTMLElement;
+    readonly viewLinesGpu: ViewLinesGpu | undefined;
     readonly lineHeight: number;
     readonly stickyTabStops: boolean;
     readonly typicalHalfwidthCharacterWidth: number;

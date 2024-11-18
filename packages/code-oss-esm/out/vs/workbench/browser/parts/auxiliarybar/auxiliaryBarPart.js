@@ -137,10 +137,12 @@ let AuxiliaryBarPart = class AuxiliaryBarPart extends AbstractPaneCompositePart 
     }
     fillExtraContextMenuActions(actions) {
         const currentPositionRight = this.layoutService.getSideBarPosition() === 0 /* Position.LEFT */;
-        const viewsSubmenuAction = this.getViewsSubmenuAction();
-        if (viewsSubmenuAction) {
-            actions.push(new Separator());
-            actions.push(viewsSubmenuAction);
+        if (this.getCompositeBarPosition() === CompositeBarPosition.TITLE) {
+            const viewsSubmenuAction = this.getViewsSubmenuAction();
+            if (viewsSubmenuAction) {
+                actions.push(new Separator());
+                actions.push(viewsSubmenuAction);
+            }
         }
         const activityBarPositionMenu = this.menuService.getMenuActions(MenuId.ActivityBarPositionMenu, this.contextKeyService, { shouldForwardArgs: true, renderShortTitle: true });
         const positionActions = getContextMenuActions(activityBarPositionMenu).secondary;

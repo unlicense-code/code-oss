@@ -39,6 +39,7 @@ export declare class InlineCompletionList {
 export declare class InlineCompletionItem {
     readonly filterText: string;
     readonly command: Command | undefined;
+    readonly shownCommand: Command | undefined;
     readonly range: Range;
     readonly insertText: string;
     readonly snippetInfo: SnippetInfo | undefined;
@@ -54,7 +55,8 @@ export declare class InlineCompletionItem {
     */
     readonly source: InlineCompletionList;
     static from(inlineCompletion: InlineCompletion, source: InlineCompletionList, defaultReplaceRange: Range, textModel: ITextModel, languageConfigurationService: ILanguageConfigurationService | undefined): InlineCompletionItem;
-    constructor(filterText: string, command: Command | undefined, range: Range, insertText: string, snippetInfo: SnippetInfo | undefined, additionalTextEdits: readonly ISingleEditOperation[], 
+    private _didCallShow;
+    constructor(filterText: string, command: Command | undefined, shownCommand: Command | undefined, range: Range, insertText: string, snippetInfo: SnippetInfo | undefined, additionalTextEdits: readonly ISingleEditOperation[], 
     /**
      * A reference to the original inline completion this inline completion has been constructed from.
      * Used for event data to ensure referential equality.
@@ -65,6 +67,8 @@ export declare class InlineCompletionItem {
      * Used for event data to ensure referential equality.
     */
     source: InlineCompletionList);
+    get didShow(): boolean;
+    markAsShown(): void;
     withRange(updatedRange: Range): InlineCompletionItem;
     hash(): string;
     toSingleTextEdit(): SingleTextEdit;

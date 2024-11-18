@@ -69,20 +69,23 @@ let WorkbenchButtonBar = class WorkbenchButtonBar extends ButtonBar {
                     actionRunner: this._actionRunner,
                     actions: rest,
                     contextMenuProvider: this._contextMenuService,
-                    ariaLabel: action.label
+                    ariaLabel: action.label,
+                    supportIcons: true,
                 });
             }
             else {
                 action = actionOrSubmenu;
                 btn = this.addButton({
                     secondary: conifgProvider(action, i)?.isSecondary ?? secondary,
-                    ariaLabel: action.label
+                    ariaLabel: action.label,
+                    supportIcons: true,
                 });
             }
             btn.enabled = action.enabled;
             btn.checked = action.checked ?? false;
             btn.element.classList.add('default-colors');
-            if (conifgProvider(action, i)?.showLabel ?? true) {
+            const showLabel = conifgProvider(action, i)?.showLabel ?? true;
+            if (showLabel) {
                 btn.label = action.label;
             }
             else {
@@ -90,7 +93,14 @@ let WorkbenchButtonBar = class WorkbenchButtonBar extends ButtonBar {
             }
             if (conifgProvider(action, i)?.showIcon) {
                 if (action instanceof MenuItemAction && ThemeIcon.isThemeIcon(action.item.icon)) {
-                    btn.icon = action.item.icon;
+                    if (!showLabel) {
+                        btn.icon = action.item.icon;
+                    }
+                    else {
+                        // this is REALLY hacky but combining a codicon and normal text is ugly because
+                        // the former define a font which doesn't work for text
+                        btn.label = `$(${action.item.icon.id}) ${action.label}`;
+                    }
                 }
                 else if (action.class) {
                     btn.element.classList.add(...action.class.split(' '));
@@ -99,10 +109,10 @@ let WorkbenchButtonBar = class WorkbenchButtonBar extends ButtonBar {
             const kb = this._keybindingService.lookupKeybinding(action.id);
             let tooltip;
             if (kb) {
-                tooltip = localize('labelWithKeybinding', "{0} ({1})", action.tooltip ?? action.label, kb.getLabel());
+                tooltip = localize('labelWithKeybinding', "{0} ({1})", action.tooltip || action.label, kb.getLabel());
             }
             else {
-                tooltip = action.tooltip ?? action.label;
+                tooltip = action.tooltip || action.label;
             }
             this._updateStore.add(this._hoverService.setupManagedHover(hoverDelegate, btn.element, tooltip));
             this._updateStore.add(btn.onDidClick(async () => {

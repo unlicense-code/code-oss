@@ -183,6 +183,7 @@ export class HitTestContext {
         const options = context.configuration.options;
         this.layoutInfo = options.get(148 /* EditorOption.layoutInfo */);
         this.viewDomNode = viewHelper.viewDomNode;
+        this.viewLinesGpu = viewHelper.viewLinesGpu;
         this.lineHeight = options.get(68 /* EditorOption.lineHeight */);
         this.stickyTabStops = options.get(119 /* EditorOption.stickyTabStops */);
         this.typicalHalfwidthCharacterWidth = options.get(52 /* EditorOption.fontInfo */).typicalHalfwidthCharacterWidth;
@@ -589,6 +590,31 @@ export class MouseTargetFactory {
                 const detail = createEmptyContentDataInLines(request.mouseContentHorizontalOffset - lineWidth);
                 const pos = new Position(lineNumber, ctx.viewModel.getLineMaxColumn(lineNumber));
                 return request.fulfillContentEmpty(pos, detail);
+            }
+        }
+        else {
+            if (ctx.viewLinesGpu) {
+                const lineNumber = ctx.getLineNumberAtVerticalOffset(request.mouseVerticalOffset);
+                if (ctx.viewModel.getLineLength(lineNumber) === 0) {
+                    const lineWidth = ctx.getLineWidth(lineNumber);
+                    const detail = createEmptyContentDataInLines(request.mouseContentHorizontalOffset - lineWidth);
+                    return request.fulfillContentEmpty(new Position(lineNumber, 1), detail);
+                }
+                const lineWidth = ctx.getLineWidth(lineNumber);
+                if (request.mouseContentHorizontalOffset >= lineWidth) {
+                    // TODO: This is wrong for RTL
+                    const detail = createEmptyContentDataInLines(request.mouseContentHorizontalOffset - lineWidth);
+                    const pos = new Position(lineNumber, ctx.viewModel.getLineMaxColumn(lineNumber));
+                    return request.fulfillContentEmpty(pos, detail);
+                }
+                const position = ctx.viewLinesGpu.getPositionAtCoordinate(lineNumber, request.mouseContentHorizontalOffset);
+                if (position) {
+                    const detail = {
+                        injectedText: null,
+                        mightBeForeignElement: false
+                    };
+                    return request.fulfillContentText(position, EditorRange.fromPositions(position, position), detail);
+                }
             }
         }
         // Do the hit test (if not already done)

@@ -291,14 +291,11 @@ export function areApiProposalsCompatible(apiProposals, arg1) {
     const incompatibleProposals = [];
     const parsedProposals = parseApiProposals(apiProposals);
     for (const { proposalName, version } of parsedProposals) {
-        const existingProposal = productApiProposals[proposalName];
-        if (!existingProposal) {
-            continue;
-        }
         if (!version) {
             continue;
         }
-        if (existingProposal.version !== version) {
+        const existingProposal = productApiProposals[proposalName];
+        if (existingProposal?.version !== version) {
             incompatibleProposals.push(proposalName);
         }
     }

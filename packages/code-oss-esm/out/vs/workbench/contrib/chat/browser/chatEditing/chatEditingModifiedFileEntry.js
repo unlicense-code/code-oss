@@ -17,7 +17,6 @@ import { Emitter } from '../../../../../base/common/event.js';
 import { Disposable, toDisposable } from '../../../../../base/common/lifecycle.js';
 import { observableValue, transaction } from '../../../../../base/common/observable.js';
 import { themeColorFromId } from '../../../../../base/common/themables.js';
-import { IBulkEditService } from '../../../../../editor/browser/services/bulkEditService.js';
 import { EditOperation } from '../../../../../editor/common/core/editOperation.js';
 import { OffsetEdit } from '../../../../../editor/common/core/offsetEdit.js';
 import { nullDocumentDiff } from '../../../../../editor/common/diff/documentDiffProvider.js';
@@ -50,7 +49,7 @@ let ChatEditingModifiedFileEntry = class ChatEditingModifiedFileEntry extends Di
         return this.docSnapshot;
     }
     get modifiedURI() {
-        return this.doc.uri;
+        return this.modifiedModel.uri;
     }
     get modifiedModel() {
         return this.doc;
@@ -83,17 +82,16 @@ let ChatEditingModifiedFileEntry = class ChatEditingModifiedFileEntry extends Di
     get lastModifyingRequestId() {
         return this._telemetryInfo.requestId;
     }
-    constructor(resource, resourceRef, _multiDiffEntryDelegate, _telemetryInfo, kind, modelService, textModelService, languageService, bulkEditService, _chatService, _editorWorkerService, _undoRedoService, _fileService) {
+    constructor(resourceRef, _multiDiffEntryDelegate, _telemetryInfo, kind, modelService, textModelService, languageService, _chatService, _editorWorkerService, _undoRedoService, _fileService) {
         super();
-        this.resource = resource;
         this._multiDiffEntryDelegate = _multiDiffEntryDelegate;
         this._telemetryInfo = _telemetryInfo;
-        this.bulkEditService = bulkEditService;
         this._chatService = _chatService;
         this._editorWorkerService = _editorWorkerService;
         this._undoRedoService = _undoRedoService;
         this._fileService = _fileService;
         this.entryId = `${ChatEditingModifiedFileEntry_1.scheme}::${++ChatEditingModifiedFileEntry_1.lastEntryId}`;
+        this._allEditsAreFromUs = true;
         this._onDidDelete = this._register(new Emitter());
         this._stateObs = observableValue(this, 0 /* WorkingSetEntryState.Modified */);
         this._isCurrentlyBeingModifiedObs = observableValue(this, false);
@@ -108,9 +106,10 @@ let ChatEditingModifiedFileEntry = class ChatEditingModifiedFileEntry extends Di
         if (kind === 0 /* ChatEditKind.Created */) {
             this.createdInRequestId = this._telemetryInfo.requestId;
         }
+        this.docFileEditorModel = this._register(resourceRef).object;
         this.doc = resourceRef.object.textEditorModel;
         this.originalContent = this.doc.getValue();
-        const docSnapshot = this.docSnapshot = this._register(modelService.createModel(createTextBufferFactoryFromSnapshot(this.doc.createSnapshot()), languageService.createById(this.doc.getLanguageId()), ChatEditingTextModelContentProvider.getFileURI(this.entryId, resource.path), false));
+        const docSnapshot = this.docSnapshot = this._register(modelService.createModel(createTextBufferFactoryFromSnapshot(this.doc.createSnapshot()), languageService.createById(this.doc.getLanguageId()), ChatEditingTextModelContentProvider.getFileURI(this.entryId, this.modifiedURI.path), false));
         // Create a reference to this model to avoid it being disposed from under our nose
         (async () => {
             const reference = await textModelService.createModelReference(docSnapshot.uri);
@@ -120,13 +119,11 @@ let ChatEditingModifiedFileEntry = class ChatEditingModifiedFileEntry extends Di
             }
             this._register(reference);
         })();
-        this._register(resourceRef);
         this._register(this.doc.onDidChangeContent(e => this._mirrorEdits(e)));
-        this._register(this._fileService.watch(this.resource));
+        this._register(this._fileService.watch(this.modifiedURI));
         this._register(this._fileService.onDidFilesChange(e => {
-            if (e.affects(this.resource) && kind === 0 /* ChatEditKind.Created */ && e.gotDeleted()) {
+            if (e.affects(this.modifiedURI) && kind === 0 /* ChatEditKind.Created */ && e.gotDeleted()) {
                 this._onDidDelete.fire();
-                this.dispose();
             }
         }));
         this._register(toDisposable(() => {
@@ -207,20 +204,15 @@ let ChatEditingModifiedFileEntry = class ChatEditingModifiedFileEntry extends Di
                 this.docSnapshot.applyEdits(edits);
                 this._edit = e_ai.tryRebase(e_user_r);
             }
+            this._allEditsAreFromUs = false;
         }
         if (!this.isCurrentlyBeingModified.get()) {
             const didResetToOriginalContent = this.doc.getValue() === this.originalContent;
             const currentState = this._stateObs.get();
             switch (currentState) {
-                case 1 /* WorkingSetEntryState.Accepted */:
                 case 0 /* WorkingSetEntryState.Modified */:
                     if (didResetToOriginalContent) {
                         this._stateObs.set(2 /* WorkingSetEntryState.Rejected */, undefined);
-                        break;
-                    }
-                case 2 /* WorkingSetEntryState.Rejected */:
-                    if (event.isUndoing && !didResetToOriginalContent) {
-                        this._stateObs.set(0 /* WorkingSetEntryState.Modified */, undefined);
                         break;
                     }
             }
@@ -249,11 +241,9 @@ let ChatEditingModifiedFileEntry = class ChatEditingModifiedFileEntry extends Di
             if (!isLastEdits) {
                 this._stateObs.set(0 /* WorkingSetEntryState.Modified */, tx);
                 this._isCurrentlyBeingModifiedObs.set(true, tx);
-                if (ops.length > 0) {
-                    const maxLineNumber = ops.reduce((max, op) => Math.max(max, op.range.endLineNumber), 0);
-                    const lineCount = this.doc.getLineCount();
-                    this._rewriteRatioObs.set(Math.min(1, maxLineNumber / lineCount), tx);
-                }
+                const maxLineNumber = ops.reduce((max, op) => Math.max(max, op.range.endLineNumber), 0);
+                const lineCount = this.doc.getLineCount();
+                this._rewriteRatioObs.set(Math.min(1, maxLineNumber / lineCount), tx);
             }
             else {
                 this._resetEditsState(tx);
@@ -319,12 +309,16 @@ let ChatEditingModifiedFileEntry = class ChatEditingModifiedFileEntry extends Di
         this._stateObs.set(2 /* WorkingSetEntryState.Rejected */, transaction);
         this._notifyAction('rejected');
         if (this.createdInRequestId === this._telemetryInfo.requestId) {
-            await this._fileService.del(this.resource);
+            await this._fileService.del(this.modifiedURI);
             this._onDidDelete.fire();
-            this.dispose();
         }
         else {
             this._setDocValue(this.docSnapshot.getValue());
+            if (this._allEditsAreFromUs) {
+                // save the file after discarding so that the dirty indicator goes away
+                // and so that an intermediate saved state gets reverted
+                await this.docFileEditorModel.save({ reason: 1 /* SaveReason.EXPLICIT */ });
+            }
             await this.collapse(transaction);
         }
     }
@@ -339,7 +333,7 @@ let ChatEditingModifiedFileEntry = class ChatEditingModifiedFileEntry extends Di
     }
     _notifyAction(outcome) {
         this._chatService.notifyUserAction({
-            action: { kind: 'chatEditingSessionAction', uri: this.resource, hasRemainingEdits: false, outcome },
+            action: { kind: 'chatEditingSessionAction', uri: this.modifiedURI, hasRemainingEdits: false, outcome },
             agentId: this._telemetryInfo.agentId,
             command: this._telemetryInfo.command,
             sessionId: this._telemetryInfo.sessionId,
@@ -349,13 +343,12 @@ let ChatEditingModifiedFileEntry = class ChatEditingModifiedFileEntry extends Di
     }
 };
 ChatEditingModifiedFileEntry = ChatEditingModifiedFileEntry_1 = __decorate([
-    __param(5, IModelService),
-    __param(6, ITextModelService),
-    __param(7, ILanguageService),
-    __param(8, IBulkEditService),
-    __param(9, IChatService),
-    __param(10, IEditorWorkerService),
-    __param(11, IUndoRedoService),
-    __param(12, IFileService)
+    __param(4, IModelService),
+    __param(5, ITextModelService),
+    __param(6, ILanguageService),
+    __param(7, IChatService),
+    __param(8, IEditorWorkerService),
+    __param(9, IUndoRedoService),
+    __param(10, IFileService)
 ], ChatEditingModifiedFileEntry);
 export { ChatEditingModifiedFileEntry };

@@ -149,8 +149,7 @@ export declare const enum SortOrder {
 }
 export interface IQueryOptions {
     text?: string;
-    ids?: string[];
-    names?: string[];
+    exclude?: string[];
     pageSize?: number;
     sortBy?: SortBy;
     sortOrder?: SortOrder;
@@ -207,6 +206,7 @@ export interface IExtensionQueryOptions {
     compatible?: boolean;
     queryAllVersions?: boolean;
     source?: string;
+    preferResourceApi?: boolean;
 }
 export declare const IExtensionGalleryService: import("../../instantiation/common/instantiation.js").ServiceIdentifier<IExtensionGalleryService>;
 /**
@@ -454,3 +454,4 @@ export interface IExtensionTipsService {
 export declare function computeSize(location: URI, fileService: IFileService): Promise<number>;
 export declare const ExtensionsLocalizedLabel: import("../../../nls.js").ILocalizedString;
 export declare const PreferencesLocalizedLabel: import("../../../nls.js").ILocalizedString;
+export declare const UseUnpkgResourceApi = "extensions.gallery.useUnpkgResourceApi";

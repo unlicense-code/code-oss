@@ -3,7 +3,7 @@
  *  Licensed under the MIT License. See License.txt in the project root for license information.
  *--------------------------------------------------------------------------------------------*/
 import { localize } from '../../../../nls.js';
-import { RawContextKey } from '../../../../platform/contextkey/common/contextkey.js';
+import { ContextKeyExpr, RawContextKey } from '../../../../platform/contextkey/common/contextkey.js';
 export var ChatContextKeys;
 (function (ChatContextKeys) {
     ChatContextKeys.responseVote = new RawContextKey('chatSessionResponseVote', '', { type: 'string', description: localize('interactiveSessionResponseVote', "When the response has been voted up, is set to 'up'. When voted down, is set to 'down'. Otherwise an empty string.") });
@@ -34,9 +34,11 @@ export var ChatContextKeys;
     ChatContextKeys.hasFileAttachments = new RawContextKey('chatHasFileAttachments', false, { type: 'boolean', description: localize('chatHasFileAttachments', "True when the chat has file attachments.") });
     ChatContextKeys.languageModelsAreUserSelectable = new RawContextKey('chatModelsAreUserSelectable', false, { type: 'boolean', description: localize('chatModelsAreUserSelectable', "True when the chat model can be selected manually by the user.") });
     ChatContextKeys.ChatSetup = {
-        entitled: new RawContextKey('chatSetupEntitled', false, { type: 'boolean', description: localize('chatSetupEntitled', "True when chat setup is offered for a signed-in, entitled user.") }),
         signedIn: new RawContextKey('chatSetupSignedIn', false, { type: 'boolean', description: localize('chatSetupSignedIn', "True when chat setup is offered for a signed-in user.") }),
-        running: new RawContextKey('chatSetupRunning', false, { type: 'boolean', description: localize('chatSetupRunning', "True when chat setup is running.") })
+        entitled: new RawContextKey('chatSetupEntitled', false, { type: 'boolean', description: localize('chatSetupEntitled', "True when chat setup is offered for a signed-in, entitled user.") }),
+        triggering: new RawContextKey('chatSetupTriggered', false, { type: 'boolean', description: localize('chatSetupTriggered', "True when chat setup is triggered.") }),
+        installing: new RawContextKey('chatSetupInstalling', false, { type: 'boolean', description: localize('chatSetupInstalling', "True when chat setup is installing chat.") }),
+        signingIn: new RawContextKey('chatSetupSigningIn', false, { type: 'boolean', description: localize('chatSetupSigningIn', "True when chat setup is waiting for signing in.") })
     };
-    ChatContextKeys.shouldShowMovedViewWelcome = new RawContextKey('chatShouldShowMovedViewWelcome', false, { type: 'boolean', description: localize('chatShouldShowMovedViewWelcome', "True when the user should be shown the moved view welcome view.") });
+    ChatContextKeys.setupRunning = ContextKeyExpr.or(ChatContextKeys.ChatSetup.triggering, ChatContextKeys.ChatSetup.signingIn, ChatContextKeys.ChatSetup.installing);
 })(ChatContextKeys || (ChatContextKeys = {}));

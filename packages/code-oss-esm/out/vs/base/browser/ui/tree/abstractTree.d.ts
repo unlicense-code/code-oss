@@ -1,6 +1,6 @@
 import { IContextViewProvider } from '../contextview/contextview.js';
 import { IInputBoxStyles } from '../inputbox/inputBox.js';
-import { IIdentityProvider, IListRenderer, IListVirtualDelegate } from '../list/list.js';
+import { IIdentityProvider, IKeyboardNavigationLabelProvider, IListRenderer, IListVirtualDelegate } from '../list/list.js';
 import { IListOptions, IListStyles, List, MouseController, TypeNavigationMode } from '../list/listWidget.js';
 import { IToggleStyles } from '../toggle/toggle.js';
 import { ICollapseStateChangeEvent, ITreeContextMenuEvent, ITreeDragAndDrop, ITreeEvent, ITreeFilter, ITreeModel, ITreeModelSpliceEvent, ITreeMouseEvent, ITreeNavigator, ITreeNode, ITreeRenderer, TreeFilterResult, TreeVisibility } from './tree.js';
@@ -63,10 +63,10 @@ interface Collection<T> {
     readonly onDidChange: Event<T[]>;
 }
 export declare class TreeRenderer<T, TFilterData, TRef, TTemplateData> implements IListRenderer<ITreeNode<T, TFilterData>, ITreeListTemplateData<TTemplateData>> {
-    private renderer;
-    private model;
-    private activeNodes;
-    private renderedIndentGuides;
+    private readonly renderer;
+    private readonly model;
+    private readonly activeNodes;
+    private readonly renderedIndentGuides;
     private static readonly DefaultIndent;
     readonly templateId: string;
     private renderedElements;
@@ -88,7 +88,6 @@ export declare class TreeRenderer<T, TFilterData, TRef, TTemplateData> implement
     private renderTreeElement;
     private _renderIndentGuides;
     private _onDidChangeActiveNodes;
-    setModel(model: ITreeModel<T, TFilterData, TRef>): void;
     dispose(): void;
 }
 export declare function contiguousFuzzyScore(patternLower: string, wordLower: string): FuzzyScore | undefined;
@@ -99,6 +98,29 @@ export type LabelFuzzyScore = {
 export interface IFindFilter<T> extends ITreeFilter<T, FuzzyScore | LabelFuzzyScore> {
     filter(element: T, parentVisibility: TreeVisibility): TreeFilterResult<FuzzyScore | LabelFuzzyScore>;
     pattern: string;
+}
+export declare class FindFilter<T> implements IFindFilter<T>, IDisposable {
+    private readonly _keyboardNavigationLabelProvider;
+    private readonly _filter?;
+    private readonly _defaultFindVisibility?;
+    private _totalCount;
+    get totalCount(): number;
+    private _matchCount;
+    get matchCount(): number;
+    private _findMatchType;
+    set findMatchType(type: TreeFindMatchType);
+    get findMatchType(): TreeFindMatchType;
+    private _findMode;
+    set findMode(mode: TreeFindMode);
+    get findMode(): TreeFindMode;
+    private _pattern;
+    private _lowercasePattern;
+    private readonly disposables;
+    set pattern(pattern: string);
+    constructor(_keyboardNavigationLabelProvider: IKeyboardNavigationLabelProvider<T>, _filter?: ITreeFilter<T, FuzzyScore> | undefined, _defaultFindVisibility?: (TreeVisibility | ((node: T) => TreeVisibility)) | undefined);
+    filter(element: T, parentVisibility: TreeVisibility): TreeFilterResult<FuzzyScore | LabelFuzzyScore>;
+    reset(): void;
+    dispose(): void;
 }
 export interface ITreeFindToggleContribution {
     id: string;
@@ -142,6 +164,10 @@ interface IAbstractFindControllerOptions extends IFindWidgetOptions {
     toggles?: ITreeFindToggleContribution[];
     showNotFoundMessage?: boolean;
 }
+interface IFindControllerOptions extends IAbstractFindControllerOptions {
+    defaultFindMode?: TreeFindMode;
+    defaultFindMatchType?: TreeFindMatchType;
+}
 export declare abstract class AbstractFindController<T, TFilterData> implements IDisposable {
     protected tree: AbstractTree<T, TFilterData, any>;
     protected filter: IFindFilter<T>;
@@ -156,7 +182,6 @@ export declare abstract class AbstractFindController<T, TFilterData> implements 
     protected get placeholder(): string;
     protected set placeholder(value: string);
     private widget;
-    private width;
     private readonly _onDidChangePattern;
     readonly onDidChangePattern: Event<string>;
     private readonly _onDidChangeOpenState;
@@ -171,10 +196,26 @@ export declare abstract class AbstractFindController<T, TFilterData> implements 
     protected abstract applyPattern(pattern: string): void;
     protected onDidToggleChange(e: ITreeFindToggleChangeEvent): void;
     protected updateToggleState(id: string, checked: boolean): void;
-    protected renderMessage(showNotFound: boolean): void;
+    protected renderMessage(showNotFound: boolean, warningMessage?: string): void;
     protected alertResults(results: number): void;
-    layout(width: number): void;
     dispose(): void;
+}
+export declare class FindController<T, TFilterData> extends AbstractFindController<T, TFilterData> {
+    protected filter: FindFilter<T>;
+    get mode(): TreeFindMode;
+    set mode(mode: TreeFindMode);
+    get matchType(): TreeFindMatchType;
+    set matchType(matchType: TreeFindMatchType);
+    private readonly _onDidChangeMode;
+    readonly onDidChangeMode: Event<TreeFindMode>;
+    private readonly _onDidChangeMatchType;
+    readonly onDidChangeMatchType: Event<TreeFindMatchType>;
+    constructor(tree: AbstractTree<T, TFilterData, any>, filter: FindFilter<T>, contextViewProvider: IContextViewProvider, options?: IFindControllerOptions);
+    updateOptions(optionsUpdate?: IAbstractTreeOptionsUpdate): void;
+    protected applyPattern(pattern: string): void;
+    shouldAllowFocus(node: ITreeNode<T, TFilterData>): boolean;
+    protected onDidToggleChange(e: ITreeFindToggleChangeEvent): void;
+    protected render(): void;
 }
 export interface StickyScrollNode<T, TFilterData> {
     readonly node: ITreeNode<T, TFilterData>;
@@ -188,7 +229,7 @@ export interface IStickyScrollDelegate<T, TFilterData> {
 }
 declare class StickyScrollController<T, TFilterData, TRef> extends Disposable {
     private readonly tree;
-    private model;
+    private readonly model;
     private readonly view;
     private readonly treeDelegate;
     readonly onDidChangeHasFocus: Event<boolean>;
@@ -197,6 +238,7 @@ declare class StickyScrollController<T, TFilterData, TRef> extends Disposable {
     private stickyScrollMaxItemCount;
     private readonly maxWidgetViewRatio;
     private readonly _widget;
+    private paddingTop;
     constructor(tree: AbstractTree<T, TFilterData, TRef>, model: ITreeModel<T, TFilterData, TRef>, view: List<ITreeNode<T, TFilterData>>, renderers: TreeRenderer<T, TFilterData, TRef, any>[], treeDelegate: IListVirtualDelegate<ITreeNode<T, TFilterData>>, options?: IAbstractTreeOptions<T, TFilterData>);
     get height(): number;
     get count(): number;
@@ -223,7 +265,6 @@ declare class StickyScrollController<T, TFilterData, TRef> extends Disposable {
     validateStickySettings(options: IAbstractTreeOptionsUpdate): {
         stickyScrollMaxItemCount: number;
     };
-    setModel(model: ITreeModel<T, TFilterData, TRef>): void;
 }
 export interface IAbstractTreeOptionsUpdate extends ITreeRendererOptions {
     readonly multipleSelectionSupport?: boolean;
@@ -241,6 +282,7 @@ export interface IAbstractTreeOptionsUpdate extends ITreeRendererOptions {
     readonly expandOnlyOnTwistieClick?: boolean | ((e: any) => boolean);
     readonly enableStickyScroll?: boolean;
     readonly stickyScrollMaxItemCount?: number;
+    readonly paddingTop?: number;
 }
 export interface IAbstractTreeOptions<T, TFilterData = void> extends IAbstractTreeOptionsUpdate, IListOptions<T> {
     readonly contextViewProvider?: IContextViewProvider;
@@ -423,11 +465,8 @@ export declare abstract class AbstractTree<T, TFilterData, TRef> implements IDis
     private onRightArrow;
     private onSpace;
     protected abstract createModel(user: string, options: IAbstractTreeOptions<T, TFilterData>): ITreeModel<T, TFilterData, TRef>;
-    createNewModel(options?: IAbstractTreeOptions<T, TFilterData>): ITreeModel<T, TFilterData, TRef>;
     private readonly modelDisposables;
     private setupModel;
-    setModel(newModel: ITreeModel<T, TFilterData, TRef>): void;
-    getModel(): ITreeModel<T, TFilterData, TRef>;
     navigate(start?: TRef): ITreeNavigator<T>;
     dispose(): void;
 }

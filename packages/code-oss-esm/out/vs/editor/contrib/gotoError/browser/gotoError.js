@@ -162,12 +162,11 @@ class MarkerNavigationAction extends EditorAction {
 }
 export class NextMarkerAction extends MarkerNavigationAction {
     static { this.ID = 'editor.action.marker.next'; }
-    static { this.LABEL = nls.localize('markerAction.next.label', "Go to Next Problem (Error, Warning, Info)"); }
+    static { this.LABEL = nls.localize2('markerAction.next.label', "Go to Next Problem (Error, Warning, Info)"); }
     constructor() {
         super(true, false, {
             id: NextMarkerAction.ID,
             label: NextMarkerAction.LABEL,
-            alias: 'Go to Next Problem (Error, Warning, Info)',
             precondition: undefined,
             kbOpts: {
                 kbExpr: EditorContextKeys.focus,
@@ -176,7 +175,7 @@ export class NextMarkerAction extends MarkerNavigationAction {
             },
             menuOpts: {
                 menuId: MarkerNavigationWidget.TitleMenu,
-                title: NextMarkerAction.LABEL,
+                title: NextMarkerAction.LABEL.value,
                 icon: registerIcon('marker-navigation-next', Codicon.arrowDown, nls.localize('nextMarkerIcon', 'Icon for goto next marker.')),
                 group: 'navigation',
                 order: 1
@@ -186,12 +185,11 @@ export class NextMarkerAction extends MarkerNavigationAction {
 }
 class PrevMarkerAction extends MarkerNavigationAction {
     static { this.ID = 'editor.action.marker.prev'; }
-    static { this.LABEL = nls.localize('markerAction.previous.label', "Go to Previous Problem (Error, Warning, Info)"); }
+    static { this.LABEL = nls.localize2('markerAction.previous.label', "Go to Previous Problem (Error, Warning, Info)"); }
     constructor() {
         super(false, false, {
             id: PrevMarkerAction.ID,
             label: PrevMarkerAction.LABEL,
-            alias: 'Go to Previous Problem (Error, Warning, Info)',
             precondition: undefined,
             kbOpts: {
                 kbExpr: EditorContextKeys.focus,
@@ -200,7 +198,7 @@ class PrevMarkerAction extends MarkerNavigationAction {
             },
             menuOpts: {
                 menuId: MarkerNavigationWidget.TitleMenu,
-                title: PrevMarkerAction.LABEL,
+                title: PrevMarkerAction.LABEL.value,
                 icon: registerIcon('marker-navigation-previous', Codicon.arrowUp, nls.localize('previousMarkerIcon', 'Icon for goto previous marker.')),
                 group: 'navigation',
                 order: 2
@@ -212,8 +210,7 @@ class NextMarkerInFilesAction extends MarkerNavigationAction {
     constructor() {
         super(true, true, {
             id: 'editor.action.marker.nextInFiles',
-            label: nls.localize('markerAction.nextInFiles.label', "Go to Next Problem in Files (Error, Warning, Info)"),
-            alias: 'Go to Next Problem in Files (Error, Warning, Info)',
+            label: nls.localize2('markerAction.nextInFiles.label', "Go to Next Problem in Files (Error, Warning, Info)"),
             precondition: undefined,
             kbOpts: {
                 kbExpr: EditorContextKeys.focus,
@@ -233,8 +230,7 @@ class PrevMarkerInFilesAction extends MarkerNavigationAction {
     constructor() {
         super(false, true, {
             id: 'editor.action.marker.prevInFiles',
-            label: nls.localize('markerAction.previousInFiles.label', "Go to Previous Problem in Files (Error, Warning, Info)"),
-            alias: 'Go to Previous Problem in Files (Error, Warning, Info)',
+            label: nls.localize2('markerAction.previousInFiles.label', "Go to Previous Problem in Files (Error, Warning, Info)"),
             precondition: undefined,
             kbOpts: {
                 kbExpr: EditorContextKeys.focus,

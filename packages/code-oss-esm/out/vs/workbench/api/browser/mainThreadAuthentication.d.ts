@@ -11,6 +11,7 @@ import { IAuthenticationAccessService } from '../../services/authentication/brow
 import { IAuthenticationUsageService } from '../../services/authentication/browser/authenticationUsageService.js';
 import { UriComponents } from '../../../base/common/uri.js';
 import { IOpenerService } from '../../../platform/opener/common/opener.js';
+import { ILogService } from '../../../platform/log/common/log.js';
 interface AuthenticationForceNewSessionOptions {
     detail?: string;
     learnMore?: UriComponents;
@@ -45,9 +46,11 @@ export declare class MainThreadAuthentication extends Disposable implements Main
     private readonly extensionService;
     private readonly telemetryService;
     private readonly openerService;
+    private readonly logService;
     private readonly _proxy;
     private readonly _registrations;
-    constructor(extHostContext: IExtHostContext, authenticationService: IAuthenticationService, authenticationExtensionsService: IAuthenticationExtensionsService, authenticationAccessService: IAuthenticationAccessService, authenticationUsageService: IAuthenticationUsageService, dialogService: IDialogService, notificationService: INotificationService, extensionService: IExtensionService, telemetryService: ITelemetryService, openerService: IOpenerService);
+    private _sentProviderUsageEvents;
+    constructor(extHostContext: IExtHostContext, authenticationService: IAuthenticationService, authenticationExtensionsService: IAuthenticationExtensionsService, authenticationAccessService: IAuthenticationAccessService, authenticationUsageService: IAuthenticationUsageService, dialogService: IDialogService, notificationService: INotificationService, extensionService: IExtensionService, telemetryService: ITelemetryService, openerService: IOpenerService, logService: ILogService);
     $registerAuthenticationProvider(id: string, label: string, supportsMultipleAccounts: boolean): Promise<void>;
     $unregisterAuthenticationProvider(id: string): void;
     $ensureProvider(id: string): Promise<void>;

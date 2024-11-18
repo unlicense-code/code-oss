@@ -465,6 +465,9 @@ export class TestNotebookExecutionStateService {
     getLastFailedCellForNotebook(notebook) {
         return;
     }
+    getLastCompletedCellForNotebook(notebook) {
+        return;
+    }
     getExecution(notebook) {
         return;
     }

@@ -105,7 +105,7 @@ let UserDataSyncWorkbenchService = class UserDataSyncWorkbenchService extends Di
         this.fileDialogService = fileDialogService;
         this.userDataSyncMachinesService = userDataSyncMachinesService;
         this._authenticationProviders = [];
-        this._accountStatus = "unavailable" /* AccountStatus.Unavailable */;
+        this._accountStatus = "uninitialized" /* AccountStatus.Uninitialized */;
         this._onDidChangeAccountStatus = this._register(new Emitter());
         this.onDidChangeAccountStatus = this._onDidChangeAccountStatus.event;
         this._onDidTurnOnSync = this._register(new Emitter());
@@ -128,10 +128,9 @@ let UserDataSyncWorkbenchService = class UserDataSyncWorkbenchService extends Di
         }
     }
     updateAuthenticationProviders() {
-        this.logService.info('Settings Sync: Updating authentication providers. Authentication Providers from store:', this.userDataSyncStoreManagementService.userDataSyncStore?.authenticationProviders || [].map(({ id }) => id));
         const oldValue = this._authenticationProviders;
         this._authenticationProviders = (this.userDataSyncStoreManagementService.userDataSyncStore?.authenticationProviders || []).filter(({ id }) => this.authenticationService.declaredProviders.some(provider => provider.id === id));
-        this.logService.info('Settings Sync: Authentication providers updated', this._authenticationProviders.map(({ id }) => id));
+        this.logService.trace('Settings Sync: Authentication providers updated', this._authenticationProviders.map(({ id }) => id));
         return equals(oldValue, this._authenticationProviders, (a, b) => a.id === b.id);
     }
     isSupportedAuthenticationProviderId(authenticationProviderId) {
@@ -165,12 +164,14 @@ let UserDataSyncWorkbenchService = class UserDataSyncWorkbenchService extends Di
                 this.useWorkbenchSessionId = false;
             }
         }
-        await this.update('initialize');
+        const initPromise = this.update('initialize');
         this._register(this.authenticationService.onDidChangeDeclaredProviders(() => {
             if (this.updateAuthenticationProviders()) {
-                this.update('declared authentication providers changed');
+                // Trigger update only after the initialization is done
+                initPromise.finally(() => this.update('declared authentication providers changed'));
             }
         }));
+        await initPromise;
         this._register(Event.filter(Event.any(this.authenticationService.onDidRegisterAuthenticationProvider, this.authenticationService.onDidUnregisterAuthenticationProvider), info => this.isSupportedAuthenticationProviderId(info.id))(() => this.update('authentication provider change')));
         this._register(Event.filter(this.userDataSyncAccountService.onTokenFailed, isSuccessive => !isSuccessive)(() => this.update('token failure')));
         this._register(Event.filter(this.authenticationService.onDidChangeSessions, e => this.isSupportedAuthenticationProviderId(e.providerId))(({ event }) => this.onDidChangeSessions(event)));
@@ -193,7 +194,7 @@ let UserDataSyncWorkbenchService = class UserDataSyncWorkbenchService extends Di
         }));
     }
     async update(reason) {
-        this.logService.info(`Settings Sync: Updating due to ${reason}`);
+        this.logService.trace(`Settings Sync: Updating due to ${reason}`);
         this.updateAuthenticationProviders();
         await this.updateCurrentAccount();
         if (this._current) {
@@ -203,18 +204,17 @@ let UserDataSyncWorkbenchService = class UserDataSyncWorkbenchService extends Di
         this.updateAccountStatus(this._current ? "available" /* AccountStatus.Available */ : "unavailable" /* AccountStatus.Unavailable */);
     }
     async updateCurrentAccount() {
-        this.logService.info('Settings Sync: Updating the current account');
+        this.logService.trace('Settings Sync: Updating the current account');
         const currentSessionId = this.currentSessionId;
         const currentAuthenticationProviderId = this.currentAuthenticationProviderId;
         if (currentSessionId) {
             const authenticationProviders = currentAuthenticationProviderId ? this.authenticationProviders.filter(({ id }) => id === currentAuthenticationProviderId) : this.authenticationProviders;
-            this.logService.info('Settings Sync: Updating the current account using current session', currentSessionId, currentAuthenticationProviderId, authenticationProviders.map(({ id }) => id));
             for (const { id, scopes } of authenticationProviders) {
                 const sessions = (await this.authenticationService.getSessions(id, scopes)) || [];
                 for (const session of sessions) {
                     if (session.id === currentSessionId) {
                         this._current = new UserDataSyncAccount(id, session);
-                        this.logService.info('Settings Sync: Updated the current account', this._current.accountName);
+                        this.logService.trace('Settings Sync: Updated the current account', this._current.accountName);
                         return;
                     }
                 }
@@ -226,7 +226,7 @@ let UserDataSyncWorkbenchService = class UserDataSyncWorkbenchService extends Di
         let value = undefined;
         if (current) {
             try {
-                this.logService.info('Settings Sync: Updating the token for the account', current.accountName);
+                this.logService.trace('Settings Sync: Updating the token for the account', current.accountName);
                 const token = current.token;
                 this.logService.info('Settings Sync: Token updated for the account', current.accountName);
                 value = { token, authenticationProviderId: current.authenticationProviderId };
@@ -238,7 +238,7 @@ let UserDataSyncWorkbenchService = class UserDataSyncWorkbenchService extends Di
         await this.userDataSyncAccountService.updateAccount(value);
     }
     updateAccountStatus(accountStatus) {
-        this.logService.info(`Settings Sync: Updating the account status to ${accountStatus}`);
+        this.logService.trace(`Settings Sync: Updating the account status to ${accountStatus}`);
         if (this._accountStatus !== accountStatus) {
             const previous = this._accountStatus;
             this.logService.info(`Settings Sync: Account status changed from ${previous} to ${accountStatus}`);

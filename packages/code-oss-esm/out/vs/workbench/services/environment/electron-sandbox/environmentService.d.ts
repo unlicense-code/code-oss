@@ -13,6 +13,7 @@ export declare const INativeWorkbenchEnvironmentService: import("../../../../pla
 export interface INativeWorkbenchEnvironmentService extends IBrowserWorkbenchEnvironmentService, INativeEnvironmentService {
     readonly window: {
         id: number;
+        handle?: string;
         colorScheme: IColorScheme;
         maximized?: boolean;
         accessibilitySupport?: boolean;
@@ -43,6 +44,7 @@ export declare class NativeWorkbenchEnvironmentService extends AbstractNativeEnv
     get backupPath(): string | undefined;
     get window(): {
         id: number;
+        handle: string | undefined;
         colorScheme: IColorScheme;
         maximized: boolean | undefined;
         accessibilitySupport: boolean | undefined;

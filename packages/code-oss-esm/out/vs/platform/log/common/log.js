@@ -89,6 +89,12 @@ export class AbstractLogger extends Disposable {
     checkLogLevel(level) {
         return this.level !== LogLevel.Off && this.level <= level;
     }
+    canLog(level) {
+        if (this._store.isDisposed) {
+            return false;
+        }
+        return this.checkLogLevel(level);
+    }
 }
 export class AbstractMessageLogger extends AbstractLogger {
     constructor(logAlways) {
@@ -99,27 +105,27 @@ export class AbstractMessageLogger extends AbstractLogger {
         return this.logAlways || super.checkLogLevel(level);
     }
     trace(message, ...args) {
-        if (this.checkLogLevel(LogLevel.Trace)) {
+        if (this.canLog(LogLevel.Trace)) {
             this.log(LogLevel.Trace, format([message, ...args], true));
         }
     }
     debug(message, ...args) {
-        if (this.checkLogLevel(LogLevel.Debug)) {
+        if (this.canLog(LogLevel.Debug)) {
             this.log(LogLevel.Debug, format([message, ...args]));
         }
     }
     info(message, ...args) {
-        if (this.checkLogLevel(LogLevel.Info)) {
+        if (this.canLog(LogLevel.Info)) {
             this.log(LogLevel.Info, format([message, ...args]));
         }
     }
     warn(message, ...args) {
-        if (this.checkLogLevel(LogLevel.Warning)) {
+        if (this.canLog(LogLevel.Warning)) {
             this.log(LogLevel.Warning, format([message, ...args]));
         }
     }
     error(message, ...args) {
-        if (this.checkLogLevel(LogLevel.Error)) {
+        if (this.canLog(LogLevel.Error)) {
             if (message instanceof Error) {
                 const array = Array.prototype.slice.call(arguments);
                 array[0] = message.stack;
@@ -139,7 +145,7 @@ export class ConsoleMainLogger extends AbstractLogger {
         this.useColors = !isWindows;
     }
     trace(message, ...args) {
-        if (this.checkLogLevel(LogLevel.Trace)) {
+        if (this.canLog(LogLevel.Trace)) {
             if (this.useColors) {
                 console.log(`\x1b[90m[main ${now()}]\x1b[0m`, message, ...args);
             }
@@ -149,7 +155,7 @@ export class ConsoleMainLogger extends AbstractLogger {
         }
     }
     debug(message, ...args) {
-        if (this.checkLogLevel(LogLevel.Debug)) {
+        if (this.canLog(LogLevel.Debug)) {
             if (this.useColors) {
                 console.log(`\x1b[90m[main ${now()}]\x1b[0m`, message, ...args);
             }
@@ -159,7 +165,7 @@ export class ConsoleMainLogger extends AbstractLogger {
         }
     }
     info(message, ...args) {
-        if (this.checkLogLevel(LogLevel.Info)) {
+        if (this.canLog(LogLevel.Info)) {
             if (this.useColors) {
                 console.log(`\x1b[90m[main ${now()}]\x1b[0m`, message, ...args);
             }
@@ -169,7 +175,7 @@ export class ConsoleMainLogger extends AbstractLogger {
         }
     }
     warn(message, ...args) {
-        if (this.checkLogLevel(LogLevel.Warning)) {
+        if (this.canLog(LogLevel.Warning)) {
             if (this.useColors) {
                 console.warn(`\x1b[93m[main ${now()}]\x1b[0m`, message, ...args);
             }
@@ -179,7 +185,7 @@ export class ConsoleMainLogger extends AbstractLogger {
         }
     }
     error(message, ...args) {
-        if (this.checkLogLevel(LogLevel.Error)) {
+        if (this.canLog(LogLevel.Error)) {
             if (this.useColors) {
                 console.error(`\x1b[91m[main ${now()}]\x1b[0m`, message, ...args);
             }
@@ -199,7 +205,7 @@ export class ConsoleLogger extends AbstractLogger {
         this.setLevel(logLevel);
     }
     trace(message, ...args) {
-        if (this.checkLogLevel(LogLevel.Trace)) {
+        if (this.canLog(LogLevel.Trace)) {
             if (this.useColors) {
                 console.log('%cTRACE', 'color: #888', message, ...args);
             }
@@ -209,7 +215,7 @@ export class ConsoleLogger extends AbstractLogger {
         }
     }
     debug(message, ...args) {
-        if (this.checkLogLevel(LogLevel.Debug)) {
+        if (this.canLog(LogLevel.Debug)) {
             if (this.useColors) {
                 console.log('%cDEBUG', 'background: #eee; color: #888', message, ...args);
             }
@@ -219,7 +225,7 @@ export class ConsoleLogger extends AbstractLogger {
         }
     }
     info(message, ...args) {
-        if (this.checkLogLevel(LogLevel.Info)) {
+        if (this.canLog(LogLevel.Info)) {
             if (this.useColors) {
                 console.log('%c INFO', 'color: #33f', message, ...args);
             }
@@ -229,7 +235,7 @@ export class ConsoleLogger extends AbstractLogger {
         }
     }
     warn(message, ...args) {
-        if (this.checkLogLevel(LogLevel.Warning)) {
+        if (this.canLog(LogLevel.Warning)) {
             if (this.useColors) {
                 console.log('%c WARN', 'color: #993', message, ...args);
             }
@@ -239,7 +245,7 @@ export class ConsoleLogger extends AbstractLogger {
         }
     }
     error(message, ...args) {
-        if (this.checkLogLevel(LogLevel.Error)) {
+        if (this.canLog(LogLevel.Error)) {
             if (this.useColors) {
                 console.log('%c  ERR', 'color: #f33', message, ...args);
             }
@@ -259,27 +265,27 @@ export class AdapterLogger extends AbstractLogger {
         this.setLevel(logLevel);
     }
     trace(message, ...args) {
-        if (this.checkLogLevel(LogLevel.Trace)) {
+        if (this.canLog(LogLevel.Trace)) {
             this.adapter.log(LogLevel.Trace, [this.extractMessage(message), ...args]);
         }
     }
     debug(message, ...args) {
-        if (this.checkLogLevel(LogLevel.Debug)) {
+        if (this.canLog(LogLevel.Debug)) {
             this.adapter.log(LogLevel.Debug, [this.extractMessage(message), ...args]);
         }
     }
     info(message, ...args) {
-        if (this.checkLogLevel(LogLevel.Info)) {
+        if (this.canLog(LogLevel.Info)) {
             this.adapter.log(LogLevel.Info, [this.extractMessage(message), ...args]);
         }
     }
     warn(message, ...args) {
-        if (this.checkLogLevel(LogLevel.Warning)) {
+        if (this.canLog(LogLevel.Warning)) {
             this.adapter.log(LogLevel.Warning, [this.extractMessage(message), ...args]);
         }
     }
     error(message, ...args) {
-        if (this.checkLogLevel(LogLevel.Error)) {
+        if (this.canLog(LogLevel.Error)) {
             this.adapter.log(LogLevel.Error, [this.extractMessage(message), ...args]);
         }
     }
@@ -287,7 +293,7 @@ export class AdapterLogger extends AbstractLogger {
         if (typeof msg === 'string') {
             return msg;
         }
-        return toErrorMessage(msg, this.checkLogLevel(LogLevel.Trace));
+        return toErrorMessage(msg, this.canLog(LogLevel.Trace));
     }
     flush() {
         // noop

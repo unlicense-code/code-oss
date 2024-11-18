@@ -12,6 +12,7 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
 import * as dom from '../../../base/browser/dom.js';
+import * as domStylesheets from '../../../base/browser/domStylesheets.js';
 import * as cssJs from '../../../base/browser/cssValue.js';
 import { Emitter } from '../../../base/common/event.js';
 import { DisposableStore, Disposable, toDisposable } from '../../../base/common/lifecycle.js';
@@ -101,7 +102,7 @@ let AbstractCodeEditorService = class AbstractCodeEditorService extends Disposab
         return this._globalStyleSheet;
     }
     _createGlobalStyleSheet() {
-        return new GlobalStyleSheet(dom.createStyleSheet());
+        return new GlobalStyleSheet(domStylesheets.createStyleSheet());
     }
     _getOrCreateStyleSheet(editor) {
         if (!editor) {
@@ -113,7 +114,7 @@ let AbstractCodeEditorService = class AbstractCodeEditorService extends Disposab
         }
         const editorId = editor.getId();
         if (!this._editorStyleSheets.has(editorId)) {
-            const refCountedStyleSheet = new RefCountedStyleSheet(this, editorId, dom.createStyleSheet(domNode));
+            const refCountedStyleSheet = new RefCountedStyleSheet(this, editorId, domStylesheets.createStyleSheet(domNode));
             this._editorStyleSheets.set(editorId, refCountedStyleSheet);
         }
         return this._editorStyleSheets.get(editorId);
@@ -283,10 +284,10 @@ class RefCountedStyleSheet {
         }
     }
     insertRule(selector, rule) {
-        dom.createCSSRule(selector, rule, this._styleSheet);
+        domStylesheets.createCSSRule(selector, rule, this._styleSheet);
     }
     removeRulesContainingSelector(ruleName) {
-        dom.removeCSSRulesContainingSelector(ruleName, this._styleSheet);
+        domStylesheets.removeCSSRulesContainingSelector(ruleName, this._styleSheet);
     }
 }
 export class GlobalStyleSheet {
@@ -301,10 +302,10 @@ export class GlobalStyleSheet {
     unref() {
     }
     insertRule(selector, rule) {
-        dom.createCSSRule(selector, rule, this._styleSheet);
+        domStylesheets.createCSSRule(selector, rule, this._styleSheet);
     }
     removeRulesContainingSelector(ruleName) {
-        dom.removeCSSRulesContainingSelector(ruleName, this._styleSheet);
+        domStylesheets.removeCSSRulesContainingSelector(ruleName, this._styleSheet);
     }
 }
 class DecorationSubTypeOptionsProvider {

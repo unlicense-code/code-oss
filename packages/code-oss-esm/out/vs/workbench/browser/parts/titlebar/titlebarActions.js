@@ -46,9 +46,14 @@ registerAction2(class ToggleCommandCenter extends ToggleTitleBarConfigAction {
         super("window.commandCenter" /* LayoutSettings.COMMAND_CENTER */, localize('toggle.commandCenter', 'Command Center'), localize('toggle.commandCenterDescription', "Toggle visibility of the Command Center in title bar"), 1, false);
     }
 });
+registerAction2(class ToggleNavigationControl extends ToggleTitleBarConfigAction {
+    constructor() {
+        super('workbench.navigationControl.enabled', localize('toggle.navigation', 'Navigation Controls'), localize('toggle.navigationDescription', "Toggle visibility of the Navigation Controls in title bar"), 2, false, ContextKeyExpr.has('config.window.commandCenter'));
+    }
+});
 registerAction2(class ToggleLayoutControl extends ToggleTitleBarConfigAction {
     constructor() {
-        super('workbench.layoutControl.enabled', localize('toggle.layout', 'Layout Controls'), localize('toggle.layoutDescription', "Toggle visibility of the Layout Controls in title bar"), 2, true);
+        super("workbench.layoutControl.enabled" /* LayoutSettings.LAYOUT_ACTIONS */, localize('toggle.layout', 'Layout Controls'), localize('toggle.layoutDescription', "Toggle visibility of the Layout Controls in title bar"), 3, true);
     }
 });
 registerAction2(class ToggleCustomTitleBar extends Action2 {

@@ -140,6 +140,7 @@ let NotebookViewModel = class NotebookViewModel extends Disposable {
         this._bulkEditService = _bulkEditService;
         this._undoService = _undoService;
         this._textModelService = _textModelService;
+        this.notebookExecutionStateService = notebookExecutionStateService;
         this._localStore = this._register(new DisposableStore());
         this._handleToViewCellMapping = new Map();
         this._onDidChangeOptions = this._register(new Emitter());
@@ -291,6 +292,10 @@ let NotebookViewModel = class NotebookViewModel extends Disposable {
     }
     getSelections() {
         return this._selectionCollection.selections;
+    }
+    getMostRecentlyExecutedCell() {
+        const handle = this.notebookExecutionStateService.getLastCompletedCellForNotebook(this._notebook.uri);
+        return handle !== undefined ? this.getCellByHandle(handle) : undefined;
     }
     setEditorFocus(focused) {
         this._focused = focused;

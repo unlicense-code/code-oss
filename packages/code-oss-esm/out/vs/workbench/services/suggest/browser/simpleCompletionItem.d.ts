@@ -26,6 +26,14 @@ export interface ISimpleCompletion {
      * Whether the completion is a keyword.
      */
     isKeyword?: boolean;
+    /**
+     * The start of the replacement.
+     */
+    replacementIndex: number;
+    /**
+     * The length of the replacement.
+     */
+    replacementLength: number;
 }
 export declare class SimpleCompletionItem {
     readonly completion: ISimpleCompletion;

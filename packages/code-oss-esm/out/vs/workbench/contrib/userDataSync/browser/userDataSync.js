@@ -796,7 +796,7 @@ let UserDataSyncWorkbenchContribution = class UserDataSyncWorkbenchContribution 
     }
     registerManageSyncAction() {
         const that = this;
-        const when = ContextKeyExpr.and(CONTEXT_SYNC_ENABLEMENT, CONTEXT_ACCOUNT_STATE.isEqualTo("available" /* AccountStatus.Available */), CONTEXT_SYNC_STATE.notEqualsTo("uninitialized" /* SyncStatus.Uninitialized */));
+        const when = ContextKeyExpr.and(CONTEXT_SYNC_ENABLEMENT, CONTEXT_ACCOUNT_STATE.notEqualsTo("unavailable" /* AccountStatus.Unavailable */), CONTEXT_SYNC_STATE.notEqualsTo("uninitialized" /* SyncStatus.Uninitialized */));
         this._register(registerAction2(class SyncStatusAction extends Action2 {
             constructor() {
                 super({

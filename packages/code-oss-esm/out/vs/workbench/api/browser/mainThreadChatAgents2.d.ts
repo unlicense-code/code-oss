@@ -9,6 +9,7 @@ import { IInstantiationService } from '../../../platform/instantiation/common/in
 import { ILogService } from '../../../platform/log/common/log.js';
 import { IChatWidgetService } from '../../contrib/chat/browser/chat.js';
 import { IChatAgentService } from '../../contrib/chat/common/chatAgents.js';
+import { IChatEditingService, IChatRelatedFileProviderMetadata } from '../../contrib/chat/common/chatEditingService.js';
 import { IChatContentInlineReference, IChatContentReference, IChatService, IChatTask, IChatWarningMessage } from '../../contrib/chat/common/chatService.js';
 import { IExtHostContext } from '../../services/extensions/common/extHostCustomers.js';
 import { IExtensionService } from '../../services/extensions/common/extensions.js';
@@ -30,6 +31,7 @@ export declare class MainThreadChatTask implements IChatTask {
 export declare class MainThreadChatAgents2 extends Disposable implements MainThreadChatAgentsShape2 {
     private readonly _chatAgentService;
     private readonly _chatService;
+    private readonly _chatEditingService;
     private readonly _languageFeaturesService;
     private readonly _chatWidgetService;
     private readonly _instantiationService;
@@ -39,20 +41,23 @@ export declare class MainThreadChatAgents2 extends Disposable implements MainThr
     private readonly _agentCompletionProviders;
     private readonly _agentIdsToCompletionProviders;
     private readonly _chatParticipantDetectionProviders;
+    private readonly _chatRelatedFilesProviders;
     private readonly _pendingProgress;
     private readonly _proxy;
     private _responsePartHandlePool;
     private readonly _activeTasks;
     private readonly _unresolvedAnchors;
-    constructor(extHostContext: IExtHostContext, _chatAgentService: IChatAgentService, _chatService: IChatService, _languageFeaturesService: ILanguageFeaturesService, _chatWidgetService: IChatWidgetService, _instantiationService: IInstantiationService, _logService: ILogService, _extensionService: IExtensionService);
+    constructor(extHostContext: IExtHostContext, _chatAgentService: IChatAgentService, _chatService: IChatService, _chatEditingService: IChatEditingService, _languageFeaturesService: ILanguageFeaturesService, _chatWidgetService: IChatWidgetService, _instantiationService: IInstantiationService, _logService: ILogService, _extensionService: IExtensionService);
     $unregisterAgent(handle: number): void;
     $transferActiveChatSession(toWorkspace: UriComponents): void;
-    $registerAgent(handle: number, extension: ExtensionIdentifier, id: string, metadata: IExtensionChatAgentMetadata, dynamicProps: IDynamicChatAgentProps | undefined): void;
-    $updateAgent(handle: number, metadataUpdate: IExtensionChatAgentMetadata): void;
+    $registerAgent(handle: number, extension: ExtensionIdentifier, id: string, metadata: IExtensionChatAgentMetadata, dynamicProps: IDynamicChatAgentProps | undefined): Promise<void>;
+    $updateAgent(handle: number, metadataUpdate: IExtensionChatAgentMetadata): Promise<void>;
     $handleProgressChunk(requestId: string, progress: IChatProgressDto, responsePartHandle?: number): Promise<number | void>;
     $handleAnchorResolve(requestId: string, handle: string, resolveAnchor: Dto<IChatContentInlineReference> | undefined): void;
     $registerAgentCompletionsProvider(handle: number, id: string, triggerCharacters: string[]): void;
     $unregisterAgentCompletionsProvider(handle: number, id: string): void;
     $registerChatParticipantDetectionProvider(handle: number): void;
     $unregisterChatParticipantDetectionProvider(handle: number): void;
+    $registerRelatedFilesProvider(handle: number, metadata: IChatRelatedFileProviderMetadata): void;
+    $unregisterRelatedFilesProvider(handle: number): void;
 }

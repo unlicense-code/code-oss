@@ -28,6 +28,7 @@ import { IChatWidgetService } from '../../contrib/chat/browser/chat.js';
 import { ChatInputPart } from '../../contrib/chat/browser/chatInputPart.js';
 import { AddDynamicVariableAction } from '../../contrib/chat/browser/contrib/chatDynamicVariables.js';
 import { ChatAgentLocation, IChatAgentService } from '../../contrib/chat/common/chatAgents.js';
+import { IChatEditingService } from '../../contrib/chat/common/chatEditingService.js';
 import { ChatRequestAgentPart } from '../../contrib/chat/common/chatParserTypes.js';
 import { ChatRequestParser } from '../../contrib/chat/common/chatRequestParser.js';
 import { IChatService } from '../../contrib/chat/common/chatService.js';
@@ -58,10 +59,11 @@ export class MainThreadChatTask {
     }
 }
 let MainThreadChatAgents2 = class MainThreadChatAgents2 extends Disposable {
-    constructor(extHostContext, _chatAgentService, _chatService, _languageFeaturesService, _chatWidgetService, _instantiationService, _logService, _extensionService) {
+    constructor(extHostContext, _chatAgentService, _chatService, _chatEditingService, _languageFeaturesService, _chatWidgetService, _instantiationService, _logService, _extensionService) {
         super();
         this._chatAgentService = _chatAgentService;
         this._chatService = _chatService;
+        this._chatEditingService = _chatEditingService;
         this._languageFeaturesService = _languageFeaturesService;
         this._chatWidgetService = _chatWidgetService;
         this._instantiationService = _instantiationService;
@@ -71,6 +73,7 @@ let MainThreadChatAgents2 = class MainThreadChatAgents2 extends Disposable {
         this._agentCompletionProviders = this._register(new DisposableMap());
         this._agentIdsToCompletionProviders = this._register(new DisposableMap);
         this._chatParticipantDetectionProviders = this._register(new DisposableMap());
+        this._chatRelatedFilesProviders = this._register(new DisposableMap());
         this._pendingProgress = new Map();
         this._responsePartHandlePool = 0;
         this._activeTasks = new Map();
@@ -108,7 +111,8 @@ let MainThreadChatAgents2 = class MainThreadChatAgents2 extends Disposable {
         const inputValue = widget?.inputEditor.getValue() ?? '';
         this._chatService.transferChatSession({ sessionId, inputValue }, URI.revive(toWorkspace));
     }
-    $registerAgent(handle, extension, id, metadata, dynamicProps) {
+    async $registerAgent(handle, extension, id, metadata, dynamicProps) {
+        await this._extensionService.whenInstalledExtensionsRegistered();
         const staticAgentRegistration = this._chatAgentService.getAgent(id, true);
         if (!staticAgentRegistration && !dynamicProps) {
             if (this._chatAgentService.getAgentsByName(id).length) {
@@ -172,7 +176,8 @@ let MainThreadChatAgents2 = class MainThreadChatAgents2 extends Disposable {
             hasFollowups: metadata.hasFollowups
         });
     }
-    $updateAgent(handle, metadataUpdate) {
+    async $updateAgent(handle, metadataUpdate) {
+        await this._extensionService.whenInstalledExtensionsRegistered();
         const data = this._agents.get(handle);
         if (!data) {
             this._logService.error(`MainThreadChatAgents2#$updateAgent: No agent with handle ${handle} registered`);
@@ -293,16 +298,28 @@ let MainThreadChatAgents2 = class MainThreadChatAgents2 extends Disposable {
     $unregisterChatParticipantDetectionProvider(handle) {
         this._chatParticipantDetectionProviders.deleteAndDispose(handle);
     }
+    $registerRelatedFilesProvider(handle, metadata) {
+        this._chatRelatedFilesProviders.set(handle, this._chatEditingService.registerRelatedFilesProvider(handle, {
+            description: metadata.description,
+            provideRelatedFiles: async (request, token) => {
+                return (await this._proxy.$provideRelatedFiles(handle, request, token))?.map((v) => ({ uri: URI.from(v.uri), description: v.description })) ?? [];
+            }
+        }));
+    }
+    $unregisterRelatedFilesProvider(handle) {
+        this._chatRelatedFilesProviders.deleteAndDispose(handle);
+    }
 };
 MainThreadChatAgents2 = __decorate([
     extHostNamedCustomer(MainContext.MainThreadChatAgents2),
     __param(1, IChatAgentService),
     __param(2, IChatService),
-    __param(3, ILanguageFeaturesService),
-    __param(4, IChatWidgetService),
-    __param(5, IInstantiationService),
-    __param(6, ILogService),
-    __param(7, IExtensionService)
+    __param(3, IChatEditingService),
+    __param(4, ILanguageFeaturesService),
+    __param(5, IChatWidgetService),
+    __param(6, IInstantiationService),
+    __param(7, ILogService),
+    __param(8, IExtensionService)
 ], MainThreadChatAgents2);
 export { MainThreadChatAgents2 };
 function computeCompletionRanges(model, position, reg) {

@@ -21,7 +21,7 @@ import { EditorContextKeys } from '../../../common/editorContextKeys.js';
 import { getCodeLensModel } from './codelens.js';
 import { ICodeLensCache } from './codeLensCache.js';
 import { CodeLensHelper, CodeLensWidget } from './codelensWidget.js';
-import { localize } from '../../../../nls.js';
+import { localize, localize2 } from '../../../../nls.js';
 import { ICommandService } from '../../../../platform/commands/common/commands.js';
 import { INotificationService } from '../../../../platform/notification/common/notification.js';
 import { IQuickInputService } from '../../../../platform/quickinput/common/quickInput.js';
@@ -402,8 +402,7 @@ registerEditorAction(class ShowLensesInCurrentLine extends EditorAction {
         super({
             id: 'codelens.showLensesInCurrentLine',
             precondition: EditorContextKeys.hasCodeLensProvider,
-            label: localize('showLensOnLine', "Show CodeLens Commands For Current Line"),
-            alias: 'Show CodeLens Commands For Current Line',
+            label: localize2('showLensOnLine', "Show CodeLens Commands For Current Line"),
         });
     }
     async run(accessor, editor) {

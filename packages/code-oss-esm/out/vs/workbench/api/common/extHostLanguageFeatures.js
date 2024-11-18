@@ -1283,6 +1283,13 @@ class InlineEditAdapter {
             }
             rejectCommand = this._commands.toInternal(result.rejected, disposableStore);
         }
+        let shownCommand = undefined;
+        if (result.shown) {
+            if (!disposableStore) {
+                disposableStore = new DisposableStore();
+            }
+            shownCommand = this._commands.toInternal(result.shown, disposableStore);
+        }
         if (!disposableStore) {
             disposableStore = new DisposableStore();
         }
@@ -1292,6 +1299,7 @@ class InlineEditAdapter {
             range: typeConvert.Range.from(result.range),
             accepted: acceptCommand,
             rejected: rejectCommand,
+            shown: shownCommand,
             commands: result.commands?.map(c => this._commands.toInternal(c, disposableStore)),
         };
         return langResult;
@@ -2348,6 +2356,7 @@ export class ExtHostLanguageFeatures {
         this._proxy.$registerDocumentOnDropEditProvider(handle, this._transformDocumentSelector(selector, extension), isProposedApiEnabled(extension, 'documentPaste') && metadata ? {
             supportsResolve: !!provider.resolveDocumentDropEdit,
             dropMimeTypes: metadata.dropMimeTypes,
+            providedDropKinds: metadata.providedDropEditKinds?.map(x => x.value),
         } : undefined);
         return this._createDisposable(handle);
     }

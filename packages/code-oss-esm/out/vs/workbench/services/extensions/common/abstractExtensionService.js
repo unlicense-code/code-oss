@@ -58,7 +58,7 @@ import { IRemoteAgentService } from '../../remote/common/remoteAgentService.js';
 const hasOwnProperty = Object.hasOwnProperty;
 const NO_OP_VOID_PROMISE = Promise.resolve(undefined);
 let AbstractExtensionService = AbstractExtensionService_1 = class AbstractExtensionService extends Disposable {
-    constructor(_extensionsProposedApi, _extensionHostFactory, _extensionHostKindPicker, _instantiationService, _notificationService, _environmentService, _telemetryService, _extensionEnablementService, _fileService, _productService, _extensionManagementService, _contextService, _configurationService, _extensionManifestPropertiesService, _logService, _remoteAgentService, _remoteExtensionsScannerService, _lifecycleService, _remoteAuthorityResolverService, _dialogService) {
+    constructor(options, _extensionsProposedApi, _extensionHostFactory, _extensionHostKindPicker, _instantiationService, _notificationService, _environmentService, _telemetryService, _extensionEnablementService, _fileService, _productService, _extensionManagementService, _contextService, _configurationService, _extensionManifestPropertiesService, _logService, _remoteAgentService, _remoteExtensionsScannerService, _lifecycleService, _remoteAuthorityResolverService, _dialogService) {
         super();
         this._extensionsProposedApi = _extensionsProposedApi;
         this._extensionHostFactory = _extensionHostFactory;
@@ -102,6 +102,8 @@ let AbstractExtensionService = AbstractExtensionService_1 = class AbstractExtens
         this._inHandleDeltaExtensions = false;
         this._extensionHostManagers = this._register(new ExtensionHostCollection());
         this._resolveAuthorityAttempt = 0;
+        this._hasLocalProcess = options.hasLocalProcess;
+        this._allowRemoteExtensionsInLocalWebWorker = options.allowRemoteExtensionsInLocalWebWorker;
         // help the file service to activate providers by activating extensions by file system event
         this._register(this._fileService.onWillActivateFileSystemProvider(e => {
             if (e.scheme !== Schemas.vscodeRemote) {
@@ -273,7 +275,7 @@ let AbstractExtensionService = AbstractExtensionService_1 = class AbstractExtens
         // enable or disable proposed API per extension
         this._extensionsProposedApi.updateEnabledApiProposals(toAdd);
         // Update extension points
-        this._doHandleExtensionPoints([].concat(toAdd).concat(toRemove));
+        this._doHandleExtensionPoints([].concat(toAdd).concat(toRemove), false);
         // Update the extension host
         await this._updateExtensionsOnExtHosts(result.versionId, toAdd, toRemove.map(e => e.identifier));
         for (let i = 0; i < toAdd.length; i++) {
@@ -382,8 +384,7 @@ let AbstractExtensionService = AbstractExtensionService_1 = class AbstractExtens
         this._startExtensionHostsIfNecessary(true, []);
         const lock = await this._registry.acquireLock('_initialize');
         try {
-            const resolvedExtensions = await this._resolveExtensions();
-            this._processExtensions(lock, resolvedExtensions);
+            await this._resolveAndProcessExtensions(lock);
             // Start extension hosts which are not automatically started
             const snapshot = this._registry.getSnapshot();
             for (const extHostManager of this._extensionHostManagers) {
@@ -400,17 +401,30 @@ let AbstractExtensionService = AbstractExtensionService_1 = class AbstractExtens
         perf.mark('code/didLoadExtensions');
         await this._handleExtensionTests();
     }
-    _processExtensions(lock, resolvedExtensions) {
-        const { allowRemoteExtensionsInLocalWebWorker, hasLocalProcess } = resolvedExtensions;
-        const localExtensions = checkEnabledAndProposedAPI(this._logService, this._extensionEnablementService, this._extensionsProposedApi, resolvedExtensions.local, false);
-        let remoteExtensions = checkEnabledAndProposedAPI(this._logService, this._extensionEnablementService, this._extensionsProposedApi, resolvedExtensions.remote, false);
+    async _resolveAndProcessExtensions(lock) {
+        let resolverExtensions = [];
+        let localExtensions = [];
+        let remoteExtensions = [];
+        for await (const extensions of this._resolveExtensions()) {
+            if (extensions instanceof ResolverExtensions) {
+                resolverExtensions = checkEnabledAndProposedAPI(this._logService, this._extensionEnablementService, this._extensionsProposedApi, extensions.extensions, false);
+                this._registry.deltaExtensions(lock, resolverExtensions, []);
+                this._doHandleExtensionPoints(resolverExtensions, true);
+            }
+            if (extensions instanceof LocalExtensions) {
+                localExtensions = checkEnabledAndProposedAPI(this._logService, this._extensionEnablementService, this._extensionsProposedApi, extensions.extensions, false);
+            }
+            if (extensions instanceof RemoteExtensions) {
+                remoteExtensions = checkEnabledAndProposedAPI(this._logService, this._extensionEnablementService, this._extensionsProposedApi, extensions.extensions, false);
+            }
+        }
         // `initializeRunningLocation` will look at the complete picture (e.g. an extension installed on both sides),
         // takes care of duplicates and picks a running location for each extension
         this._runningLocations.initializeRunningLocation(localExtensions, remoteExtensions);
         this._startExtensionHostsIfNecessary(true, []);
         // Some remote extensions could run locally in the web worker, so store them
-        const remoteExtensionsThatNeedToRunLocally = (allowRemoteExtensionsInLocalWebWorker ? this._runningLocations.filterByExtensionHostKind(remoteExtensions, 2 /* ExtensionHostKind.LocalWebWorker */) : []);
-        const localProcessExtensions = (hasLocalProcess ? this._runningLocations.filterByExtensionHostKind(localExtensions, 1 /* ExtensionHostKind.LocalProcess */) : []);
+        const remoteExtensionsThatNeedToRunLocally = (this._allowRemoteExtensionsInLocalWebWorker ? this._runningLocations.filterByExtensionHostKind(remoteExtensions, 2 /* ExtensionHostKind.LocalWebWorker */) : []);
+        const localProcessExtensions = (this._hasLocalProcess ? this._runningLocations.filterByExtensionHostKind(localExtensions, 1 /* ExtensionHostKind.LocalProcess */) : []);
         const localWebWorkerExtensions = this._runningLocations.filterByExtensionHostKind(localExtensions, 2 /* ExtensionHostKind.LocalWebWorker */);
         remoteExtensions = this._runningLocations.filterByExtensionHostKind(remoteExtensions, 3 /* ExtensionHostKind.Remote */);
         // Add locally the remote extensions that need to run locally in the web worker
@@ -420,14 +434,27 @@ let AbstractExtensionService = AbstractExtensionService_1 = class AbstractExtens
             }
         }
         const allExtensions = remoteExtensions.concat(localProcessExtensions).concat(localWebWorkerExtensions);
-        const result = this._registry.deltaExtensions(lock, allExtensions, []);
+        let toAdd = allExtensions;
+        if (resolverExtensions.length) {
+            // Add extensions that are not registered as resolvers but are in the final resolved set
+            toAdd = allExtensions.filter(extension => !resolverExtensions.some(e => ExtensionIdentifier.equals(e.identifier, extension.identifier) && e.extensionLocation.toString() === extension.extensionLocation.toString()));
+            // Remove extensions that are registered as resolvers but are not in the final resolved set
+            if (allExtensions.length < toAdd.length + resolverExtensions.length) {
+                const toRemove = resolverExtensions.filter(registered => !allExtensions.some(e => ExtensionIdentifier.equals(e.identifier, registered.identifier) && e.extensionLocation.toString() === registered.extensionLocation.toString()));
+                if (toRemove.length) {
+                    this._registry.deltaExtensions(lock, [], toRemove.map(e => e.identifier));
+                    this._doHandleExtensionPoints(toRemove, true);
+                }
+            }
+        }
+        const result = this._registry.deltaExtensions(lock, toAdd, []);
         if (result.removedDueToLooping.length > 0) {
             this._notificationService.notify({
                 severity: Severity.Error,
                 message: nls.localize('looping', "The following extensions contain dependency loops and have been disabled: {0}", result.removedDueToLooping.map(e => `'${e.identifier.value}'`).join(', '))
             });
         }
-        this._doHandleExtensionPoints(this._registry.getAllExtensionDescriptions());
+        this._doHandleExtensionPoints(this._registry.getAllExtensionDescriptions(), false);
     }
     async _handleExtensionTests() {
         if (!this._environmentService.isExtensionDevelopment || !this._environmentService.extensionTestsLocationURI) {
@@ -871,7 +898,7 @@ let AbstractExtensionService = AbstractExtensionService_1 = class AbstractExtens
             return false;
         }
     }
-    _doHandleExtensionPoints(affectedExtensions) {
+    _doHandleExtensionPoints(affectedExtensions, onlyResolverExtensionPoints) {
         const affectedExtensionPoints = Object.create(null);
         for (const extensionDescription of affectedExtensions) {
             if (extensionDescription.contributes) {
@@ -885,15 +912,15 @@ let AbstractExtensionService = AbstractExtensionService_1 = class AbstractExtens
         const messageHandler = (msg) => this._handleExtensionPointMessage(msg);
         const availableExtensions = this._registry.getAllExtensionDescriptions();
         const extensionPoints = ExtensionsRegistry.getExtensionPoints();
-        perf.mark('code/willHandleExtensionPoints');
+        perf.mark(onlyResolverExtensionPoints ? 'code/willHandleResolverExtensionPoints' : 'code/willHandleExtensionPoints');
         for (const extensionPoint of extensionPoints) {
-            if (affectedExtensionPoints[extensionPoint.name]) {
+            if (affectedExtensionPoints[extensionPoint.name] && (!onlyResolverExtensionPoints || extensionPoint.canHandleResolver)) {
                 perf.mark(`code/willHandleExtensionPoint/${extensionPoint.name}`);
                 AbstractExtensionService_1._handleExtensionPoint(extensionPoint, availableExtensions, messageHandler);
                 perf.mark(`code/didHandleExtensionPoint/${extensionPoint.name}`);
             }
         }
-        perf.mark('code/didHandleExtensionPoints');
+        perf.mark(onlyResolverExtensionPoints ? 'code/didHandleResolverExtensionPoints' : 'code/didHandleExtensionPoints');
     }
     _getOrCreateExtensionStatus(extensionId) {
         if (!this._extensionStatus.has(extensionId)) {
@@ -993,23 +1020,23 @@ let AbstractExtensionService = AbstractExtensionService_1 = class AbstractExtens
     }
 };
 AbstractExtensionService = AbstractExtensionService_1 = __decorate([
-    __param(3, IInstantiationService),
-    __param(4, INotificationService),
-    __param(5, IWorkbenchEnvironmentService),
-    __param(6, ITelemetryService),
-    __param(7, IWorkbenchExtensionEnablementService),
-    __param(8, IFileService),
-    __param(9, IProductService),
-    __param(10, IWorkbenchExtensionManagementService),
-    __param(11, IWorkspaceContextService),
-    __param(12, IConfigurationService),
-    __param(13, IExtensionManifestPropertiesService),
-    __param(14, ILogService),
-    __param(15, IRemoteAgentService),
-    __param(16, IRemoteExtensionsScannerService),
-    __param(17, ILifecycleService),
-    __param(18, IRemoteAuthorityResolverService),
-    __param(19, IDialogService)
+    __param(4, IInstantiationService),
+    __param(5, INotificationService),
+    __param(6, IWorkbenchEnvironmentService),
+    __param(7, ITelemetryService),
+    __param(8, IWorkbenchExtensionEnablementService),
+    __param(9, IFileService),
+    __param(10, IProductService),
+    __param(11, IWorkbenchExtensionManagementService),
+    __param(12, IWorkspaceContextService),
+    __param(13, IConfigurationService),
+    __param(14, IExtensionManifestPropertiesService),
+    __param(15, ILogService),
+    __param(16, IRemoteAgentService),
+    __param(17, IRemoteExtensionsScannerService),
+    __param(18, ILifecycleService),
+    __param(19, IRemoteAuthorityResolverService),
+    __param(20, IDialogService)
 ], AbstractExtensionService);
 export { AbstractExtensionService };
 class ExtensionHostCollection extends Disposable {
@@ -1084,12 +1111,19 @@ class ExtensionHostManagerData {
         this.extensionHost.dispose();
     }
 }
-export class ResolvedExtensions {
-    constructor(local, remote, hasLocalProcess, allowRemoteExtensionsInLocalWebWorker) {
-        this.local = local;
-        this.remote = remote;
-        this.hasLocalProcess = hasLocalProcess;
-        this.allowRemoteExtensionsInLocalWebWorker = allowRemoteExtensionsInLocalWebWorker;
+export class ResolverExtensions {
+    constructor(extensions) {
+        this.extensions = extensions;
+    }
+}
+export class LocalExtensions {
+    constructor(extensions) {
+        this.extensions = extensions;
+    }
+}
+export class RemoteExtensions {
+    constructor(extensions) {
+        this.extensions = extensions;
     }
 }
 class DeltaExtensionsQueueItem {
@@ -1097,6 +1131,9 @@ class DeltaExtensionsQueueItem {
         this.toAdd = toAdd;
         this.toRemove = toRemove;
     }
+}
+export function isResolverExtension(extension) {
+    return !!extension.activationEvents?.some(activationEvent => activationEvent.startsWith('onResolveRemoteAuthority:'));
 }
 /**
  * @argument extensions The extensions to be checked.

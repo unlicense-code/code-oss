@@ -14,6 +14,7 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 var AbstractSettingRenderer_1, CopySettingIdAction_1, CopySettingAsJSONAction_1, CopySettingAsURLAction_1, SyncSettingAction_1, ApplySettingToAllProfilesAction_1;
 import { BrowserFeatures } from '../../../../base/browser/canIUse.js';
 import * as DOM from '../../../../base/browser/dom.js';
+import * as domStylesheetsJs from '../../../../base/browser/domStylesheets.js';
 import { StandardKeyboardEvent } from '../../../../base/browser/keyboardEvent.js';
 import { renderMarkdownAsPlaintext } from '../../../../base/browser/markdownRenderer.js';
 import * as aria from '../../../../base/browser/ui/aria/aria.js';
@@ -2083,7 +2084,7 @@ let SettingsTree = class SettingsTree extends WorkbenchObjectTree {
                 }
             },
             accessibilityProvider: new SettingsTreeAccessibilityProvider(configurationService, languageService, userDataProfilesService),
-            styleController: id => new DefaultStyleController(DOM.createStyleSheet(container), id),
+            styleController: id => new DefaultStyleController(domStylesheetsJs.createStyleSheet(container), id),
             filter: instantiationService.createInstance(SettingsTreeFilter, viewState),
             smoothScrolling: configurationService.getValue('workbench.list.smoothScrolling'),
             multipleSelectionSupport: false,

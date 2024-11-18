@@ -293,6 +293,10 @@ let ExplorerService = class ExplorerService {
         }
     }
     async refresh(reveal = true) {
+        // Do not refresh the tree when it is showing temporary nodes (phantom elements)
+        if (this.view?.hasPhantomElements()) {
+            return;
+        }
         this.model.roots.forEach(r => r.forgetChildren());
         if (this.view) {
             await this.view.refresh(true);

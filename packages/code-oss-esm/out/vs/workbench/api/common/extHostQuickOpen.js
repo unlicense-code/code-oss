@@ -210,6 +210,7 @@ export function createExtHostQuickOpen(mainContext, workspace, commands) {
             this._busy = false;
             this._ignoreFocusOut = true;
             this._value = '';
+            this._valueSelection = undefined;
             this._buttons = [];
             this._handlesToButtons = new Map();
             this._onDidAcceptEmitter = new Emitter();
@@ -277,6 +278,13 @@ export function createExtHostQuickOpen(mainContext, workspace, commands) {
         set value(value) {
             this._value = value;
             this.update({ value });
+        }
+        get valueSelection() {
+            return this._valueSelection;
+        }
+        set valueSelection(valueSelection) {
+            this._valueSelection = valueSelection;
+            this.update({ valueSelection });
         }
         get placeholder() {
             return this._placeholder;
@@ -582,13 +590,6 @@ export function createExtHostQuickOpen(mainContext, workspace, commands) {
         set prompt(prompt) {
             this._prompt = prompt;
             this.update({ prompt });
-        }
-        get valueSelection() {
-            return this._valueSelection;
-        }
-        set valueSelection(valueSelection) {
-            this._valueSelection = valueSelection;
-            this.update({ valueSelection });
         }
         get validationMessage() {
             return this._validationMessage;

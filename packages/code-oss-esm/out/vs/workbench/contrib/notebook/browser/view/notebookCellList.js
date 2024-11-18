@@ -12,6 +12,7 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
 import * as DOM from '../../../../../base/browser/dom.js';
+import * as domStylesheetsJs from '../../../../../base/browser/domStylesheets.js';
 import { ListError } from '../../../../../base/browser/ui/list/list.js';
 import { Emitter, Event } from '../../../../../base/common/event.js';
 import { Disposable, DisposableStore, MutableDisposable } from '../../../../../base/common/lifecycle.js';
@@ -1113,7 +1114,7 @@ let NotebookCellList = class NotebookCellList extends WorkbenchList {
     style(styles) {
         const selectorSuffix = this.view.domId;
         if (!this.styleElement) {
-            this.styleElement = DOM.createStyleSheet(this.view.domNode);
+            this.styleElement = domStylesheetsJs.createStyleSheet(this.view.domNode);
         }
         const suffix = selectorSuffix && `.${selectorSuffix}`;
         const content = [];

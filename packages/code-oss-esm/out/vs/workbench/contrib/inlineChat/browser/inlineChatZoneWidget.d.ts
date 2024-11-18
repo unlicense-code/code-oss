@@ -26,6 +26,7 @@ export declare class InlineChatZoneWidget extends ZoneWidget {
     };
     protected _onWidth(_widthInPixel: number): void;
     show(position: Position): void;
+    private _updatePadding;
     reveal(position: Position): void;
     updatePositionAndHeight(position: Position): void;
     private _createZoneAndScrollRestoreFn;

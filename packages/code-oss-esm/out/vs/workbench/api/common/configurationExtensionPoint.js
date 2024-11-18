@@ -124,7 +124,8 @@ const defaultConfigurationExtPoint = ExtensionsRegistry.registerExtensionPoint({
     extensionPoint: 'configurationDefaults',
     jsonSchema: {
         $ref: configurationDefaultsSchemaId,
-    }
+    },
+    canHandleResolver: true
 });
 defaultConfigurationExtPoint.setHandler((extensions, { added, removed }) => {
     if (_configDelta) {
@@ -182,7 +183,8 @@ const configurationExtPoint = ExtensionsRegistry.registerExtensionPoint({
                 items: configurationEntrySchema
             }
         ]
-    }
+    },
+    canHandleResolver: true
 });
 const extensionConfigurations = new ExtensionIdentifierMap();
 configurationExtPoint.setHandler((extensions, { added, removed }) => {

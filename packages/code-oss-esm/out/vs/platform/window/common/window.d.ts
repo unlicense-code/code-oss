@@ -209,6 +209,7 @@ export interface IOSConfiguration {
 }
 export interface INativeWindowConfiguration extends IWindowConfiguration, NativeParsedArgs, ISandboxConfiguration {
     mainPid: number;
+    handle?: string;
     machineId: string;
     sqmId: string;
     devDeviceId: string;

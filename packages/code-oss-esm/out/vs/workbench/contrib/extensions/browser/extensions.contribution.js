@@ -15,7 +15,7 @@ import { localize, localize2 } from '../../../../nls.js';
 import { Registry } from '../../../../platform/registry/common/platform.js';
 import { MenuRegistry, MenuId, registerAction2, Action2 } from '../../../../platform/actions/common/actions.js';
 import { registerSingleton } from '../../../../platform/instantiation/common/extensions.js';
-import { ExtensionsLocalizedLabel, IExtensionManagementService, IExtensionGalleryService, PreferencesLocalizedLabel, EXTENSION_INSTALL_SOURCE_CONTEXT } from '../../../../platform/extensionManagement/common/extensionManagement.js';
+import { ExtensionsLocalizedLabel, IExtensionManagementService, IExtensionGalleryService, PreferencesLocalizedLabel, EXTENSION_INSTALL_SOURCE_CONTEXT, UseUnpkgResourceApi } from '../../../../platform/extensionManagement/common/extensionManagement.js';
 import { IExtensionManagementServerService, IWorkbenchExtensionEnablementService, IWorkbenchExtensionManagementService, extensionsConfigurationNodeBase } from '../../../services/extensionManagement/common/extensionManagement.js';
 import { IExtensionIgnoredRecommendationsService, IExtensionRecommendationsService } from '../../../services/extensionRecommendations/common/extensionRecommendations.js';
 import { Extensions as WorkbenchExtensions } from '../../../common/contributions.js';
@@ -78,6 +78,7 @@ import { IStorageService } from '../../../../platform/storage/common/storage.js'
 import { CONTEXT_KEYBINDINGS_EDITOR } from '../../preferences/common/preferences.js';
 import { IUriIdentityService } from '../../../../platform/uriIdentity/common/uriIdentity.js';
 import { Extensions as ConfigurationMigrationExtensions } from '../../../common/configuration.js';
+import { IProductService } from '../../../../platform/product/common/productService.js';
 // Singletons
 registerSingleton(IExtensionsWorkbenchService, ExtensionsWorkbenchService, 0 /* InstantiationType.Eager */);
 registerSingleton(IExtensionRecommendationNotificationService, ExtensionRecommendationNotificationService, 1 /* InstantiationType.Delayed */);
@@ -248,6 +249,13 @@ Registry.as(ConfigurationExtensions.Configuration)
             default: true,
             scope: 1 /* ConfigurationScope.APPLICATION */,
             included: isNative && !isLinux
+        },
+        [UseUnpkgResourceApi]: {
+            type: 'boolean',
+            description: localize('extensions.gallery.useUnpkgResourceApi', "When enabled, extensions to update are fetched from Unpkg service."),
+            default: true,
+            scope: 1 /* ConfigurationScope.APPLICATION */,
+            tags: ['onExp', 'usesOnlineServices']
         }
     }
 });
@@ -447,15 +455,20 @@ async function runAction(action) {
     }
 }
 let ExtensionsContributions = class ExtensionsContributions extends Disposable {
-    constructor(extensionManagementServerService, extensionGalleryService, contextKeyService, viewsService, extensionsWorkbenchService, extensionEnablementService, instantiationService, dialogService, commandService) {
+    constructor(extensionManagementServerService, extensionGalleryService, contextKeyService, viewsService, extensionsWorkbenchService, extensionEnablementService, instantiationService, dialogService, commandService, fileDialogService, productService, uriIdentityService, notificationService) {
         super();
         this.extensionManagementServerService = extensionManagementServerService;
+        this.extensionGalleryService = extensionGalleryService;
         this.viewsService = viewsService;
         this.extensionsWorkbenchService = extensionsWorkbenchService;
         this.extensionEnablementService = extensionEnablementService;
         this.instantiationService = instantiationService;
         this.dialogService = dialogService;
         this.commandService = commandService;
+        this.fileDialogService = fileDialogService;
+        this.productService = productService;
+        this.uriIdentityService = uriIdentityService;
+        this.notificationService = notificationService;
         const hasGalleryContext = CONTEXT_HAS_GALLERY.bindTo(contextKeyService);
         if (extensionGalleryService.isEnabled()) {
             hasGalleryContext.set(true);
@@ -1462,6 +1475,48 @@ let ExtensionsContributions = class ExtensionsContributions extends Disposable {
             },
             run: async (accessor, id) => accessor.get(IPreferencesService).openSettings({ jsonEditor: false, query: `@ext:${id}` })
         });
+        const downloadVSIX = async (extensionId, preRelease) => {
+            const result = await this.fileDialogService.showOpenDialog({
+                title: localize('download title', "Select folder to download the VSIX"),
+                canSelectFiles: false,
+                canSelectFolders: true,
+                canSelectMany: false,
+                openLabel: localize('download', "Download"),
+            });
+            if (!result?.[0]) {
+                return;
+            }
+            const [galleryExtension] = await this.extensionGalleryService.getExtensions([{ id: extensionId, preRelease: true }], { compatible: true }, CancellationToken.None);
+            if (!galleryExtension) {
+                throw new Error(localize('not found', "Extension '{0}' not found.", extensionId));
+            }
+            await this.extensionGalleryService.download(galleryExtension, this.uriIdentityService.extUri.joinPath(result[0], `${galleryExtension.identifier.id}-${galleryExtension.version}.vsix`), 1 /* InstallOperation.None */);
+            this.notificationService.info(localize('download.completed', "Successfully downloaded the VSIX"));
+        };
+        this.registerExtensionAction({
+            id: 'workbench.extensions.action.download',
+            title: localize('download VSIX', "Download VSIX"),
+            menu: {
+                id: MenuId.ExtensionContext,
+                when: ContextKeyExpr.and(ContextKeyExpr.equals('extensionStatus', 'uninstalled'), ContextKeyExpr.has('isGalleryExtension')),
+                order: this.productService.quality === 'stable' ? 0 : 1
+            },
+            run: async (accessor, extensionId) => {
+                downloadVSIX(extensionId, false);
+            }
+        });
+        this.registerExtensionAction({
+            id: 'workbench.extensions.action.downloadPreRelease',
+            title: localize('download pre-release', "Download Pre-Release VSIX"),
+            menu: {
+                id: MenuId.ExtensionContext,
+                when: ContextKeyExpr.and(ContextKeyExpr.equals('extensionStatus', 'uninstalled'), ContextKeyExpr.has('isGalleryExtension'), ContextKeyExpr.has('extensionHasPreReleaseVersion')),
+                order: this.productService.quality === 'stable' ? 1 : 0
+            },
+            run: async (accessor, extensionId) => {
+                downloadVSIX(extensionId, true);
+            }
+        });
         this.registerExtensionAction({
             id: 'workbench.extensions.action.manageAccountPreferences',
             title: localize2('workbench.extensions.action.changeAccountPreference', "Account Preferences"),
@@ -1683,7 +1738,11 @@ ExtensionsContributions = __decorate([
     __param(5, IWorkbenchExtensionEnablementService),
     __param(6, IInstantiationService),
     __param(7, IDialogService),
-    __param(8, ICommandService)
+    __param(8, ICommandService),
+    __param(9, IFileDialogService),
+    __param(10, IProductService),
+    __param(11, IUriIdentityService),
+    __param(12, INotificationService)
 ], ExtensionsContributions);
 let ExtensionStorageCleaner = class ExtensionStorageCleaner {
     constructor(extensionManagementService, storageService) {

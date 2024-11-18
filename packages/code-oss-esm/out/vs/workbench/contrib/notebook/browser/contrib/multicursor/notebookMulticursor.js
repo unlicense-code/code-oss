@@ -38,12 +38,15 @@ import { ContextKeyExpr, IContextKeyService, RawContextKey } from '../../../../.
 import { IUndoRedoService } from '../../../../../../platform/undoRedo/common/undoRedo.js';
 import { registerWorkbenchContribution2 } from '../../../../../common/contributions.js';
 import { IEditorService } from '../../../../../services/editor/common/editorService.js';
-import { NOTEBOOK_CELL_EDITOR_FOCUSED, NOTEBOOK_IS_ACTIVE_EDITOR } from '../../../common/notebookContextKeys.js';
+import { KEYBINDING_CONTEXT_NOTEBOOK_FIND_WIDGET_FOCUSED, NOTEBOOK_CELL_EDITOR_FOCUSED, NOTEBOOK_IS_ACTIVE_EDITOR } from '../../../common/notebookContextKeys.js';
 import { NotebookAction } from '../../controller/coreActions.js';
 import { getNotebookEditorFromEditorPane } from '../../notebookBrowser.js';
 import { registerNotebookContribution } from '../../notebookEditorExtensions.js';
 import { CellEditorOptions } from '../../view/cellParts/cellEditorOptions.js';
+import { NotebookFindContrib } from '../find/notebookFindWidget.js';
+import { NotebookCellTextModel } from '../../../common/model/notebookCellTextModel.js';
 const NOTEBOOK_ADD_FIND_MATCH_TO_SELECTION_ID = 'notebook.addFindMatchToSelection';
+const NOTEBOOK_SELECT_ALL_FIND_MATCHES_ID = 'notebook.selectAllFindMatches';
 export var NotebookMultiCursorState;
 (function (NotebookMultiCursorState) {
     NotebookMultiCursorState[NotebookMultiCursorState["Idle"] = 0] = "Idle";
@@ -69,7 +72,7 @@ let NotebookMultiCursorController = class NotebookMultiCursorController extends 
         this.configurationService = configurationService;
         this.undoRedoService = undoRedoService;
         this.word = '';
-        this.trackedMatches = [];
+        this.trackedCells = [];
         this._onDidChangeAnchorCell = this._register(new Emitter());
         this.onDidChangeAnchorCell = this._onDidChangeAnchorCell.event;
         this.anchorDisposables = this._register(new DisposableStore());
@@ -82,26 +85,124 @@ let NotebookMultiCursorController = class NotebookMultiCursorController extends 
         // anchor cell will catch and relay all type, cut, paste events to the cursors controllers
         // need to create new controllers when the anchor cell changes, then update their listeners
         // ** cursor controllers need to happen first, because anchor listeners relay to them
-        this._register(this.onDidChangeAnchorCell(() => {
-            this.updateCursorsControllers();
-            this.updateAnchorListeners();
+        this._register(this.onDidChangeAnchorCell(async () => {
+            await this.syncCursorsControllers();
+            this.syncAnchorListeners();
         }));
     }
-    updateCursorsControllers() {
-        this.cursorsDisposables.clear(); // TODO: dial this back for perf and just update the relevant controllers
-        this.trackedMatches.forEach(async (match) => {
-            const textModelRef = await this.textModelService.createModelReference(match.cellViewModel.uri);
-            const textModel = textModelRef.object.textEditorModel;
-            if (!textModel) {
+    syncAnchorListeners() {
+        this.anchorDisposables.clear();
+        if (!this.anchorCell) {
+            throw new Error('Anchor cell is undefined');
+        }
+        // typing
+        this.anchorDisposables.add(this.anchorCell[1].onWillType((input) => {
+            const collector = new ViewModelEventsCollector();
+            this.trackedCells.forEach(cell => {
+                const controller = this.cursorsControllers.get(cell.cellViewModel.uri);
+                if (!controller) {
+                    // should not happen
+                    return;
+                }
+                if (cell.cellViewModel.handle !== this.anchorCell?.[0].handle) { // don't relay to active cell, already has a controller for typing
+                    controller.type(collector, input, 'keyboard');
+                }
+            });
+        }));
+        this.anchorDisposables.add(this.anchorCell[1].onDidType(() => {
+            this.state = NotebookMultiCursorState.Editing; // typing will continue to work as normal across ranges, just preps for another cmd+d
+            this._nbMultiSelectState.set(NotebookMultiCursorState.Editing);
+            const anchorController = this.cursorsControllers.get(this.anchorCell[0].uri);
+            if (!anchorController) {
                 return;
             }
-            const cursorSimpleModel = this.constructCursorSimpleModel(match.cellViewModel);
-            const converter = this.constructCoordinatesConverter();
-            const editorConfig = match.editorConfig;
-            const controller = this.cursorsDisposables.add(new CursorsController(textModel, cursorSimpleModel, converter, new CursorConfiguration(textModel.getLanguageId(), textModel.getOptions(), editorConfig, this.languageConfigurationService)));
-            controller.setSelections(new ViewModelEventsCollector(), undefined, match.wordSelections, 3 /* CursorChangeReason.Explicit */);
-            this.cursorsControllers.set(match.cellViewModel.uri, controller);
-        });
+            const activeSelections = this.notebookEditor.activeCodeEditor?.getSelections();
+            if (!activeSelections) {
+                return;
+            }
+            // need to keep anchor cursor controller in sync manually (for delete usage), since we don't relay type event to it
+            anchorController.setSelections(new ViewModelEventsCollector(), 'keyboard', activeSelections, 3 /* CursorChangeReason.Explicit */);
+            this.trackedCells.forEach(cell => {
+                const controller = this.cursorsControllers.get(cell.cellViewModel.uri);
+                if (!controller) {
+                    return;
+                }
+                // this is used upon exiting the multicursor session to set the selections back to the correct cursor state
+                cell.initialSelection = controller.getSelection();
+                // clear tracked selection data as it is invalid once typing begins
+                cell.matchSelections = [];
+            });
+            this.updateLazyDecorations();
+        }));
+        // arrow key navigation
+        this.anchorDisposables.add(this.anchorCell[1].onDidChangeCursorSelection((e) => {
+            if (e.source === 'mouse') {
+                this.resetToIdleState();
+                return;
+            }
+            // ignore this event if it was caused by a typing event or a delete (NotSet and RecoverFromMarkers respectively)
+            if (!e.oldSelections || e.reason === 0 /* CursorChangeReason.NotSet */ || e.reason === 2 /* CursorChangeReason.RecoverFromMarkers */) {
+                return;
+            }
+            const translation = {
+                deltaStartCol: e.selection.startColumn - e.oldSelections[0].startColumn,
+                deltaStartLine: e.selection.startLineNumber - e.oldSelections[0].startLineNumber,
+                deltaEndCol: e.selection.endColumn - e.oldSelections[0].endColumn,
+                deltaEndLine: e.selection.endLineNumber - e.oldSelections[0].endLineNumber,
+            };
+            const translationDir = e.selection.getDirection();
+            this.trackedCells.forEach(cell => {
+                const controller = this.cursorsControllers.get(cell.cellViewModel.uri);
+                if (!controller) {
+                    return;
+                }
+                const newSelections = controller.getSelections().map(selection => {
+                    const newStartCol = selection.startColumn + translation.deltaStartCol;
+                    const newStartLine = selection.startLineNumber + translation.deltaStartLine;
+                    const newEndCol = selection.endColumn + translation.deltaEndCol;
+                    const newEndLine = selection.endLineNumber + translation.deltaEndLine;
+                    return Selection.createWithDirection(newStartLine, newStartCol, newEndLine, newEndCol, translationDir);
+                });
+                controller.setSelections(new ViewModelEventsCollector(), e.source, newSelections, 3 /* CursorChangeReason.Explicit */);
+            });
+            this.updateLazyDecorations();
+        }));
+        // core actions
+        this.anchorDisposables.add(this.anchorCell[1].onWillTriggerEditorOperationEvent((e) => {
+            this.handleEditorOperationEvent(e);
+        }));
+        // exit mode
+        this.anchorDisposables.add(this.anchorCell[1].onDidBlurEditorWidget(() => {
+            if (this.state === NotebookMultiCursorState.Selecting || this.state === NotebookMultiCursorState.Editing) {
+                this.resetToIdleState();
+            }
+        }));
+    }
+    async syncCursorsControllers() {
+        this.cursorsDisposables.clear(); // TODO: dial this back for perf and just update the relevant controllers
+        await Promise.all(this.trackedCells.map(async (cell) => {
+            const controller = await this.createCursorController(cell);
+            if (!controller) {
+                return;
+            }
+            this.cursorsControllers.set(cell.cellViewModel.uri, controller);
+            const selections = cell.matchSelections;
+            controller.setSelections(new ViewModelEventsCollector(), undefined, selections, 3 /* CursorChangeReason.Explicit */);
+        }));
+        this.updateLazyDecorations();
+    }
+    async createCursorController(cell) {
+        const textModelRef = await this.textModelService.createModelReference(cell.cellViewModel.uri);
+        const textModel = textModelRef.object.textEditorModel;
+        if (!textModel) {
+            return undefined;
+        }
+        const cursorSimpleModel = this.constructCursorSimpleModel(cell.cellViewModel);
+        const converter = this.constructCoordinatesConverter();
+        const editorConfig = cell.editorConfig;
+        const controller = this.cursorsDisposables.add(new CursorsController(textModel, cursorSimpleModel, converter, new CursorConfiguration(textModel.getLanguageId(), textModel.getOptions(), editorConfig, this.languageConfigurationService)));
+        controller.setSelections(new ViewModelEventsCollector(), undefined, cell.matchSelections, 3 /* CursorChangeReason.Explicit */);
+        return controller;
     }
     constructCoordinatesConverter() {
         return {
@@ -162,138 +263,46 @@ let NotebookMultiCursorController = class NotebookMultiCursorController extends 
             }
         };
     }
-    updateAnchorListeners() {
-        this.anchorDisposables.clear();
-        if (!this.anchorCell) {
-            throw new Error('Anchor cell is undefined');
+    async handleEditorOperationEvent(e) {
+        this.trackedCells.forEach(cell => {
+            if (cell.cellViewModel.handle === this.anchorCell?.[0].handle) {
+                return;
+            }
+            const eventsCollector = new ViewModelEventsCollector();
+            const controller = this.cursorsControllers.get(cell.cellViewModel.uri);
+            if (!controller) {
+                return;
+            }
+            this.executeEditorOperation(controller, eventsCollector, e);
+        });
+    }
+    executeEditorOperation(controller, eventsCollector, e) {
+        switch (e.handlerId) {
+            case "compositionStart" /* Handler.CompositionStart */:
+                controller.startComposition(eventsCollector);
+                break;
+            case "compositionEnd" /* Handler.CompositionEnd */:
+                controller.endComposition(eventsCollector, e.source);
+                break;
+            case "replacePreviousChar" /* Handler.ReplacePreviousChar */: {
+                const args = e.payload;
+                controller.compositionType(eventsCollector, args.text || '', args.replaceCharCnt || 0, 0, 0, e.source);
+                break;
+            }
+            case "compositionType" /* Handler.CompositionType */: {
+                const args = e.payload;
+                controller.compositionType(eventsCollector, args.text || '', args.replacePrevCharCnt || 0, args.replaceNextCharCnt || 0, args.positionDelta || 0, e.source);
+                break;
+            }
+            case "paste" /* Handler.Paste */: {
+                const args = e.payload;
+                controller.paste(eventsCollector, args.text || '', args.pasteOnNewLine || false, args.multicursorText || null, e.source);
+                break;
+            }
+            case "cut" /* Handler.Cut */:
+                controller.cut(eventsCollector, e.source);
+                break;
         }
-        // typing
-        this.anchorDisposables.add(this.anchorCell[1].onWillType((input) => {
-            const collector = new ViewModelEventsCollector();
-            this.trackedMatches.forEach(match => {
-                const controller = this.cursorsControllers.get(match.cellViewModel.uri);
-                if (!controller) {
-                    // should not happen
-                    return;
-                }
-                if (match.cellViewModel.handle !== this.anchorCell?.[0].handle) { // don't relay to active cell, already has a controller for typing
-                    controller.type(collector, input, 'keyboard');
-                }
-            });
-        }));
-        this.anchorDisposables.add(this.anchorCell[1].onDidType(() => {
-            this.state = NotebookMultiCursorState.Editing; // typing will continue to work as normal across ranges, just preps for another cmd+d
-            this._nbMultiSelectState.set(NotebookMultiCursorState.Editing);
-            const anchorController = this.cursorsControllers.get(this.anchorCell[0].uri);
-            if (!anchorController) {
-                return;
-            }
-            const activeSelections = this.notebookEditor.activeCodeEditor?.getSelections();
-            if (!activeSelections) {
-                return;
-            }
-            // need to keep anchor cursor controller in sync manually (for delete usage), since we don't relay type event to it
-            anchorController.setSelections(new ViewModelEventsCollector(), 'keyboard', activeSelections, 3 /* CursorChangeReason.Explicit */);
-            this.trackedMatches.forEach(match => {
-                const controller = this.cursorsControllers.get(match.cellViewModel.uri);
-                if (!controller) {
-                    return;
-                }
-                // this is used upon exiting the multicursor session to set the selections back to the correct cursor state
-                match.initialSelection = controller.getSelection();
-                // clear tracked selection data as it is invalid once typing begins
-                match.wordSelections = [];
-            });
-            this.updateLazyDecorations();
-        }));
-        // arrow key navigation
-        this.anchorDisposables.add(this.anchorCell[1].onDidChangeCursorSelection((e) => {
-            if (e.source === 'mouse') {
-                this.resetToIdleState();
-                return;
-            }
-            // ignore this event if it was caused by a typing event or a delete (NotSet and RecoverFromMarkers respectively)
-            if (!e.oldSelections || e.reason === 0 /* CursorChangeReason.NotSet */ || e.reason === 2 /* CursorChangeReason.RecoverFromMarkers */) {
-                return;
-            }
-            const translation = {
-                deltaStartCol: e.selection.startColumn - e.oldSelections[0].startColumn,
-                deltaStartLine: e.selection.startLineNumber - e.oldSelections[0].startLineNumber,
-                deltaEndCol: e.selection.endColumn - e.oldSelections[0].endColumn,
-                deltaEndLine: e.selection.endLineNumber - e.oldSelections[0].endLineNumber,
-            };
-            const translationDir = e.selection.getDirection();
-            this.trackedMatches.forEach(match => {
-                const controller = this.cursorsControllers.get(match.cellViewModel.uri);
-                if (!controller) {
-                    return;
-                }
-                const newSelections = controller.getSelections().map(selection => {
-                    const newStartCol = selection.startColumn + translation.deltaStartCol;
-                    const newStartLine = selection.startLineNumber + translation.deltaStartLine;
-                    const newEndCol = selection.endColumn + translation.deltaEndCol;
-                    const newEndLine = selection.endLineNumber + translation.deltaEndLine;
-                    return Selection.createWithDirection(newStartLine, newStartCol, newEndLine, newEndCol, translationDir);
-                });
-                controller.setSelections(new ViewModelEventsCollector(), e.source, newSelections, 3 /* CursorChangeReason.Explicit */);
-            });
-            this.updateLazyDecorations();
-        }));
-        // core actions
-        this.anchorDisposables.add(this.anchorCell[1].onWillTriggerEditorOperationEvent((e) => {
-            this.trackedMatches.forEach(match => {
-                if (match.cellViewModel.handle === this.anchorCell?.[0].handle) {
-                    return;
-                }
-                const eventsCollector = new ViewModelEventsCollector();
-                const controller = this.cursorsControllers.get(match.cellViewModel.uri);
-                if (!controller) {
-                    return;
-                }
-                switch (e.handlerId) {
-                    case "compositionStart" /* Handler.CompositionStart */:
-                        controller.startComposition(eventsCollector);
-                        return;
-                    case "compositionEnd" /* Handler.CompositionEnd */:
-                        controller.endComposition(eventsCollector, e.source);
-                        return;
-                    case "replacePreviousChar" /* Handler.ReplacePreviousChar */: {
-                        const args = e.payload;
-                        controller.compositionType(eventsCollector, args.text || '', args.replaceCharCnt || 0, 0, 0, e.source);
-                        return;
-                    }
-                    case "compositionType" /* Handler.CompositionType */: {
-                        const args = e.payload;
-                        controller.compositionType(eventsCollector, args.text || '', args.replacePrevCharCnt || 0, args.replaceNextCharCnt || 0, args.positionDelta || 0, e.source);
-                        return;
-                    }
-                    case "paste" /* Handler.Paste */: {
-                        const args = e.payload;
-                        controller.paste(eventsCollector, args.text || '', args.pasteOnNewLine || false, args.multicursorText || null, e.source);
-                        return;
-                        // ! this code is for firing the paste event, not sure what that would enable, trace the event listener
-                        // const startPos = XYZ
-                        // const endPos = XYZ
-                        // if (source === 'keyboard') {
-                        // 	this._onDidPaste.fire({
-                        // 		clipboardEvent,
-                        // 		range: new Range(startPosition.lineNumber, startPosition.column, endPosition.lineNumber, endPosition.column),
-                        // 		languageId: mode
-                        // 	});
-                        // }
-                    }
-                    case "cut" /* Handler.Cut */:
-                        controller.cut(eventsCollector, e.source);
-                        return;
-                }
-            });
-        }));
-        // exit mode
-        this.anchorDisposables.add(this.anchorCell[1].onDidBlurEditorWidget(() => {
-            if (this.state === NotebookMultiCursorState.Selecting || this.state === NotebookMultiCursorState.Editing) {
-                this.resetToIdleState();
-            }
-        }));
     }
     updateFinalUndoRedo() {
         const anchorCellModel = this.anchorCell?.[1].getModel();
@@ -303,7 +312,7 @@ let NotebookMultiCursorController = class NotebookMultiCursorController extends 
         }
         const newElementsMap = new ResourceMap();
         const resources = [];
-        this.trackedMatches.forEach(trackedMatch => {
+        this.trackedCells.forEach(trackedMatch => {
             const undoRedoState = trackedMatch.undoRedoHistory;
             if (!undoRedoState) {
                 return;
@@ -348,31 +357,31 @@ let NotebookMultiCursorController = class NotebookMultiCursorController extends 
         this._nbMultiSelectState.set(NotebookMultiCursorState.Idle);
         this._nbIsMultiSelectSession.set(false);
         this.updateFinalUndoRedo();
-        this.trackedMatches.forEach(match => {
-            this.clearDecorations(match);
-            match.cellViewModel.setSelections([match.initialSelection]); // correct cursor placement upon exiting cmd-d session
+        this.trackedCells.forEach(cell => {
+            this.clearDecorations(cell);
+            cell.cellViewModel.setSelections([cell.initialSelection]); // correct cursor placement upon exiting cmd-d session
         });
         this.anchorDisposables.clear();
         this.anchorCell = undefined;
         this.cursorsDisposables.clear();
         this.cursorsControllers.clear();
-        this.trackedMatches = [];
+        this.trackedCells = [];
         this.startPosition = undefined;
         this.word = '';
     }
-    async findAndTrackNextSelection(cell) {
+    async findAndTrackNextSelection(focusedCell) {
         if (this.state === NotebookMultiCursorState.Idle) { // move cursor to end of the symbol + track it, transition to selecting state
-            const textModel = cell.textModel;
+            const textModel = focusedCell.textModel;
             if (!textModel) {
                 return;
             }
-            const inputSelection = cell.getSelections()[0];
+            const inputSelection = focusedCell.getSelections()[0];
             const word = this.getWord(inputSelection, textModel);
             if (!word) {
                 return;
             }
             this.word = word.word;
-            const index = this.notebookEditor.getCellIndex(cell);
+            const index = this.notebookEditor.getCellIndex(focusedCell);
             if (index === undefined) {
                 return;
             }
@@ -381,33 +390,15 @@ let NotebookMultiCursorController = class NotebookMultiCursorController extends 
                 position: new Position(inputSelection.startLineNumber, word.startColumn),
             };
             const newSelection = new Selection(inputSelection.startLineNumber, word.startColumn, inputSelection.startLineNumber, word.endColumn);
-            cell.setSelections([newSelection]);
+            focusedCell.setSelections([newSelection]);
             this.anchorCell = this.notebookEditor.activeCellAndCodeEditor;
-            if (!this.anchorCell || this.anchorCell[0].handle !== cell.handle) {
+            if (!this.anchorCell || this.anchorCell[0].handle !== focusedCell.handle) {
                 throw new Error('Active cell is not the same as the cell passed as context');
             }
             if (!(this.anchorCell[1] instanceof CodeEditorWidget)) {
                 throw new Error('Active cell is not an instance of CodeEditorWidget');
             }
-            textModel.pushStackElement();
-            this.trackedMatches = [];
-            const editorConfig = this.constructCellEditorOptions(this.anchorCell[0]);
-            const rawEditorOptions = editorConfig.getRawOptions();
-            const cursorConfig = {
-                cursorStyle: cursorStyleFromString(rawEditorOptions.cursorStyle),
-                cursorBlinking: cursorBlinkingStyleFromString(rawEditorOptions.cursorBlinking),
-                cursorSmoothCaretAnimation: rawEditorOptions.cursorSmoothCaretAnimation
-            };
-            const newMatch = {
-                cellViewModel: cell,
-                initialSelection: inputSelection,
-                wordSelections: [newSelection],
-                editorConfig: editorConfig, // cache this in the match so we can create new cursors controllers with the correct language config
-                cursorConfig: cursorConfig,
-                decorationIds: [],
-                undoRedoHistory: this.undoRedoService.getElements(cell.uri)
-            };
-            this.trackedMatches.push(newMatch);
+            await this.updateTrackedCell(focusedCell, [newSelection]);
             this._nbIsMultiSelectSession.set(true);
             this.state = NotebookMultiCursorState.Selecting;
             this._nbMultiSelectState.set(NotebookMultiCursorState.Selecting);
@@ -418,95 +409,171 @@ let NotebookMultiCursorController = class NotebookMultiCursorController extends 
             if (!notebookTextModel) {
                 return; // should not happen
             }
-            const index = this.notebookEditor.getCellIndex(cell);
+            const index = this.notebookEditor.getCellIndex(focusedCell);
             if (index === undefined) {
                 return; // should not happen
             }
             if (!this.startPosition) {
                 return; // should not happen
             }
-            const findResult = notebookTextModel.findNextMatch(this.word, { cellIndex: index, position: cell.getSelections()[cell.getSelections().length - 1].getEndPosition() }, false, true, USUAL_WORD_SEPARATORS, this.startPosition);
+            const findResult = notebookTextModel.findNextMatch(this.word, { cellIndex: index, position: focusedCell.getSelections()[focusedCell.getSelections().length - 1].getEndPosition() }, false, true, USUAL_WORD_SEPARATORS, this.startPosition);
             if (!findResult) {
-                this.state = NotebookMultiCursorState.Editing;
                 return;
             }
-            const resultCellViewModel = this.notebookEditor.getCellByHandle(findResult.cell.handle);
-            if (!resultCellViewModel) {
+            const findResultCellViewModel = this.notebookEditor.getCellByHandle(findResult.cell.handle);
+            if (!findResultCellViewModel) {
                 return;
             }
-            let newMatch;
-            if (findResult.cell.handle === cell.handle) { // match is in the same cell, find tracked entry, update and set selections in viewmodel and cursorController
-                newMatch = this.trackedMatches.find(match => match.cellViewModel.handle === findResult.cell.handle);
-                newMatch.wordSelections.push(Selection.fromRange(findResult.match.range, 0 /* SelectionDirection.LTR */));
-                resultCellViewModel.setSelections(newMatch.wordSelections);
-                const controller = this.cursorsControllers.get(newMatch.cellViewModel.uri);
-                if (!controller) {
-                    // should not happen
-                    return;
-                }
-                controller.setSelections(new ViewModelEventsCollector(), undefined, newMatch.wordSelections, 3 /* CursorChangeReason.Explicit */);
+            if (findResult.cell.handle === focusedCell.handle) { // match is in the same cell, find tracked entry, update and set selections in viewmodel and cursorController
+                const selections = [...focusedCell.getSelections(), Selection.fromRange(findResult.match.range, 0 /* SelectionDirection.LTR */)];
+                const trackedCell = await this.updateTrackedCell(focusedCell, selections);
+                findResultCellViewModel.setSelections(trackedCell.matchSelections);
             }
-            else if (findResult.cell.handle !== cell.handle) { // result is in a different cell, move focus there and apply selection, then update anchor
-                await this.notebookEditor.revealRangeInViewAsync(resultCellViewModel, findResult.match.range);
-                this.notebookEditor.focusNotebookCell(resultCellViewModel, 'editor');
-                const initialSelection = resultCellViewModel.getSelections()[0];
-                const newSelection = Selection.fromRange(findResult.match.range, 0 /* SelectionDirection.LTR */);
-                resultCellViewModel.setSelections([newSelection]);
-                if (this.notebookEditor.activeCellAndCodeEditor?.[0].handle !== resultCellViewModel.handle) {
-                    // should not happen
-                    throw new Error('Focused cell does not match the find match data');
-                }
+            else if (findResult.cell.handle !== focusedCell.handle) { // result is in a different cell, move focus there and apply selection, then update anchor
+                await this.notebookEditor.revealRangeInViewAsync(findResultCellViewModel, findResult.match.range);
+                await this.notebookEditor.focusNotebookCell(findResultCellViewModel, 'editor');
+                const trackedCell = await this.updateTrackedCell(findResultCellViewModel, [Selection.fromRange(findResult.match.range, 0 /* SelectionDirection.LTR */)]);
+                findResultCellViewModel.setSelections(trackedCell.matchSelections);
                 this.anchorCell = this.notebookEditor.activeCellAndCodeEditor;
                 if (!this.anchorCell || !(this.anchorCell[1] instanceof CodeEditorWidget)) {
                     throw new Error('Active cell is not an instance of CodeEditorWidget');
                 }
-                const textModel = await resultCellViewModel.resolveTextModel();
-                textModel.pushStackElement();
-                const editorConfig = this.constructCellEditorOptions(this.anchorCell[0]);
-                const rawEditorOptions = editorConfig.getRawOptions();
-                const cursorConfig = {
-                    cursorStyle: cursorStyleFromString(rawEditorOptions.cursorStyle),
-                    cursorBlinking: cursorBlinkingStyleFromString(rawEditorOptions.cursorBlinking),
-                    cursorSmoothCaretAnimation: rawEditorOptions.cursorSmoothCaretAnimation
-                };
-                newMatch = this.trackedMatches.find(match => match.cellViewModel.handle === findResult.cell.handle);
-                if (newMatch) {
-                    newMatch.wordSelections.push(Selection.fromRange(findResult.match.range, 0 /* SelectionDirection.LTR */));
-                    this.clearDecorations(newMatch); // clear old decorations for this cell, since we are active here again
-                    resultCellViewModel.setSelections(newMatch.wordSelections);
-                    const controller = this.cursorsControllers.get(newMatch.cellViewModel.uri);
-                    if (!controller) {
-                        // should not happen
-                        return;
-                    }
-                    controller.setSelections(new ViewModelEventsCollector(), undefined, newMatch.wordSelections, 3 /* CursorChangeReason.Explicit */);
-                }
-                else {
-                    newMatch = {
-                        cellViewModel: resultCellViewModel,
-                        initialSelection: initialSelection,
-                        wordSelections: [newSelection],
-                        editorConfig: editorConfig,
-                        cursorConfig: cursorConfig,
-                        decorationIds: [],
-                        undoRedoHistory: this.undoRedoService.getElements(resultCellViewModel.uri)
-                    };
-                    this.trackedMatches.push(newMatch);
-                }
                 this._onDidChangeAnchorCell.fire();
                 // we set the decorations manually for the cell we have just departed, since it blurs
                 // we can find the match with the handle that the find and track request originated
-                this.initializeMultiSelectDecorations(this.trackedMatches.find(match => match.cellViewModel.handle === cell.handle));
-            }
-            else {
-                // should not happen
-                return;
+                this.initializeMultiSelectDecorations(this.trackedCells.find(trackedCell => trackedCell.cellViewModel.handle === focusedCell.handle));
             }
         }
     }
+    async selectAllMatches(focusedCell, matches) {
+        const notebookTextModel = this.notebookEditor.textModel;
+        if (!notebookTextModel) {
+            return; // should not happen
+        }
+        if (matches) {
+            await this.handleFindWidgetSelectAllMatches(matches);
+        }
+        else {
+            await this.handleCellEditorSelectAllMatches(notebookTextModel, focusedCell);
+        }
+        await this.syncCursorsControllers();
+        this.syncAnchorListeners();
+        this.updateLazyDecorations();
+    }
+    async handleFindWidgetSelectAllMatches(matches) {
+        // TODO: support selecting state maybe. UX could get confusing since selecting state could be hit via ctrl+d which would have different filters (case sensetive + whole word)
+        if (this.state !== NotebookMultiCursorState.Idle) {
+            return;
+        }
+        if (!matches.length) {
+            return;
+        }
+        await this.notebookEditor.focusNotebookCell(matches[0].cell, 'editor');
+        this.anchorCell = this.notebookEditor.activeCellAndCodeEditor;
+        this.trackedCells = [];
+        for (const match of matches) {
+            this.updateTrackedCell(match.cell, match.contentMatches.map(match => Selection.fromRange(match.range, 0 /* SelectionDirection.LTR */)));
+            if (this.anchorCell && match.cell.handle === this.anchorCell[0].handle) {
+                // only explicitly set the focused cell's selections, the rest are handled by cursor controllers + decorations
+                match.cell.setSelections(match.contentMatches.map(match => Selection.fromRange(match.range, 0 /* SelectionDirection.LTR */)));
+            }
+        }
+        this._nbIsMultiSelectSession.set(true);
+        this.state = NotebookMultiCursorState.Selecting;
+        this._nbMultiSelectState.set(NotebookMultiCursorState.Selecting);
+    }
+    async handleCellEditorSelectAllMatches(notebookTextModel, focusedCell) {
+        // can be triggered mid multiselect session, or from idle state
+        if (this.state === NotebookMultiCursorState.Idle) {
+            // get word from current selection + rest of notebook objects
+            const textModel = focusedCell.textModel;
+            if (!textModel) {
+                return;
+            }
+            const inputSelection = focusedCell.getSelections()[0];
+            const word = this.getWord(inputSelection, textModel);
+            if (!word) {
+                return;
+            }
+            this.word = word.word;
+            const index = this.notebookEditor.getCellIndex(focusedCell);
+            if (index === undefined) {
+                return;
+            }
+            this.startPosition = {
+                cellIndex: index,
+                position: new Position(inputSelection.startLineNumber, word.startColumn),
+            };
+            this.anchorCell = this.notebookEditor.activeCellAndCodeEditor;
+            if (!this.anchorCell || this.anchorCell[0].handle !== focusedCell.handle) {
+                throw new Error('Active cell is not the same as the cell passed as context');
+            }
+            if (!(this.anchorCell[1] instanceof CodeEditorWidget)) {
+                throw new Error('Active cell is not an instance of CodeEditorWidget');
+            }
+            // get all matches in the notebook
+            const findResults = notebookTextModel.findMatches(this.word, false, true, USUAL_WORD_SEPARATORS);
+            // create the tracked matches for every result, needed for cursor controllers
+            this.trackedCells = [];
+            for (const res of findResults) {
+                await this.updateTrackedCell(res.cell, res.matches.map(match => Selection.fromRange(match.range, 0 /* SelectionDirection.LTR */)));
+                if (res.cell.handle === focusedCell.handle) {
+                    const cellViewModel = this.notebookEditor.getCellByHandle(res.cell.handle);
+                    if (cellViewModel) {
+                        cellViewModel.setSelections(res.matches.map(match => Selection.fromRange(match.range, 0 /* SelectionDirection.LTR */)));
+                    }
+                }
+            }
+            this._nbIsMultiSelectSession.set(true);
+            this.state = NotebookMultiCursorState.Selecting;
+            this._nbMultiSelectState.set(NotebookMultiCursorState.Selecting);
+        }
+        else if (this.state === NotebookMultiCursorState.Selecting) {
+            // we will already have a word + some number of tracked matches, need to update them with the rest given findAllMatches result
+            const findResults = notebookTextModel.findMatches(this.word, false, true, USUAL_WORD_SEPARATORS);
+            // update existing tracked matches with new selections and create new tracked matches for cells that aren't tracked yet
+            for (const res of findResults) {
+                await this.updateTrackedCell(res.cell, res.matches.map(match => Selection.fromRange(match.range, 0 /* SelectionDirection.LTR */)));
+            }
+        }
+    }
+    async updateTrackedCell(cell, selections) {
+        const cellViewModel = cell instanceof NotebookCellTextModel ? this.notebookEditor.getCellByHandle(cell.handle) : cell;
+        if (!cellViewModel) {
+            throw new Error('Cell not found');
+        }
+        let trackedMatch = this.trackedCells.find(trackedCell => trackedCell.cellViewModel.handle === cellViewModel.handle);
+        if (trackedMatch) {
+            this.clearDecorations(trackedMatch); // need this to avoid leaking decorations -- TODO: just optimize the lazy decorations fn
+            trackedMatch.matchSelections = selections;
+        }
+        else {
+            const initialSelection = cellViewModel.getSelections()[0];
+            const textModel = await cellViewModel.resolveTextModel();
+            textModel.pushStackElement();
+            const editorConfig = this.constructCellEditorOptions(cellViewModel);
+            const rawEditorOptions = editorConfig.getRawOptions();
+            const cursorConfig = {
+                cursorStyle: cursorStyleFromString(rawEditorOptions.cursorStyle),
+                cursorBlinking: cursorBlinkingStyleFromString(rawEditorOptions.cursorBlinking),
+                cursorSmoothCaretAnimation: rawEditorOptions.cursorSmoothCaretAnimation
+            };
+            trackedMatch = {
+                cellViewModel: cellViewModel,
+                initialSelection: initialSelection,
+                matchSelections: selections,
+                editorConfig: editorConfig,
+                cursorConfig: cursorConfig,
+                decorationIds: [],
+                undoRedoHistory: this.undoRedoService.getElements(cellViewModel.uri)
+            };
+            this.trackedCells.push(trackedMatch);
+        }
+        return trackedMatch;
+    }
     async deleteLeft() {
-        this.trackedMatches.forEach(match => {
-            const controller = this.cursorsControllers.get(match.cellViewModel.uri);
+        this.trackedCells.forEach(cell => {
+            const controller = this.cursorsControllers.get(cell.cellViewModel.uri);
             if (!controller) {
                 // should not happen
                 return;
@@ -521,14 +588,14 @@ let NotebookMultiCursorController = class NotebookMultiCursorController extends 
         this.updateLazyDecorations();
     }
     async deleteRight() {
-        this.trackedMatches.forEach(match => {
-            const controller = this.cursorsControllers.get(match.cellViewModel.uri);
+        this.trackedCells.forEach(cell => {
+            const controller = this.cursorsControllers.get(cell.cellViewModel.uri);
             if (!controller) {
                 // should not happen
                 return;
             }
             const [, commands] = DeleteOperations.deleteRight(controller.getPrevEditOperationType(), controller.context.cursorConfig, controller.context.model, controller.getSelections());
-            if (match.cellViewModel.handle !== this.anchorCell?.[0].handle) {
+            if (cell.cellViewModel.handle !== this.anchorCell?.[0].handle) {
                 const delSelections = CommandExecutor.executeCommands(controller.context.model, controller.getSelections(), commands);
                 if (!delSelections) {
                     return;
@@ -537,41 +604,41 @@ let NotebookMultiCursorController = class NotebookMultiCursorController extends 
             }
             else {
                 // get the selections from the viewmodel since we run the command manually (for cursor decoration reasons)
-                controller.setSelections(new ViewModelEventsCollector(), undefined, match.cellViewModel.getSelections(), 3 /* CursorChangeReason.Explicit */);
+                controller.setSelections(new ViewModelEventsCollector(), undefined, cell.cellViewModel.getSelections(), 3 /* CursorChangeReason.Explicit */);
             }
         });
         this.updateLazyDecorations();
     }
     async undo() {
         const models = [];
-        for (const match of this.trackedMatches) {
-            const model = await match.cellViewModel.resolveTextModel();
+        for (const cell of this.trackedCells) {
+            const model = await cell.cellViewModel.resolveTextModel();
             if (model) {
                 models.push(model);
             }
-            const controller = this.cursorsControllers.get(match.cellViewModel.uri);
+            const controller = this.cursorsControllers.get(cell.cellViewModel.uri);
             if (!controller) {
                 // should not happen
                 return;
             }
-            controller.setSelections(new ViewModelEventsCollector(), undefined, match.cellViewModel.getSelections(), 3 /* CursorChangeReason.Explicit */);
+            controller.setSelections(new ViewModelEventsCollector(), undefined, cell.cellViewModel.getSelections(), 3 /* CursorChangeReason.Explicit */);
         }
         await Promise.all(models.map(model => model.undo()));
         this.updateLazyDecorations();
     }
     async redo() {
         const models = [];
-        for (const match of this.trackedMatches) {
-            const model = await match.cellViewModel.resolveTextModel();
+        for (const cell of this.trackedCells) {
+            const model = await cell.cellViewModel.resolveTextModel();
             if (model) {
                 models.push(model);
             }
-            const controller = this.cursorsControllers.get(match.cellViewModel.uri);
+            const controller = this.cursorsControllers.get(cell.cellViewModel.uri);
             if (!controller) {
                 // should not happen
                 return;
             }
-            controller.setSelections(new ViewModelEventsCollector(), undefined, match.cellViewModel.getSelections(), 3 /* CursorChangeReason.Explicit */);
+            controller.setSelections(new ViewModelEventsCollector(), undefined, cell.cellViewModel.getSelections(), 3 /* CursorChangeReason.Explicit */);
         }
         await Promise.all(models.map(model => model.redo()));
         this.updateLazyDecorations();
@@ -584,32 +651,31 @@ let NotebookMultiCursorController = class NotebookMultiCursorController extends 
     /**
      * Updates the multicursor selection decorations for a specific matched cell
      *
-     * @param match -- match object containing the viewmodel + selections
+     * @param cell -- match object containing the viewmodel + selections
      */
-    initializeMultiSelectDecorations(match) {
-        if (!match) {
+    initializeMultiSelectDecorations(cell) {
+        if (!cell) {
             return;
         }
         const decorations = [];
-        match.wordSelections.forEach(selection => {
+        cell.matchSelections.forEach(selection => {
             // mock cursor at the end of the selection
             decorations.push({
                 range: Selection.fromPositions(selection.getEndPosition()),
                 options: {
                     description: '',
-                    className: this.getClassName(match.cursorConfig, true),
+                    className: this.getClassName(cell.cursorConfig, true),
                 }
             });
         });
-        match.decorationIds = match.cellViewModel.deltaModelDecorations(match.decorationIds, decorations);
+        cell.decorationIds = cell.cellViewModel.deltaModelDecorations(cell.decorationIds, decorations);
     }
     updateLazyDecorations() {
-        // for every tracked match that is not in the visible range, dispose of their decorations and update them based off the cursorcontroller
-        this.trackedMatches.forEach(match => {
-            if (match.cellViewModel.handle === this.anchorCell?.[0].handle) {
+        this.trackedCells.forEach(cell => {
+            if (cell.cellViewModel.handle === this.anchorCell?.[0].handle) {
                 return;
             }
-            const controller = this.cursorsControllers.get(match.cellViewModel.uri);
+            const controller = this.cursorsControllers.get(cell.cellViewModel.uri);
             if (!controller) {
                 // should not happen
                 return;
@@ -624,7 +690,7 @@ let NotebookMultiCursorController = class NotebookMultiCursorController extends 
                         range: selection,
                         options: {
                             description: '',
-                            className: this.getClassName(match.cursorConfig, false),
+                            className: this.getClassName(cell.cursorConfig, false),
                         }
                     });
                 }
@@ -634,11 +700,11 @@ let NotebookMultiCursorController = class NotebookMultiCursorController extends 
                     options: {
                         description: '',
                         zIndex: 10000,
-                        className: this.getClassName(match.cursorConfig, true),
+                        className: this.getClassName(cell.cursorConfig, true),
                     }
                 });
             });
-            match.decorationIds = match.cellViewModel.deltaModelDecorations(match.decorationIds, newDecorations);
+            cell.decorationIds = cell.cellViewModel.deltaModelDecorations(cell.decorationIds, newDecorations);
             /**
              * TODO: @Yoyokrazy debt
              * goal: draw decorations for occurrence higlight on the cursor blink cycle
@@ -649,14 +715,14 @@ let NotebookMultiCursorController = class NotebookMultiCursorController extends 
              * -> end = Date()
              * -> delay = x - ((end - start) % x)
              */
-            const matchingEditor = this.notebookEditor.codeEditors.find(cellEditor => cellEditor[0] === match.cellViewModel);
+            const matchingEditor = this.notebookEditor.codeEditors.find(cellEditor => cellEditor[0] === cell.cellViewModel);
             if (matchingEditor) {
                 WordHighlighterContribution.get(matchingEditor[1])?.wordHighlighter?.trigger();
             }
         });
     }
-    clearDecorations(match) {
-        match.decorationIds = match.cellViewModel.deltaModelDecorations(match.decorationIds, []);
+    clearDecorations(cell) {
+        cell.decorationIds = cell.cellViewModel.deltaModelDecorations(cell.decorationIds, []);
     }
     getWord(selection, model) {
         const lineNumber = selection.startLineNumber;
@@ -726,10 +792,10 @@ let NotebookMultiCursorController = class NotebookMultiCursorController extends 
         super.dispose();
         this.anchorDisposables.dispose();
         this.cursorsDisposables.dispose();
-        this.trackedMatches.forEach(match => {
-            this.clearDecorations(match);
+        this.trackedCells.forEach(cell => {
+            this.clearDecorations(cell);
         });
-        this.trackedMatches = [];
+        this.trackedCells = [];
     }
 };
 NotebookMultiCursorController = __decorate([
@@ -741,11 +807,44 @@ NotebookMultiCursorController = __decorate([
     __param(6, IUndoRedoService)
 ], NotebookMultiCursorController);
 export { NotebookMultiCursorController };
+class NotebookSelectAllFindMatches extends NotebookAction {
+    constructor() {
+        super({
+            id: NOTEBOOK_SELECT_ALL_FIND_MATCHES_ID,
+            title: localize('selectAllFindMatches', "Select All Occurrences of Find Match"),
+            precondition: ContextKeyExpr.and(ContextKeyExpr.equals('config.notebook.multiCursor.enabled', true)),
+            keybinding: {
+                when: ContextKeyExpr.or(ContextKeyExpr.and(ContextKeyExpr.equals('config.notebook.multiCursor.enabled', true), NOTEBOOK_IS_ACTIVE_EDITOR, NOTEBOOK_CELL_EDITOR_FOCUSED), ContextKeyExpr.and(ContextKeyExpr.equals('config.notebook.multiCursor.enabled', true), KEYBINDING_CONTEXT_NOTEBOOK_FIND_WIDGET_FOCUSED)),
+                primary: 2048 /* KeyMod.CtrlCmd */ | 1024 /* KeyMod.Shift */ | 42 /* KeyCode.KeyL */,
+                weight: 200 /* KeybindingWeight.WorkbenchContrib */
+            }
+        });
+    }
+    async runWithContext(accessor, context) {
+        const editorService = accessor.get(IEditorService);
+        const editor = getNotebookEditorFromEditorPane(editorService.activeEditorPane);
+        if (!editor) {
+            return;
+        }
+        if (!context.cell) {
+            return;
+        }
+        const cursorController = editor.getContribution(NotebookMultiCursorController.id);
+        const findController = editor.getContribution(NotebookFindContrib.id);
+        if (findController.widget.isFocused) {
+            const findModel = findController.widget.findModel;
+            cursorController.selectAllMatches(context.cell, findModel.findMatches);
+        }
+        else {
+            cursorController.selectAllMatches(context.cell);
+        }
+    }
+}
 class NotebookAddMatchToMultiSelectionAction extends NotebookAction {
     constructor() {
         super({
             id: NOTEBOOK_ADD_FIND_MATCH_TO_SELECTION_ID,
-            title: localize('addFindMatchToSelection', "Add Find Match to Selection"),
+            title: localize('addFindMatchToSelection', "Add Selection To Next Find Match"),
             precondition: ContextKeyExpr.and(ContextKeyExpr.equals('config.notebook.multiCursor.enabled', true), NOTEBOOK_IS_ACTIVE_EDITOR, NOTEBOOK_CELL_EDITOR_FOCUSED),
             keybinding: {
                 when: ContextKeyExpr.and(ContextKeyExpr.equals('config.notebook.multiCursor.enabled', true), NOTEBOOK_IS_ACTIVE_EDITOR, NOTEBOOK_CELL_EDITOR_FOCUSED),
@@ -882,6 +981,7 @@ NotebookMultiCursorUndoRedoContribution = __decorate([
 ], NotebookMultiCursorUndoRedoContribution);
 registerNotebookContribution(NotebookMultiCursorController.id, NotebookMultiCursorController);
 registerWorkbenchContribution2(NotebookMultiCursorUndoRedoContribution.ID, NotebookMultiCursorUndoRedoContribution, 2 /* WorkbenchPhase.BlockRestore */);
+registerAction2(NotebookSelectAllFindMatches);
 registerAction2(NotebookAddMatchToMultiSelectionAction);
 registerAction2(NotebookExitMultiSelectionAction);
 registerAction2(NotebookDeleteLeftMultiSelectionAction);

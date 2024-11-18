@@ -969,6 +969,7 @@ let MainThreadDocumentOnDropEditProvider = class MainThreadDocumentOnDropEditPro
         this._uriIdentService = _uriIdentService;
         this.dataTransfers = new DataTransferFileCache();
         this.dropMimeTypes = metadata?.dropMimeTypes ?? ['*/*'];
+        this.providedDropEditKinds = metadata?.providedDropKinds?.map(kind => new HierarchicalKind(kind));
         if (metadata?.supportsResolve) {
             this.resolveDocumentDropEdit = async (edit, token) => {
                 const resolved = await this._proxy.$resolvePasteEdit(this._handle, edit._cacheId, token);

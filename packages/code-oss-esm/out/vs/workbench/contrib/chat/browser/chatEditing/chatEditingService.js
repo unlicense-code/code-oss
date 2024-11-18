@@ -12,13 +12,13 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
 var ChatEditingMultiDiffSourceResolver_1;
-import { compareBy, delta } from '../../../../../base/common/arrays.js';
+import { coalesce, compareBy, delta } from '../../../../../base/common/arrays.js';
 import { AsyncIterableSource } from '../../../../../base/common/async.js';
 import { CancellationTokenSource } from '../../../../../base/common/cancellation.js';
 import { Codicon } from '../../../../../base/common/codicons.js';
 import { BugIndicatingError } from '../../../../../base/common/errors.js';
-import { Emitter } from '../../../../../base/common/event.js';
-import { Disposable, DisposableStore } from '../../../../../base/common/lifecycle.js';
+import { Emitter, Event } from '../../../../../base/common/event.js';
+import { Disposable, DisposableStore, toDisposable } from '../../../../../base/common/lifecycle.js';
 import { ResourceMap } from '../../../../../base/common/map.js';
 import { derived, observableValue, runOnChange, ValueWithChangeEventFromObservable } from '../../../../../base/common/observable.js';
 import { compare } from '../../../../../base/common/strings.js';
@@ -38,6 +38,7 @@ import { IEditorGroupsService } from '../../../../services/editor/common/editorG
 import { IEditorService } from '../../../../services/editor/common/editorService.js';
 import { MultiDiffEditorInput } from '../../../multiDiffEditor/browser/multiDiffEditorInput.js';
 import { IMultiDiffSourceResolverService, MultiDiffEditorItem } from '../../../multiDiffEditor/browser/multiDiffSourceResolverService.js';
+import { ChatAgentLocation, IChatAgentService } from '../../common/chatAgents.js';
 import { ChatContextKeys } from '../../common/chatContextKeys.js';
 import { applyingChatEditsContextKey, applyingChatEditsFailedContextKey, CHAT_EDITING_MULTI_DIFF_SOURCE_RESOLVER_SCHEME, chatEditingMaxFileAssignmentName, chatEditingResourceContextKey, decidedChatEditingResourceContextKey, defaultChatEditingMaxFileLimit, hasAppliedChatEditsContextKey, hasUndecidedChatEditingResourceContextKey, inChatEditingSessionContextKey } from '../../common/chatEditingService.js';
 import { IChatService } from '../../common/chatService.js';
@@ -74,9 +75,10 @@ let ChatEditingService = class ChatEditingService extends Disposable {
         this._onDidCreateEditingSession = this._register(new Emitter());
         this._onDidChangeEditingSession = this._register(new Emitter());
         this.onDidChangeEditingSession = this._onDidChangeEditingSession.event;
+        this._chatRelatedFilesProviders = new Map();
         this._applyingChatEditsFailedContextKey = applyingChatEditsFailedContextKey.bindTo(contextKeyService);
         this._applyingChatEditsFailedContextKey.set(false);
-        this._register(decorationsService.registerDecorationsProvider(new ChatDecorationsProvider(this._currentSessionObs)));
+        this._register(decorationsService.registerDecorationsProvider(_instantiationService.createInstance(ChatDecorationsProvider, this._currentSessionObs)));
         this._register(multiDiffSourceResolverService.registerResolver(_instantiationService.createInstance(ChatEditingMultiDiffSourceResolver, this._currentSessionObs)));
         textModelService.registerTextModelContentProvider(ChatEditingTextModelContentProvider.scheme, _instantiationService.createInstance(ChatEditingTextModelContentProvider, this._currentSessionObs));
         textModelService.registerTextModelContentProvider(ChatEditingSnapshotTextModelContentProvider.scheme, _instantiationService.createInstance(ChatEditingSnapshotTextModelContentProvider, this._currentSessionObs));
@@ -202,10 +204,11 @@ let ChatEditingService = class ChatEditingService extends Disposable {
         }
         const observerDisposables = new DisposableStore();
         let editsSource;
+        let editsPromise;
         const editsSeen = new ResourceMap();
         const editedFilesExist = new ResourceMap();
         const onResponseComplete = (responseModel) => {
-            if (responseModel.result?.errorDetails) {
+            if (responseModel.result?.errorDetails && !responseModel.result.errorDetails.responseIsIncomplete) {
                 // Roll back everything
                 this.restoreSnapshot(responseModel.requestId);
                 this._applyingChatEditsFailedContextKey.set(true);
@@ -215,7 +218,7 @@ let ChatEditingService = class ChatEditingService extends Disposable {
             editsSeen.clear();
             editedFilesExist.clear();
         };
-        const handleResponseParts = (responseModel) => {
+        const handleResponseParts = async (responseModel) => {
             for (const part of responseModel.response.value) {
                 if (part.kind === 'codeblockUri' || part.kind === 'textEditGroup') {
                     // ensure editor is open asap
@@ -240,7 +243,8 @@ let ChatEditingService = class ChatEditingService extends Disposable {
                     editsSource ??= new AsyncIterableSource();
                     editsSource.emitOne({ uri: part.uri, edits: newEdits, kind: 'textEditGroup', done: part.kind === 'textEditGroup' && part.done });
                     if (first) {
-                        this._continueEditingSession(async (builder, token) => {
+                        await editsPromise;
+                        editsPromise = this._continueEditingSession(async (builder, token) => {
                             for await (const item of editsSource.asyncIterable) {
                                 if (token.isCancellationRequested) {
                                     break;
@@ -251,23 +255,25 @@ let ChatEditingService = class ChatEditingService extends Disposable {
                                     builder.textEdits(item.uri, group, isLastGroup && (item.done ?? false), responseModel);
                                 }
                             }
-                        }, { silent: true });
+                        }, { silent: true }).finally(() => {
+                            editsPromise = undefined;
+                        });
                     }
                 }
             }
         };
-        observerDisposables.add(chatModel.onDidChange(e => {
+        observerDisposables.add(chatModel.onDidChange(async (e) => {
             if (e.kind === 'addRequest') {
                 this._applyingChatEditsFailedContextKey.set(false);
                 const responseModel = e.request.response;
                 if (responseModel) {
                     if (responseModel.isComplete) {
-                        handleResponseParts(responseModel);
+                        await handleResponseParts(responseModel);
                         onResponseComplete(responseModel);
                     }
                     else {
-                        const disposable = responseModel.onDidChange(() => {
-                            handleResponseParts(responseModel);
+                        const disposable = responseModel.onDidChange(async () => {
+                            await handleResponseParts(responseModel);
                             if (responseModel.isComplete) {
                                 onResponseComplete(responseModel);
                                 disposable.dispose();
@@ -338,6 +344,43 @@ let ChatEditingService = class ChatEditingService extends Disposable {
         }
         return editors;
     }
+    hasRelatedFilesProviders() {
+        return this._chatRelatedFilesProviders.size > 0;
+    }
+    registerRelatedFilesProvider(handle, provider) {
+        this._chatRelatedFilesProviders.set(handle, provider);
+        return toDisposable(() => {
+            this._chatRelatedFilesProviders.delete(handle);
+        });
+    }
+    async getRelatedFiles(chatSessionId, prompt, token) {
+        const currentSession = this._currentSessionObs.get();
+        if (!currentSession || chatSessionId !== currentSession.chatSessionId) {
+            return undefined;
+        }
+        const userAddedWorkingSetEntries = [];
+        for (const entry of currentSession.workingSet) {
+            // Don't incorporate suggested files into the related files request
+            // but do consider transient entries like open editors
+            if (entry[1].state !== 6 /* WorkingSetEntryState.Suggested */) {
+                userAddedWorkingSetEntries.push(entry[0]);
+            }
+        }
+        const providers = Array.from(this._chatRelatedFilesProviders.values());
+        const result = await Promise.all(providers.map(async (provider) => {
+            try {
+                const relatedFiles = await provider.provideRelatedFiles({ prompt, files: userAddedWorkingSetEntries }, token);
+                if (relatedFiles?.length) {
+                    return { group: provider.description, files: relatedFiles };
+                }
+                return undefined;
+            }
+            catch (e) {
+                return undefined;
+            }
+        }));
+        return coalesce(result);
+    }
 };
 ChatEditingService = __decorate([
     __param(0, IEditorGroupsService),
@@ -365,12 +408,13 @@ function observeArrayChanges(obs, compare, store) {
     }));
     return emitter.event;
 }
-class ChatDecorationsProvider extends Disposable {
-    constructor(_session) {
+let ChatDecorationsProvider = class ChatDecorationsProvider extends Disposable {
+    constructor(_session, _chatAgentService) {
         super();
         this._session = _session;
+        this._chatAgentService = _chatAgentService;
         this.label = localize('chat', "Chat Editing");
-        this._currentlyEditingUris = derived(this, (r) => {
+        this._currentEntries = derived(this, (r) => {
             const session = this._session.read(r);
             if (!session) {
                 return [];
@@ -379,22 +423,43 @@ class ChatDecorationsProvider extends Disposable {
             if (state === 3 /* ChatEditingSessionState.Disposed */) {
                 return [];
             }
-            return session.entries.read(r).filter(entry => entry.isCurrentlyBeingModified.read(r)).map(entry => entry.modifiedURI);
+            return session.entries.read(r);
         });
-        this.onDidChange = observeArrayChanges(this._currentlyEditingUris, compareBy(uri => uri.toString(), compare), this._store);
+        this._currentlyEditingUris = derived(this, (r) => {
+            const uri = this._currentEntries.read(r);
+            return uri.filter(entry => entry.isCurrentlyBeingModified.read(r)).map(entry => entry.modifiedURI);
+        });
+        this._modifiedUris = derived(this, (r) => {
+            const uri = this._currentEntries.read(r);
+            return uri.filter(entry => !entry.isCurrentlyBeingModified.read(r) && entry.state.read(r) === 0 /* WorkingSetEntryState.Modified */).map(entry => entry.modifiedURI);
+        });
+        this.onDidChange = Event.any(observeArrayChanges(this._currentlyEditingUris, compareBy(uri => uri.toString(), compare), this._store), observeArrayChanges(this._modifiedUris, compareBy(uri => uri.toString(), compare), this._store));
     }
     provideDecorations(uri, _token) {
         const isCurrentlyBeingModified = this._currentlyEditingUris.get().some(e => e.toString() === uri.toString());
-        if (!isCurrentlyBeingModified) {
-            return undefined;
+        if (isCurrentlyBeingModified) {
+            return {
+                weight: 1000,
+                letter: ThemeIcon.modify(Codicon.loading, 'spin'),
+                bubble: false
+            };
         }
-        return {
-            weight: 1000,
-            letter: ThemeIcon.modify(Codicon.loading, 'spin'),
-            bubble: false
-        };
+        const isModified = this._modifiedUris.get().some(e => e.toString() === uri.toString());
+        if (isModified) {
+            const defaultAgentName = this._chatAgentService.getDefaultAgent(ChatAgentLocation.EditingSession)?.fullName;
+            return {
+                weight: 1000,
+                letter: Codicon.diffModified,
+                tooltip: defaultAgentName ? localize('chatEditing.modified', "Pending changes from {0}", defaultAgentName) : localize('chatEditing.modified2', "Pending changes from chat"),
+                bubble: true
+            };
+        }
+        return undefined;
     }
-}
+};
+ChatDecorationsProvider = __decorate([
+    __param(1, IChatAgentService)
+], ChatDecorationsProvider);
 let ChatEditingMultiDiffSourceResolver = class ChatEditingMultiDiffSourceResolver {
     static { ChatEditingMultiDiffSourceResolver_1 = this; }
     static { this.scheme = CHAT_EDITING_MULTI_DIFF_SOURCE_RESOLVER_SCHEME; }

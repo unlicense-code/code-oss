@@ -1144,7 +1144,7 @@ let UpdateExperimentalSettingsDefaults = class UpdateExperimentalSettingsDefault
             // Many experimental settings refer to in-development or unstable settings.
             // onExP more clearly indicates that the setting could be
             // part of an experiment.
-            if (!tags || (!tags.includes('experimental') && !tags.includes('onExP'))) {
+            if (!tags || !tags.some(tag => tag.toLowerCase() === 'onexp')) {
                 continue;
             }
             if (this.processedExperimentalSettings.has(property)) {

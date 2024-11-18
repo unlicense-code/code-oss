@@ -24,6 +24,7 @@ export interface IExtensionPoint<T> {
     readonly name: string;
     setHandler(handler: IExtensionPointHandler<T>): IDisposable;
     readonly defaultExtensionKind: ExtensionKind[] | undefined;
+    readonly canHandleResolver?: boolean;
 }
 export declare class ExtensionPointUserDelta<T> {
     readonly added: readonly IExtensionPointUser<T>[];
@@ -35,10 +36,11 @@ export declare class ExtensionPointUserDelta<T> {
 export declare class ExtensionPoint<T> implements IExtensionPoint<T> {
     readonly name: string;
     readonly defaultExtensionKind: ExtensionKind[] | undefined;
+    readonly canHandleResolver?: boolean;
     private _handler;
     private _users;
     private _delta;
-    constructor(name: string, defaultExtensionKind: ExtensionKind[] | undefined);
+    constructor(name: string, defaultExtensionKind: ExtensionKind[] | undefined, canHandleResolver?: boolean);
     setHandler(handler: IExtensionPointHandler<T>): IDisposable;
     acceptUsers(users: IExtensionPointUser<T>[]): void;
     private _handle;
@@ -50,6 +52,7 @@ export interface IExtensionPointDescriptor<T> {
     deps?: IExtensionPoint<any>[];
     jsonSchema: IJSONSchema;
     defaultExtensionKind?: ExtensionKind[];
+    canHandleResolver?: boolean;
     /**
      * A function which runs before the extension point has been validated and which
      * should collect automatic activation events from the contribution.

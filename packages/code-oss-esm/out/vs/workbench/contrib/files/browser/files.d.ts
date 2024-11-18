@@ -55,6 +55,7 @@ export interface IExplorerView {
     getFocus(): ExplorerItem[];
     focusNext(): void;
     focusLast(): void;
+    hasPhantomElements(): boolean;
 }
 export declare function getResourceForCommand(commandArg: unknown, editorService: IEditorService, listService: IListService): URI | undefined;
 export declare function getMultiSelectedResources(commandArg: unknown, listService: IListService, editorSerice: IEditorService, editorGroupService: IEditorGroupsService, explorerService: IExplorerService): Array<URI>;

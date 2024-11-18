@@ -208,20 +208,25 @@ registerTerminalAction({
         }
     }
 });
+var DevModeContributionState;
+(function (DevModeContributionState) {
+    DevModeContributionState[DevModeContributionState["Off"] = 0] = "Off";
+    DevModeContributionState[DevModeContributionState["WaitingForCapability"] = 1] = "WaitingForCapability";
+    DevModeContributionState[DevModeContributionState["On"] = 2] = "On";
+})(DevModeContributionState || (DevModeContributionState = {}));
 let DevModeContribution = class DevModeContribution extends Disposable {
     static { DevModeContribution_1 = this; }
     static { this.ID = 'terminal.devMode'; }
     static get(instance) {
         return instance.getContribution(DevModeContribution_1.ID);
     }
-    constructor(_ctx, _configurationService, _statusbarService) {
+    constructor(_ctx, _configurationService) {
         super();
         this._ctx = _ctx;
         this._configurationService = _configurationService;
-        this._statusbarService = _statusbarService;
         this._activeDevModeDisposables = new MutableDisposable();
         this._currentColor = 0;
-        this._statusbarEntryAccessor = this._register(new MutableDisposable());
+        this._state = 0 /* DevModeContributionState.Off */;
         this._register(this._configurationService.onDidChangeConfiguration(e => {
             if (e.affectsConfiguration("terminal.integrated.developer.devMode" /* TerminalSettingId.DevMode */)) {
                 this._updateDevMode();
@@ -238,6 +243,10 @@ let DevModeContribution = class DevModeContribution extends Disposable {
         const commandDetection = this._ctx.instance.capabilities.get(2 /* TerminalCapability.CommandDetection */);
         if (devMode) {
             if (commandDetection) {
+                if (this._state === 2 /* DevModeContributionState.On */) {
+                    return;
+                }
+                this._state = 2 /* DevModeContributionState.On */;
                 const commandDecorations = new DisposableMap();
                 const otherDisposables = new DisposableStore();
                 this._activeDevModeDisposables.value = combinedDisposable(commandDecorations, otherDisposables, 
@@ -308,9 +317,12 @@ let DevModeContribution = class DevModeContribution extends Disposable {
                         commandDecorations.deleteAndDispose(c);
                     }
                 }));
-                this._updatePromptInputStatusBar(commandDetection);
             }
             else {
+                if (this._state === 1 /* DevModeContributionState.WaitingForCapability */) {
+                    return;
+                }
+                this._state = 1 /* DevModeContributionState.WaitingForCapability */;
                 this._activeDevModeDisposables.value = this._ctx.instance.capabilities.onDidAddCapabilityType(e => {
                     if (e === 2 /* TerminalCapability.CommandDetection */) {
                         this._updateDevMode();
@@ -319,36 +331,18 @@ let DevModeContribution = class DevModeContribution extends Disposable {
             }
         }
         else {
+            if (this._state === 0 /* DevModeContributionState.Off */) {
+                return;
+            }
+            this._state = 0 /* DevModeContributionState.Off */;
             this._activeDevModeDisposables.clear();
         }
     }
     _isEnabled() {
         return this._configurationService.getValue("terminal.integrated.developer.devMode" /* TerminalSettingId.DevMode */) || false;
     }
-    _updatePromptInputStatusBar(commandDetection) {
-        const promptInputModel = commandDetection.promptInputModel;
-        if (promptInputModel) {
-            const name = localize('terminalDevMode', 'Terminal Dev Mode');
-            const isExecuting = promptInputModel.cursorIndex === -1;
-            this._statusbarEntry = {
-                name,
-                text: `$(${isExecuting ? 'loading~spin' : 'terminal'}) ${promptInputModel.getCombinedString()}`,
-                ariaLabel: name,
-                tooltip: 'The detected terminal prompt input',
-                kind: 'prominent'
-            };
-            if (!this._statusbarEntryAccessor.value) {
-                this._statusbarEntryAccessor.value = this._statusbarService.addEntry(this._statusbarEntry, `terminal.promptInput.${this._ctx.instance.instanceId}`, 0 /* StatusbarAlignment.LEFT */);
-            }
-            else {
-                this._statusbarEntryAccessor.value.update(this._statusbarEntry);
-            }
-            this._statusbarService.updateEntryVisibility(`terminal.promptInput.${this._ctx.instance.instanceId}`, this._ctx.instance.hasFocus);
-        }
-    }
 };
 DevModeContribution = DevModeContribution_1 = __decorate([
-    __param(1, IConfigurationService),
-    __param(2, IStatusbarService)
+    __param(1, IConfigurationService)
 ], DevModeContribution);
 registerTerminalContribution(DevModeContribution.ID, DevModeContribution);

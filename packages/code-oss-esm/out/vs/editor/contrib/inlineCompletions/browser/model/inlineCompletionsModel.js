@@ -138,26 +138,30 @@ let InlineCompletionsModel = class InlineCompletionsModel extends Disposable {
                 return undefined;
             }
             const cursorPosition = this._primaryPosition.read(reader);
-            let inlineEditCompletion = undefined;
-            const filteredCompletions = [];
+            let inlineEdit = undefined;
+            const visibleCompletions = [];
             for (const completion of c.inlineCompletions) {
                 if (!completion.inlineCompletion.sourceInlineCompletion.isInlineEdit) {
                     if (completion.isVisible(this.textModel, cursorPosition, reader)) {
-                        filteredCompletions.push(completion);
+                        visibleCompletions.push(completion);
                     }
                 }
-                else if (filteredCompletions.length === 0 && completion.inlineCompletion.sourceInlineCompletion.isInlineEdit) {
-                    inlineEditCompletion = completion;
+                else {
+                    inlineEdit = completion;
                 }
             }
+            if (visibleCompletions.length !== 0) {
+                // Don't show the inline edit if there is a visible completion
+                inlineEdit = undefined;
+            }
             return {
-                items: filteredCompletions,
-                inlineEditCompletion,
+                inlineCompletions: visibleCompletions,
+                inlineEdit,
             };
         });
         this._filteredInlineCompletionItems = derivedOpts({ owner: this, equalsFn: itemsEquals() }, reader => {
             const c = this._inlineCompletionItems.read(reader);
-            return c?.items ?? [];
+            return c?.inlineCompletions ?? [];
         });
         this.selectedInlineCompletionIndex = derived(this, (reader) => {
             const selectedInlineCompletionId = this._selectedInlineCompletionId.read(reader);
@@ -205,18 +209,18 @@ let InlineCompletionsModel = class InlineCompletionsModel extends Disposable {
         }, (reader) => {
             const model = this.textModel;
             const item = this._inlineCompletionItems.read(reader);
-            if (item?.inlineEditCompletion) {
-                let edit = item.inlineEditCompletion.toSingleTextEdit(reader);
+            if (item?.inlineEdit) {
+                let edit = item.inlineEdit.toSingleTextEdit(reader);
                 edit = singleTextRemoveCommonPrefix(edit, model);
                 const cursorPos = this._primaryPosition.read(reader);
                 const cursorAtInlineEdit = LineRange.fromRangeInclusive(edit.range).addMargin(1, 1).contains(cursorPos.lineNumber);
                 const cursorDist = LineRange.fromRange(edit.range).distanceToLine(this._primaryPosition.read(reader).lineNumber);
                 const disableCollapsing = true;
-                const currentItemIsCollapsed = !disableCollapsing && (cursorDist > 1 && this._collapsedInlineEditId.read(reader) === item.inlineEditCompletion.semanticId);
-                const commands = item.inlineEditCompletion.inlineCompletion.source.inlineCompletions.commands;
+                const currentItemIsCollapsed = !disableCollapsing && (cursorDist > 1 && this._collapsedInlineEditId.read(reader) === item.inlineEdit.semanticId);
+                const commands = item.inlineEdit.inlineCompletion.source.inlineCompletions.commands;
                 const renderExplicitly = this._jumpedTo.read(reader);
-                const inlineEdit = new InlineEdit(edit, currentItemIsCollapsed, renderExplicitly, commands ?? []);
-                return { kind: 'inlineEdit', inlineEdit, inlineCompletion: item.inlineEditCompletion, edits: [edit], cursorAtInlineEdit };
+                const inlineEdit = new InlineEdit(edit, currentItemIsCollapsed, renderExplicitly, commands ?? [], item.inlineEdit.inlineCompletion);
+                return { kind: 'inlineEdit', inlineEdit, inlineCompletion: item.inlineEdit, edits: [edit], cursorAtInlineEdit };
             }
             this._jumpedTo.set(false, undefined);
             const suggestItem = this.selectedSuggestItem.read(reader);
@@ -281,6 +285,9 @@ let InlineCompletionsModel = class InlineCompletionsModel extends Disposable {
         this.inlineCompletionState = derived(reader => {
             const s = this.state.read(reader);
             if (!s || s.kind !== 'ghostText') {
+                return undefined;
+            }
+            if (this._editorObs.inComposition.read(reader)) {
                 return undefined;
             }
             return s;
@@ -611,6 +618,16 @@ let InlineCompletionsModel = class InlineCompletionsModel extends Disposable {
             this._editor.revealLine(s.inlineEdit.range.startLineNumber);
             this._editor.focus();
         });
+    }
+    async handleInlineCompletionShown(inlineCompletion) {
+        if (!inlineCompletion.shownCommand) {
+            return;
+        }
+        if (inlineCompletion.didShow) {
+            return;
+        }
+        inlineCompletion.markAsShown();
+        await this._commandService.executeCommand(inlineCompletion.shownCommand.id, ...(inlineCompletion.shownCommand.arguments || []));
     }
 };
 InlineCompletionsModel = __decorate([

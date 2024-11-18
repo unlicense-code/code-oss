@@ -111,8 +111,8 @@ export class NotebookDiffViewModel extends Disposable {
             // after await the editor might be disposed.
             return;
         }
-        prettyChanges(this.model, diffResult.cellsDiff);
-        const { cellDiffInfo, firstChangeIndex } = computeDiff(this.model, diffResult);
+        prettyChanges(this.model.original.notebook, this.model.modified.notebook, diffResult.cellsDiff);
+        const { cellDiffInfo, firstChangeIndex } = computeDiff(this.model.original.notebook, this.model.modified.notebook, diffResult);
         if (isEqual(cellDiffInfo, this.originalCellViewModels, this.model)) {
             return;
         }
@@ -282,7 +282,7 @@ export class NotebookDiffViewModel extends Disposable {
 /**
  * making sure that swapping cells are always translated to `insert+delete`.
  */
-export function prettyChanges(model, diffResult) {
+export function prettyChanges(original, modified, diffResult) {
     const changes = diffResult.changes;
     for (let i = 0; i < diffResult.changes.length - 1; i++) {
         // then we know there is another change after current one
@@ -296,8 +296,8 @@ export function prettyChanges(model, diffResult) {
             && next.originalLength === 0
             && next.modifiedStart === y + 1
             && next.modifiedLength === 1
-            && model.original.notebook.cells[x].getHashValue() === model.modified.notebook.cells[y + 1].getHashValue()
-            && model.original.notebook.cells[x + 1].getHashValue() === model.modified.notebook.cells[y].getHashValue()) {
+            && original.cells[x].getHashValue() === modified.cells[y + 1].getHashValue()
+            && original.cells[x + 1].getHashValue() === modified.cells[y].getHashValue()) {
             // this is a swap
             curr.originalStart = x;
             curr.originalLength = 0;
@@ -311,11 +311,9 @@ export function prettyChanges(model, diffResult) {
         }
     }
 }
-function computeDiff(model, diffResult) {
+export function computeDiff(originalModel, modifiedModel, diffResult) {
     const cellChanges = diffResult.cellsDiff.changes;
     const cellDiffInfo = [];
-    const originalModel = model.original.notebook;
-    const modifiedModel = model.modified.notebook;
     let originalCellIndex = 0;
     let modifiedCellIndex = 0;
     let firstChangeIndex = -1;

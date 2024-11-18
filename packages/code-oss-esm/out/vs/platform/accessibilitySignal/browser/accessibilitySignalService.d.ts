@@ -88,11 +88,11 @@ export declare class Sound {
     static readonly diffLineInserted: Sound;
     static readonly diffLineDeleted: Sound;
     static readonly diffLineModified: Sound;
-    static readonly chatRequestSent: Sound;
-    static readonly chatResponseReceived1: Sound;
-    static readonly chatResponseReceived2: Sound;
-    static readonly chatResponseReceived3: Sound;
-    static readonly chatResponseReceived4: Sound;
+    static readonly requestSent: Sound;
+    static readonly responseReceived1: Sound;
+    static readonly responseReceived2: Sound;
+    static readonly responseReceived3: Sound;
+    static readonly responseReceived4: Sound;
     static readonly clear: Sound;
     static readonly save: Sound;
     static readonly format: Sound;
@@ -139,6 +139,8 @@ export declare class AccessibilitySignal {
     static readonly diffLineModified: AccessibilitySignal;
     static readonly chatRequestSent: AccessibilitySignal;
     static readonly chatResponseReceived: AccessibilitySignal;
+    static readonly codeActionTriggered: AccessibilitySignal;
+    static readonly codeActionApplied: AccessibilitySignal;
     static readonly progress: AccessibilitySignal;
     static readonly clear: AccessibilitySignal;
     static readonly save: AccessibilitySignal;

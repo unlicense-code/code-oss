@@ -48,7 +48,7 @@ export interface IToolConfirmationMessages {
     message: string | IMarkdownString;
 }
 export interface IPreparedToolInvocation {
-    invocationMessage?: string;
+    invocationMessage?: string | IMarkdownString;
     confirmationMessages?: IToolConfirmationMessages;
 }
 export interface IToolImpl {

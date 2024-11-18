@@ -54,6 +54,7 @@ export declare class ExplorerView extends ViewPane implements IExplorerView {
     static readonly TREE_VIEW_STATE_STORAGE_KEY: string;
     private tree;
     private filter;
+    private findProvider;
     private resourceContext;
     private folderContext;
     private parentReadonlyContext;
@@ -120,6 +121,7 @@ export declare class ExplorerView extends ViewPane implements IExplorerView {
     lastCompressedStat(): void;
     private updateCompressedNavigationContextKeys;
     private updateAnyCollapsedContext;
+    hasPhantomElements(): boolean;
     dispose(): void;
 }
 export declare function createFileIconThemableTreeContainerScope(container: HTMLElement, themeService: IThemeService): IDisposable;

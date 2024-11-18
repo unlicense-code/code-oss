@@ -38,7 +38,18 @@ export class RenderingContext extends RestrictedRenderingContext {
         this._viewLinesGpu = viewLinesGpu;
     }
     linesVisibleRangesForRange(range, includeNewLines) {
-        return this._viewLines.linesVisibleRangesForRange(range, includeNewLines) ?? this._viewLinesGpu?.linesVisibleRangesForRange(range, includeNewLines) ?? null;
+        const domRanges = this._viewLines.linesVisibleRangesForRange(range, includeNewLines);
+        if (!this._viewLinesGpu) {
+            return domRanges ?? null;
+        }
+        const gpuRanges = this._viewLinesGpu.linesVisibleRangesForRange(range, includeNewLines);
+        if (!domRanges) {
+            return gpuRanges;
+        }
+        if (!gpuRanges) {
+            return domRanges;
+        }
+        return domRanges.concat(gpuRanges).sort((a, b) => a.lineNumber - b.lineNumber);
     }
     visibleRangeForPosition(position) {
         return this._viewLines.visibleRangeForPosition(position) ?? this._viewLinesGpu?.visibleRangeForPosition(position) ?? null;

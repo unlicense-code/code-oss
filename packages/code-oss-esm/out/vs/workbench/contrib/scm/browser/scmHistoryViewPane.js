@@ -16,7 +16,7 @@ import './media/scm.css';
 import * as platform from '../../../../base/common/platform.js';
 import { $, append, h, reset } from '../../../../base/browser/dom.js';
 import { IconLabel } from '../../../../base/browser/ui/iconLabel/iconLabel.js';
-import { fromNow } from '../../../../base/common/date.js';
+import { fromNow, safeIntl } from '../../../../base/common/date.js';
 import { createMatches } from '../../../../base/common/filters.js';
 import { MarkdownString } from '../../../../base/common/htmlContent.js';
 import { Disposable, DisposableStore } from '../../../../base/common/lifecycle.js';
@@ -391,7 +391,7 @@ let HistoryItemRenderer = class HistoryItemRenderer {
         if (historyItem.author) {
             markdown.appendMarkdown(`$(account) **${historyItem.author}**`);
             if (historyItem.timestamp) {
-                const dateFormatter = new Intl.DateTimeFormat(platform.language, { year: 'numeric', month: 'long', day: 'numeric', hour: 'numeric', minute: 'numeric' });
+                const dateFormatter = safeIntl.DateTimeFormat(platform.language, { year: 'numeric', month: 'long', day: 'numeric', hour: 'numeric', minute: 'numeric' });
                 markdown.appendMarkdown(`, $(history) ${fromNow(historyItem.timestamp, true, true)} (${dateFormatter.format(historyItem.timestamp)})`);
             }
             markdown.appendMarkdown('\n\n');

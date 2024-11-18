@@ -7,7 +7,7 @@ import { Action2, MenuId, registerAction2 } from '../../../../../platform/action
 import { ContextKeyExpr } from '../../../../../platform/contextkey/common/contextkey.js';
 import { ActiveEditorContext } from '../../../../common/contextkeys.js';
 import { CHAT_CATEGORY } from './chatActions.js';
-import { CHAT_VIEW_ID, IChatWidgetService } from '../chat.js';
+import { ChatViewId, IChatWidgetService } from '../chat.js';
 import { ChatEditor } from '../chatEditor.js';
 import { ChatEditorInput } from '../chatEditorInput.js';
 import { ChatContextKeys } from '../../common/chatContextKeys.js';
@@ -31,8 +31,9 @@ export function registerMoveActions() {
                 f1: true,
                 menu: {
                     id: MenuId.ViewTitle,
-                    when: ContextKeyExpr.equals('view', CHAT_VIEW_ID),
-                    order: 0
+                    when: ContextKeyExpr.equals('view', ChatViewId),
+                    order: 0,
+                    group: '1_open'
                 },
             });
         }
@@ -51,8 +52,9 @@ export function registerMoveActions() {
                 f1: true,
                 menu: {
                     id: MenuId.ViewTitle,
-                    when: ContextKeyExpr.equals('view', CHAT_VIEW_ID),
-                    order: 0
+                    when: ContextKeyExpr.equals('view', ChatViewId),
+                    order: 0,
+                    group: '1_open'
                 },
             });
         }
@@ -109,11 +111,11 @@ async function moveToSidebar(accessor) {
     let view;
     if (chatEditor instanceof ChatEditor && chatEditorInput instanceof ChatEditorInput && chatEditorInput.sessionId) {
         await editorService.closeEditor({ editor: chatEditor.input, groupId: editorGroupService.activeGroup.id });
-        view = await viewsService.openView(CHAT_VIEW_ID);
+        view = await viewsService.openView(ChatViewId);
         view.loadSession(chatEditorInput.sessionId, chatEditor.getViewState());
     }
     else {
-        view = await viewsService.openView(CHAT_VIEW_ID);
+        view = await viewsService.openView(ChatViewId);
     }
     view.focus();
 }

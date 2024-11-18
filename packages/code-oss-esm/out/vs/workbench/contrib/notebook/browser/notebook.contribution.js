@@ -128,6 +128,11 @@ import { NotebookMultiDiffEditorInput } from './diff/notebookMultiDiffEditorInpu
 import { getFormattedMetadataJSON } from '../common/model/notebookCellTextModel.js';
 import { INotebookOutlineEntryFactory, NotebookOutlineEntryFactory } from './viewModel/notebookOutlineEntryFactory.js';
 import { getFormattedNotebookMetadataJSON } from '../common/model/notebookMetadataTextModel.js';
+import { NotebookChatEditorControllerContrib } from './chatEdit/notebookChatEditController.js';
+import { registerNotebookContribution } from './notebookEditorExtensions.js';
+import { INotebookOriginalModelReferenceFactory, NotebookOriginalModelReferenceFactory } from './chatEdit/notebookOriginalModelRefFactory.js';
+import { INotebookModelSynchronizerFactory, NotebookModelSynchronizerFactory } from './chatEdit/notebookSynchronizer.js';
+import { INotebookOriginalCellModelFactory, OriginalNotebookCellModelFactory } from './chatEdit/notebookOriginalCellModelFactory.js';
 /*--------------------------------------------------------------------------------------------- */
 Registry.as(EditorExtensions.EditorPane).registerEditorPane(EditorPaneDescriptor.create(NotebookEditor, NotebookEditor.ID, 'Notebook Editor'), [
     new SyncDescriptor(NotebookEditorInput)
@@ -732,6 +737,10 @@ registerSingleton(INotebookKeymapService, NotebookKeymapService, 1 /* Instantiat
 registerSingleton(INotebookLoggingService, NotebookLoggingService, 1 /* InstantiationType.Delayed */);
 registerSingleton(INotebookCellOutlineDataSourceFactory, NotebookCellOutlineDataSourceFactory, 1 /* InstantiationType.Delayed */);
 registerSingleton(INotebookOutlineEntryFactory, NotebookOutlineEntryFactory, 1 /* InstantiationType.Delayed */);
+registerNotebookContribution(NotebookChatEditorControllerContrib.ID, NotebookChatEditorControllerContrib);
+registerSingleton(INotebookOriginalModelReferenceFactory, NotebookOriginalModelReferenceFactory, 1 /* InstantiationType.Delayed */);
+registerSingleton(INotebookModelSynchronizerFactory, NotebookModelSynchronizerFactory, 1 /* InstantiationType.Delayed */);
+registerSingleton(INotebookOriginalCellModelFactory, OriginalNotebookCellModelFactory, 1 /* InstantiationType.Delayed */);
 const schemas = {};
 function isConfigurationPropertySchema(x) {
     return (typeof x.type !== 'undefined' || typeof x.anyOf !== 'undefined');

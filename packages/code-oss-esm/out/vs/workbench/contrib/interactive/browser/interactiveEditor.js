@@ -13,6 +13,7 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 };
 import './media/interactive.css';
 import * as DOM from '../../../../base/browser/dom.js';
+import * as domStylesheets from '../../../../base/browser/domStylesheets.js';
 import { Emitter, Event } from '../../../../base/common/event.js';
 import { DisposableStore, MutableDisposable } from '../../../../base/common/lifecycle.js';
 import { ICodeEditorService } from '../../../../editor/browser/services/codeEditorService.js';
@@ -145,7 +146,7 @@ let InteractiveEditor = class InteractiveEditor extends EditorPane {
         this._runbuttonToolbar.setActions([...primary, ...secondary]);
     }
     _createLayoutStyles() {
-        this._styleElement = DOM.createStyleSheet(this._rootElement);
+        this._styleElement = domStylesheets.createStyleSheet(this._rootElement);
         const styleSheets = [];
         const { codeCellLeftMargin, cellRunGutter } = this._notebookOptions.getLayoutConfiguration();
         const { focusIndicator } = this._notebookOptions.getDisplayOptions();

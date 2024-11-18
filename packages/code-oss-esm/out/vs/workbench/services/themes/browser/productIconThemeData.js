@@ -8,7 +8,7 @@ import * as resources from '../../../../base/common/resources.js';
 import * as Json from '../../../../base/common/json.js';
 import { ExtensionData, ThemeSettingDefaults } from '../common/workbenchThemeService.js';
 import { getParseErrorMessage } from '../../../../base/common/jsonErrorMessages.js';
-import { fontIdRegex, fontWeightRegex, fontStyleRegex, fontFormatRegex } from '../common/productIconThemeSchema.js';
+import { fontIdRegex, fontWeightRegex, fontStyleRegex, fontFormatRegex, fontCharacterRegex } from '../common/productIconThemeSchema.js';
 import { isObject, isString } from '../../../../base/common/types.js';
 import { getIconRegistry, IconFontDefinition } from '../../../../platform/theme/common/iconRegistry.js';
 import { ThemeIcon } from '../../../../base/common/themables.js';
@@ -165,8 +165,8 @@ function _loadProductIconThemeDocument(fileService, location, warnings) {
         const iconThemeDocumentLocationDirname = resources.dirname(location);
         const sanitizedFonts = new Map();
         for (const font of contentValue.fonts) {
-            if (isString(font.id) && font.id.match(fontIdRegex)) {
-                const fontId = font.id;
+            const fontId = font.id;
+            if (isString(fontId) && fontId.match(fontIdRegex)) {
                 let fontWeight = undefined;
                 if (isString(font.weight) && font.weight.match(fontWeightRegex)) {
                     fontWeight = font.weight;
@@ -208,7 +208,7 @@ function _loadProductIconThemeDocument(fileService, location, warnings) {
         const primaryFontId = contentValue.fonts[0].id;
         for (const iconId in contentValue.iconDefinitions) {
             const definition = contentValue.iconDefinitions[iconId];
-            if (isString(definition.fontCharacter)) {
+            if (isString(definition.fontCharacter) && definition.fontCharacter.match(fontCharacterRegex)) {
                 const fontId = definition.fontId ?? primaryFontId;
                 const fontDefinition = sanitizedFonts.get(fontId);
                 if (fontDefinition) {
@@ -220,7 +220,7 @@ function _loadProductIconThemeDocument(fileService, location, warnings) {
                 }
             }
             else {
-                warnings.push(nls.localize('error.icon.fontCharacter', 'Skipping icon definition \'{0}\'. Unknown fontCharacter.', iconId));
+                warnings.push(nls.localize('error.icon.fontCharacter', 'Skipping icon definition \'{0}\'. Unknown fontCharacter. Must use a sing; character or a \\ followed by a Unicode code points in hexadecimal.', iconId));
             }
         }
         return { iconDefinitions };

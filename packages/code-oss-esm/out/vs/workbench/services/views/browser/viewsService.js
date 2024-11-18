@@ -536,7 +536,7 @@ let ViewsService = class ViewsService extends Disposable {
                     const defaultLocation = viewDescriptorService.getDefaultViewContainerLocation(defaultContainer);
                     viewDescriptorService.moveViewContainerToLocation(defaultContainer, defaultLocation, undefined, this.desc.id);
                 }
-                viewDescriptorService.moveViewsToContainer([viewDescriptor], viewDescriptorService.getDefaultContainerById(viewDescriptor.id), undefined, this.desc.id);
+                viewDescriptorService.moveViewsToContainer([viewDescriptor], defaultContainer, undefined, this.desc.id);
                 accessor.get(IViewsService).openView(viewDescriptor.id, true);
             }
         });

@@ -254,3 +254,4 @@ export async function computeSize(location, fileService) {
 }
 export const ExtensionsLocalizedLabel = localize2('extensions', "Extensions");
 export const PreferencesLocalizedLabel = localize2('preferences', 'Preferences');
+export const UseUnpkgResourceApi = 'extensions.gallery.useUnpkgResourceApi';

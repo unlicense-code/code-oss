@@ -32,9 +32,11 @@ export declare class ExtensionService extends AbstractExtensionService implement
     private readonly _remoteExplorerService;
     constructor(instantiationService: IInstantiationService, notificationService: INotificationService, _browserEnvironmentService: IBrowserWorkbenchEnvironmentService, telemetryService: ITelemetryService, extensionEnablementService: IWorkbenchExtensionEnablementService, fileService: IFileService, productService: IProductService, extensionManagementService: IWorkbenchExtensionManagementService, contextService: IWorkspaceContextService, configurationService: IConfigurationService, extensionManifestPropertiesService: IExtensionManifestPropertiesService, _webExtensionsScannerService: IWebExtensionsScannerService, logService: ILogService, remoteAgentService: IRemoteAgentService, remoteExtensionsScannerService: IRemoteExtensionsScannerService, lifecycleService: ILifecycleService, remoteAuthorityResolverService: IRemoteAuthorityResolverService, _userDataInitializationService: IUserDataInitializationService, _userDataProfileService: IUserDataProfileService, _workspaceTrustManagementService: IWorkspaceTrustManagementService, _remoteExplorerService: IRemoteExplorerService, dialogService: IDialogService);
     private _initFetchFileSystem;
+    private _scanWebExtensionsPromise;
     private _scanWebExtensions;
-    protected _resolveExtensionsDefault(): Promise<ResolvedExtensions>;
-    protected _resolveExtensions(): Promise<ResolvedExtensions>;
+    private _resolveExtensionsDefault;
+    protected _resolveExtensions(): AsyncIterable<ResolvedExtensions>;
+    private _doResolveExtensions;
     protected _onExtensionHostExit(code: number): Promise<void>;
     protected _resolveAuthority(remoteAuthority: string): Promise<ResolverResult>;
 }

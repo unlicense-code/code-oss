@@ -19,14 +19,17 @@ import { basename, dirname } from '../../../../../base/common/path.js';
 import { URI } from '../../../../../base/common/uri.js';
 import { Range } from '../../../../../editor/common/core/range.js';
 import { localize } from '../../../../../nls.js';
+import { ICommandService } from '../../../../../platform/commands/common/commands.js';
 import { FileKind, IFileService } from '../../../../../platform/files/common/files.js';
 import { IHoverService } from '../../../../../platform/hover/browser/hover.js';
 import { IInstantiationService } from '../../../../../platform/instantiation/common/instantiation.js';
 import { IOpenerService } from '../../../../../platform/opener/common/opener.js';
+import { FolderThemeIcon, IThemeService } from '../../../../../platform/theme/common/themeService.js';
 import { ResourceLabels } from '../../../../browser/labels.js';
+import { revealInSideBarCommand } from '../../../files/browser/fileActions.contribution.js';
 import { ChatResponseReferencePartStatusKind } from '../../common/chatService.js';
 let ChatAttachmentsContentPart = class ChatAttachmentsContentPart extends Disposable {
-    constructor(variables, contentReferences = [], workingSet = [], domNode = dom.$('.chat-attached-context'), instantiationService, openerService, hoverService, fileService) {
+    constructor(variables, contentReferences = [], workingSet = [], domNode = dom.$('.chat-attached-context'), instantiationService, openerService, hoverService, fileService, commandService, themeService) {
         super();
         this.variables = variables;
         this.contentReferences = contentReferences;
@@ -36,6 +39,8 @@ let ChatAttachmentsContentPart = class ChatAttachmentsContentPart extends Dispos
         this.openerService = openerService;
         this.hoverService = hoverService;
         this.fileService = fileService;
+        this.commandService = commandService;
+        this.themeService = themeService;
         this.attachedContextDisposables = this._register(new DisposableStore());
         this._onDidChangeVisibility = this._register(new Emitter());
         this._contextResourceLabels = this.instantiationService.createInstance(ResourceLabels, { onDidChangeVisibility: this._onDidChangeVisibility.event });
@@ -47,9 +52,9 @@ let ChatAttachmentsContentPart = class ChatAttachmentsContentPart extends Dispos
         dom.setVisibility(Boolean(this.variables.length), this.domNode);
         const hoverDelegate = this.attachedContextDisposables.add(createInstantHoverDelegate());
         this.variables.forEach(async (attachment) => {
-            const file = URI.isUri(attachment.value) ? attachment.value : attachment.value && typeof attachment.value === 'object' && 'uri' in attachment.value && URI.isUri(attachment.value.uri) ? attachment.value.uri : undefined;
+            const resource = URI.isUri(attachment.value) ? attachment.value : attachment.value && typeof attachment.value === 'object' && 'uri' in attachment.value && URI.isUri(attachment.value.uri) ? attachment.value.uri : undefined;
             const range = attachment.value && typeof attachment.value === 'object' && 'range' in attachment.value && Range.isIRange(attachment.value.range) ? attachment.value.range : undefined;
-            if (file && attachment.isFile && this.workingSet.find(entry => entry.toString() === file.toString())) {
+            if (resource && attachment.isFile && this.workingSet.find(entry => entry.toString() === resource.toString())) {
                 // Don't render attachment if it's in the working set
                 return;
             }
@@ -59,9 +64,9 @@ let ChatAttachmentsContentPart = class ChatAttachmentsContentPart extends Dispos
             const isAttachmentOmitted = correspondingContentReference?.options?.status?.kind === ChatResponseReferencePartStatusKind.Omitted;
             const isAttachmentPartialOrOmitted = isAttachmentOmitted || correspondingContentReference?.options?.status?.kind === ChatResponseReferencePartStatusKind.Partial;
             let ariaLabel;
-            if (file && attachment.isFile) {
-                const fileBasename = basename(file.path);
-                const fileDirname = dirname(file.path);
+            if (resource && (attachment.isFile || attachment.isDirectory)) {
+                const fileBasename = basename(resource.path);
+                const fileDirname = dirname(resource.path);
                 const friendlyName = `${fileBasename} ${fileDirname}`;
                 if (isAttachmentOmitted) {
                     ariaLabel = range ? localize('chat.omittedFileAttachmentWithRange', "Omitted: {0}, line {1} to line {2}.", friendlyName, range.startLineNumber, range.endLineNumber) : localize('chat.omittedFileAttachment', "Omitted: {0}.", friendlyName);
@@ -72,11 +77,18 @@ let ChatAttachmentsContentPart = class ChatAttachmentsContentPart extends Dispos
                 else {
                     ariaLabel = range ? localize('chat.fileAttachmentWithRange3', "Attached: {0}, line {1} to line {2}.", friendlyName, range.startLineNumber, range.endLineNumber) : localize('chat.fileAttachment3', "Attached: {0}.", friendlyName);
                 }
-                label.setFile(file, {
-                    fileKind: FileKind.FILE,
+                const fileOptions = {
                     hidePath: true,
-                    range,
                     title: correspondingContentReference?.options?.status?.description
+                };
+                label.setFile(resource, attachment.isFile ? {
+                    ...fileOptions,
+                    fileKind: FileKind.FILE,
+                    range,
+                } : {
+                    ...fileOptions,
+                    fileKind: FileKind.FOLDER,
+                    icon: !this.themeService.getFileIconTheme().hasFolderIcons ? FolderThemeIcon : undefined
                 });
             }
             else if (attachment.isImage) {
@@ -126,23 +138,37 @@ let ChatAttachmentsContentPart = class ChatAttachmentsContentPart extends Dispos
                     }
                 }
             }
-            if (file) {
+            if (resource) {
                 widget.style.cursor = 'pointer';
                 if (!this.attachedContextDisposables.isDisposed) {
                     this.attachedContextDisposables.add(dom.addDisposableListener(widget, dom.EventType.CLICK, async (e) => {
                         dom.EventHelper.stop(e, true);
-                        this.openerService.open(file, {
-                            fromUserGesture: true,
-                            editorOptions: {
-                                selection: range
-                            }
-                        });
+                        if (attachment.isDirectory) {
+                            this.openResource(resource, true);
+                        }
+                        else {
+                            this.openResource(resource, false, range);
+                        }
                     }));
                 }
             }
             widget.ariaLabel = ariaLabel;
             widget.tabIndex = 0;
         });
+    }
+    openResource(resource, isDirectory, range) {
+        if (isDirectory) {
+            // Reveal Directory in explorer
+            this.commandService.executeCommand(revealInSideBarCommand.id, resource);
+            return;
+        }
+        // Open file in editor
+        const openTextEditorOptions = range ? { selection: range } : undefined;
+        const options = {
+            fromUserGesture: true,
+            editorOptions: openTextEditorOptions,
+        };
+        this.openerService.open(resource, options);
     }
     // Helper function to create and replace image
     async createImageElements(buffer, widget, hoverElement) {
@@ -163,6 +189,8 @@ ChatAttachmentsContentPart = __decorate([
     __param(4, IInstantiationService),
     __param(5, IOpenerService),
     __param(6, IHoverService),
-    __param(7, IFileService)
+    __param(7, IFileService),
+    __param(8, ICommandService),
+    __param(9, IThemeService)
 ], ChatAttachmentsContentPart);
 export { ChatAttachmentsContentPart };

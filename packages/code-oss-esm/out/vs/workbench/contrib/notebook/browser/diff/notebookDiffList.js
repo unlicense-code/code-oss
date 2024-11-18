@@ -14,6 +14,7 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 var CellDiffPlaceholderRenderer_1, NotebookDocumentMetadataDiffRenderer_1, CellDiffSingleSideRenderer_1, CellDiffSideBySideRenderer_1;
 import './notebookDiff.css';
 import * as DOM from '../../../../../base/browser/dom.js';
+import * as domStylesheets from '../../../../../base/browser/domStylesheets.js';
 import { isMonacoEditor, MouseController } from '../../../../../base/browser/ui/list/listWidget.js';
 import { DisposableStore } from '../../../../../base/common/lifecycle.js';
 import { IConfigurationService } from '../../../../../platform/configuration/common/configuration.js';
@@ -435,7 +436,7 @@ let NotebookTextDiffList = class NotebookTextDiffList extends WorkbenchList {
     style(styles) {
         const selectorSuffix = this.view.domId;
         if (!this.styleElement) {
-            this.styleElement = DOM.createStyleSheet(this.view.domNode);
+            this.styleElement = domStylesheets.createStyleSheet(this.view.domNode);
         }
         const suffix = selectorSuffix && `.${selectorSuffix}`;
         const content = [];

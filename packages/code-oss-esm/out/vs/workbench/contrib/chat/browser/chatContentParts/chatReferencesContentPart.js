@@ -346,11 +346,11 @@ let CollapsibleListRenderer = class CollapsibleListRenderer {
                 templateData.label.setResource({ resource: uri, name: uri.toString() }, { icon: icon ?? Codicon.globe, title: data.options?.status?.description ?? data.title ?? uri.toString() });
             }
             else {
-                if (data.state === 3 /* WorkingSetEntryState.Transient */) {
+                if (data.state === 3 /* WorkingSetEntryState.Transient */ || data.state === 6 /* WorkingSetEntryState.Suggested */) {
                     templateData.label.setResource({
                         resource: uri,
                         name: basenameOrAuthority(uri),
-                        description: localize('chat.openEditor', 'Open Editor'),
+                        description: data.description ?? localize('chat.openEditor', 'Open Editor'),
                         range: 'range' in reference ? reference.range : undefined,
                     }, { icon, title: data.options?.status?.description ?? data.title });
                 }

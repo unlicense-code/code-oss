@@ -36,6 +36,7 @@ let NotebookExecutionStateService = class NotebookExecutionStateService extends 
         this._notebookListeners = new ResourceMap();
         this._cellListeners = new ResourceMap();
         this._lastFailedCells = new ResourceMap();
+        this._lastCompletedCellHandles = new ResourceMap();
         this._onDidChangeExecution = this._register(new Emitter());
         this.onDidChangeExecution = this._onDidChangeExecution.event;
         this._onDidChangeLastRunFailState = this._register(new Emitter());
@@ -44,6 +45,9 @@ let NotebookExecutionStateService = class NotebookExecutionStateService extends 
     getLastFailedCellForNotebook(notebook) {
         const failedCell = this._lastFailedCells.get(notebook);
         return failedCell?.visible ? failedCell.cellHandle : undefined;
+    }
+    getLastCompletedCellForNotebook(notebook) {
+        return this._lastCompletedCellHandles.get(notebook);
     }
     forceCancelNotebookExecutions(notebookUri) {
         const notebookCellExecutions = this._executions.get(notebookUri);
@@ -108,6 +112,7 @@ let NotebookExecutionStateService = class NotebookExecutionStateService extends 
                 this._accessibilitySignalService.playSignal(AccessibilitySignal.notebookCellFailed);
                 this._setLastFailedCell(notebookUri, cellHandle);
             }
+            this._lastCompletedCellHandles.set(notebookUri, cellHandle);
         }
         this._onDidChangeExecution.fire(new NotebookCellExecutionEvent(notebookUri, cellHandle));
     }

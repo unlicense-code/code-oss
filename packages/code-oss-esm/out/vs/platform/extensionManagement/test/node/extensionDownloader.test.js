@@ -21,6 +21,8 @@ import { FileService } from '../../../files/common/fileService.js';
 import { InMemoryFileSystemProvider } from '../../../files/common/inMemoryFilesystemProvider.js';
 import { TestInstantiationService } from '../../../instantiation/test/common/instantiationServiceMock.js';
 import { ILogService, NullLogService } from '../../../log/common/log.js';
+import { IUriIdentityService } from '../../../uriIdentity/common/uriIdentity.js';
+import { UriIdentityService } from '../../../uriIdentity/common/uriIdentityService.js';
 const ROOT = URI.file('tests').with({ scheme: 'vscode-tests' });
 class TestExtensionSignatureVerificationService extends mock() {
     constructor(verificationResult) {
@@ -56,6 +58,7 @@ suite('ExtensionDownloader Tests', () => {
         instantiationService.stub(ILogService, logService);
         instantiationService.stub(IFileService, fileService);
         instantiationService.stub(ILogService, logService);
+        instantiationService.stub(IUriIdentityService, disposables.add(new UriIdentityService(fileService)));
         instantiationService.stub(INativeEnvironmentService, { extensionsDownloadLocation: joinPath(ROOT, 'CachedExtensionVSIXs') });
         instantiationService.stub(IExtensionGalleryService, {
             async download(extension, location, operation) {

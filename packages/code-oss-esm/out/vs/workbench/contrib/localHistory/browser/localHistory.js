@@ -7,17 +7,12 @@ import { Codicon } from '../../../../base/common/codicons.js';
 import { language } from '../../../../base/common/platform.js';
 import { ContextKeyExpr } from '../../../../platform/contextkey/common/contextkey.js';
 import { registerIcon } from '../../../../platform/theme/common/iconRegistry.js';
+import { safeIntl } from '../../../../base/common/date.js';
 let localHistoryDateFormatter = undefined;
 export function getLocalHistoryDateFormatter() {
     if (!localHistoryDateFormatter) {
         const options = { year: 'numeric', month: 'long', day: 'numeric', hour: 'numeric', minute: 'numeric' };
-        let formatter;
-        try {
-            formatter = new Intl.DateTimeFormat(language, options);
-        }
-        catch (error) {
-            formatter = new Intl.DateTimeFormat(undefined, options); // error can happen when language is invalid (https://github.com/microsoft/vscode/issues/147086)
-        }
+        const formatter = safeIntl.DateTimeFormat(language, options);
         localHistoryDateFormatter = {
             format: date => formatter.format(date)
         };

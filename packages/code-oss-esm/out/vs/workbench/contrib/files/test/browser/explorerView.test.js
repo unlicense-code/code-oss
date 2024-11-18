@@ -81,7 +81,7 @@ suite('Files - ExplorerView', () => {
             label: {
                 container: label,
                 onDidRender: emitter.event
-            }
+            },
         }, 1, false);
         ds.add(navigationController);
         assert.strictEqual(navigationController.count, 3);

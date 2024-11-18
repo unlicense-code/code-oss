@@ -21,6 +21,9 @@ declare const _allApiProposals: {
     canonicalUriProvider: {
         proposal: string;
     };
+    chatEditing: {
+        proposal: string;
+    };
     chatParticipantAdditions: {
         proposal: string;
     };
@@ -228,14 +231,13 @@ declare const _allApiProposals: {
     languageStatusText: {
         proposal: string;
     };
-    lmTools: {
-        proposal: string;
-        version: number;
-    };
     mappedEditsProvider: {
         proposal: string;
     };
     multiDocumentHighlightProvider: {
+        proposal: string;
+    };
+    nativeWindowHandle: {
         proposal: string;
     };
     newSymbolNamesProvider: {
@@ -383,6 +385,9 @@ declare const _allApiProposals: {
         proposal: string;
     };
     tunnels: {
+        proposal: string;
+    };
+    valueSelectionInQuickPick: {
         proposal: string;
     };
     workspaceTrust: {

@@ -1,3 +1,4 @@
+import * as nls from '../../nls.js';
 import { ICodeEditor, IDiffEditor } from './editorBrowser.js';
 import { Position } from '../common/core/position.js';
 import { IEditorContribution, IDiffEditorContribution } from '../common/editorCommon.js';
@@ -128,11 +129,15 @@ export interface IEditorActionContextMenuOptions {
     when?: ContextKeyExpression;
     menuId?: MenuId;
 }
-export interface IActionOptions extends ICommandOptions {
+export type IActionOptions = ICommandOptions & {
+    contextMenuOpts?: IEditorActionContextMenuOptions | IEditorActionContextMenuOptions[];
+} & ({
+    label: nls.ILocalizedString;
+    alias?: string;
+} | {
     label: string;
     alias: string;
-    contextMenuOpts?: IEditorActionContextMenuOptions | IEditorActionContextMenuOptions[];
-}
+});
 export declare abstract class EditorAction extends EditorCommand {
     private static convertOptions;
     readonly label: string;

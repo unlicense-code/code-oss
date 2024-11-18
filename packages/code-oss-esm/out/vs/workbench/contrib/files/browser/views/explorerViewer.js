@@ -23,7 +23,8 @@ import { Disposable, dispose, toDisposable, DisposableStore } from '../../../../
 import { IContextMenuService, IContextViewService } from '../../../../../platform/contextview/browser/contextView.js';
 import { IThemeService } from '../../../../../platform/theme/common/themeService.js';
 import { IConfigurationService } from '../../../../../platform/configuration/common/configuration.js';
-import { dirname, joinPath, distinctParents } from '../../../../../base/common/resources.js';
+import { ExplorerFindProviderActive } from '../../common/files.js';
+import { dirname, joinPath, distinctParents, relativePath } from '../../../../../base/common/resources.js';
 import { InputBox } from '../../../../../base/browser/ui/inputbox/inputBox.js';
 import { localize } from '../../../../../nls.js';
 import { createSingleCallFunction } from '../../../../../base/common/functional.js';
@@ -55,11 +56,18 @@ import { WebFileSystemAccess } from '../../../../../platform/files/browser/webFi
 import { IgnoreFile } from '../../../../services/search/common/ignoreFile.js';
 import { ResourceSet } from '../../../../../base/common/map.js';
 import { TernarySearchTree } from '../../../../../base/common/ternarySearchTree.js';
-import { defaultInputBoxStyles } from '../../../../../platform/theme/browser/defaultStyles.js';
+import { defaultCountBadgeStyles, defaultInputBoxStyles } from '../../../../../platform/theme/browser/defaultStyles.js';
 import { timeout } from '../../../../../base/common/async.js';
 import { IFilesConfigurationService } from '../../../../services/filesConfiguration/common/filesConfigurationService.js';
 import { mainWindow } from '../../../../../base/browser/window.js';
 import { explorerFileContribRegistry } from '../explorerFileContrib.js';
+import { ISearchService, getExcludes } from '../../../../services/search/common/search.js';
+import { TreeFindMatchType, TreeFindMode } from '../../../../../base/browser/ui/tree/abstractTree.js';
+import { isCancellationError } from '../../../../../base/common/errors.js';
+import { IContextKeyService } from '../../../../../platform/contextkey/common/contextkey.js';
+import { CountBadge } from '../../../../../base/browser/ui/countBadge/countBadge.js';
+import { listFilterMatchHighlight, listFilterMatchHighlightBorder } from '../../../../../platform/theme/common/colorRegistry.js';
+import { asCssVariable } from '../../../../../platform/theme/common/colorUtils.js';
 export class ExplorerDelegate {
     static { this.ITEM_HEIGHT = 22; }
     getHeight(element) {
@@ -71,8 +79,9 @@ export class ExplorerDelegate {
 }
 export const explorerRootErrorEmitter = new Emitter();
 let ExplorerDataSource = class ExplorerDataSource {
-    constructor(fileFilter, progressService, configService, notificationService, layoutService, fileService, explorerService, contextService, filesConfigService) {
+    constructor(fileFilter, findProvider, progressService, configService, notificationService, layoutService, fileService, explorerService, contextService, filesConfigService) {
         this.fileFilter = fileFilter;
+        this.findProvider = findProvider;
         this.progressService = progressService;
         this.configService = configService;
         this.notificationService = notificationService;
@@ -83,27 +92,8 @@ let ExplorerDataSource = class ExplorerDataSource {
         this.filesConfigService = filesConfigService;
     }
     getParent(element) {
-        const folders = this.contextService.getWorkspace().folders;
-        const isMultiRoot = folders.length > 1;
-        if (isMultiRoot) {
-            // If we have multiple folders, the root is a workspace folder
-            // Workspace folders are rendered and can be returned directly
-            if (element.isRoot) {
-                return element;
-            }
-            else if (element.parent) {
-                return element.parent;
-            }
-        }
-        else if (element.parent) {
-            // If we have a single folder, the root the workspace folder
-            // The workspace folder is not rendered, so all it's children are tree roots
-            if (element.parent.isRoot) {
-                return element;
-            }
-            else {
-                return element.parent;
-            }
+        if (element.parent) {
+            return element.parent;
         }
         throw new Error('getParent only supported for cached parents');
     }
@@ -114,6 +104,9 @@ let ExplorerDataSource = class ExplorerDataSource {
     getChildren(element) {
         if (Array.isArray(element)) {
             return element;
+        }
+        if (this.findProvider.isShowingFilterResults()) {
+            return Array.from(element.children.values());
         }
         const hasError = element.error;
         const sortOrder = this.explorerService.sortOrderConfiguration.sortOrder;
@@ -154,16 +147,415 @@ let ExplorerDataSource = class ExplorerDataSource {
     }
 };
 ExplorerDataSource = __decorate([
-    __param(1, IProgressService),
-    __param(2, IConfigurationService),
-    __param(3, INotificationService),
-    __param(4, IWorkbenchLayoutService),
-    __param(5, IFileService),
-    __param(6, IExplorerService),
-    __param(7, IWorkspaceContextService),
-    __param(8, IFilesConfigurationService)
+    __param(2, IProgressService),
+    __param(3, IConfigurationService),
+    __param(4, INotificationService),
+    __param(5, IWorkbenchLayoutService),
+    __param(6, IFileService),
+    __param(7, IExplorerService),
+    __param(8, IWorkspaceContextService),
+    __param(9, IFilesConfigurationService)
 ], ExplorerDataSource);
 export { ExplorerDataSource };
+export class PhantomExplorerItem extends ExplorerItem {
+    constructor(resource, fileService, configService, filesConfigService, _parent, _isDirectory) {
+        super(resource, fileService, configService, filesConfigService, _parent, _isDirectory);
+    }
+}
+class ExplorerFindHighlightTree {
+    constructor() {
+        this._tree = new Map();
+        this._highlightedItems = new Map();
+    }
+    get highlightedItems() {
+        return Array.from(this._highlightedItems.values());
+    }
+    get(item) {
+        const rootLayer = this._tree.get(item.root.name);
+        if (rootLayer === undefined) {
+            return 0;
+        }
+        const relPath = relativePath(item.root.resource, item.resource);
+        if (relPath === undefined || relPath.startsWith('..')) {
+            throw new Error('Resource is not a child of the root');
+        }
+        let treeLayer = rootLayer;
+        for (const segment of relPath.split('/')) {
+            if (!treeLayer.stats[segment]) {
+                return 0;
+            }
+            treeLayer = treeLayer.stats[segment];
+        }
+        this._highlightedItems.set(relPath, item);
+        return treeLayer.total;
+    }
+    add(resource, root) {
+        const relPath = relativePath(root.resource, resource);
+        if (relPath === undefined || relPath.startsWith('..')) {
+            throw new Error('Resource is not a child of the root');
+        }
+        if (!this._tree.get(root.name)) {
+            this._tree.set(root.name, { total: 0, stats: {} });
+        }
+        let treeLayer = this._tree.get(root.name);
+        for (const stat of relPath.split('/').slice(0, -1)) {
+            if (!treeLayer.stats[stat]) {
+                treeLayer.stats[stat] = { total: 0, stats: {} };
+            }
+            treeLayer = treeLayer.stats[stat];
+            treeLayer.total++;
+        }
+    }
+    clear() {
+        this._tree.clear();
+    }
+}
+let ExplorerFindProvider = class ExplorerFindProvider {
+    get highlightTree() {
+        return this.findHighlightTree;
+    }
+    constructor(treeProvider, searchService, fileService, configurationService, filesConfigService, progressService, explorerService, contextKeyService) {
+        this.treeProvider = treeProvider;
+        this.searchService = searchService;
+        this.fileService = fileService;
+        this.configurationService = configurationService;
+        this.filesConfigService = filesConfigService;
+        this.progressService = progressService;
+        this.explorerService = explorerService;
+        this.sessionId = 0;
+        this.phantomParents = new Set();
+        this.findHighlightTree = new ExplorerFindHighlightTree();
+        this.explorerFindActiveContextKey = ExplorerFindProviderActive.bindTo(contextKeyService);
+    }
+    isShowingFilterResults() {
+        return !!this.filterSessionStartState;
+    }
+    isVisible(element) {
+        if (!this.filterSessionStartState) {
+            return true;
+        }
+        if (this.explorerService.isEditable(element)) {
+            return true;
+        }
+        return this.filterSessionStartState.rootsWithProviders.has(element.root) ? element.isMarkedAsFiltered() : true;
+    }
+    startSession() {
+        this.sessionId++;
+    }
+    async endSession() {
+        // Restore view state
+        if (this.filterSessionStartState) {
+            await this.endFilterSession();
+        }
+        if (this.highlightSessionStartState) {
+            this.endHighlightSession();
+        }
+    }
+    async find(pattern, toggles, token) {
+        const promise = this.doFind(pattern, toggles, token);
+        return await this.progressService.withProgress({
+            location: 1 /* ProgressLocation.Explorer */,
+            delay: 750,
+        }, _progress => promise);
+    }
+    async doFind(pattern, toggles, token) {
+        if (toggles.findMode === TreeFindMode.Highlight) {
+            if (this.filterSessionStartState) {
+                await this.endFilterSession();
+            }
+            if (!this.highlightSessionStartState) {
+                this.startHighlightSession();
+            }
+            return await this.doHighlightFind(pattern, toggles.matchType, token);
+        }
+        if (this.highlightSessionStartState) {
+            this.endHighlightSession();
+        }
+        if (!this.filterSessionStartState) {
+            this.startFilterSession();
+        }
+        return await this.doFilterFind(pattern, toggles.matchType, token);
+    }
+    // Filter
+    startFilterSession() {
+        const tree = this.treeProvider();
+        const input = tree.getInput();
+        if (!input) {
+            return;
+        }
+        const roots = this.explorerService.roots.filter(root => this.searchSupportsScheme(root.resource.scheme));
+        this.filterSessionStartState = { viewState: tree.getViewState(), input, rootsWithProviders: new Set(roots) };
+        this.explorerFindActiveContextKey.set(true);
+    }
+    async doFilterFind(pattern, matchType, token) {
+        if (!this.filterSessionStartState) {
+            throw new Error('ExplorerFindProvider: no session state');
+        }
+        const roots = Array.from(this.filterSessionStartState.rootsWithProviders);
+        const searchResults = await this.getSearchResults(pattern, roots, matchType, token);
+        if (token.isCancellationRequested) {
+            return {};
+        }
+        this.clearPhantomElements();
+        for (const { explorerRoot, files, directories } of searchResults) {
+            this.addWorkspaceFilterResults(explorerRoot, files, directories);
+        }
+        const tree = this.treeProvider();
+        await tree.setInput(this.filterSessionStartState.input);
+        const hitMaxResults = searchResults.some(({ hitMaxResults }) => hitMaxResults);
+        return { warningMessage: hitMaxResults ? localize('searchMaxResultsWarning', "The result set only contains a subset of all matches. Be more specific in your search to narrow down the results.") : undefined };
+    }
+    addWorkspaceFilterResults(root, files, directories) {
+        const results = [
+            ...files.map(file => ({ resource: file, isDirectory: false })),
+            ...directories.map(directory => ({ resource: directory, isDirectory: true }))
+        ];
+        for (const { resource, isDirectory } of results) {
+            const element = root.find(resource);
+            if (element && element.root === root) {
+                // File is already in the model
+                element.markItemAndParentsAsFiltered();
+                continue;
+            }
+            // File is not in the model, create phantom items for the file and it's parents
+            const phantomElements = this.createPhantomItems(resource, root, isDirectory);
+            if (phantomElements.length === 0) {
+                throw new Error('Phantom item was not created even though it is not in the model');
+            }
+            // Store the first ancestor of the file which is already present in the model
+            const firstPhantomParent = phantomElements[0].parent;
+            if (!(firstPhantomParent instanceof PhantomExplorerItem)) {
+                this.phantomParents.add(firstPhantomParent);
+            }
+            const phantomFileElement = phantomElements[phantomElements.length - 1];
+            phantomFileElement.markItemAndParentsAsFiltered();
+        }
+    }
+    createPhantomItems(resource, root, resourceIsDirectory) {
+        const relativePathToRoot = relativePath(root.resource, resource);
+        if (!relativePathToRoot) {
+            throw new Error('Resource is not a child of the root');
+        }
+        const phantomElements = [];
+        let currentItem = root;
+        let currentResource = root.resource;
+        const pathSegments = relativePathToRoot.split('/');
+        for (const stat of pathSegments) {
+            currentResource = currentResource.with({ path: `${currentResource.path}/${stat}` });
+            let child = currentItem.getChild(stat);
+            if (!child) {
+                const isDirectory = pathSegments[pathSegments.length - 1] === stat ? resourceIsDirectory : true;
+                child = new PhantomExplorerItem(currentResource, this.fileService, this.configurationService, this.filesConfigService, currentItem, isDirectory);
+                currentItem.addChild(child);
+                phantomElements.push(child);
+            }
+            currentItem = child;
+        }
+        return phantomElements;
+    }
+    async endFilterSession() {
+        this.clearPhantomElements();
+        this.explorerFindActiveContextKey.set(false);
+        // Restore view state
+        if (!this.filterSessionStartState) {
+            throw new Error('ExplorerFindProvider: no session state to restore');
+        }
+        const tree = this.treeProvider();
+        await tree.setInput(this.filterSessionStartState.input, this.filterSessionStartState.viewState);
+        this.filterSessionStartState = undefined;
+        this.explorerService.refresh();
+    }
+    clearPhantomElements() {
+        for (const phantomParent of this.phantomParents) {
+            // Clear phantom nodes from model
+            phantomParent.forgetChildren();
+        }
+        this.phantomParents.clear();
+        this.explorerService.roots.forEach(root => root.unmarkItemAndChildren());
+    }
+    // Highlight
+    startHighlightSession() {
+        const roots = this.explorerService.roots.filter(root => this.searchSupportsScheme(root.resource.scheme));
+        this.highlightSessionStartState = { rootsWithProviders: new Set(roots) };
+    }
+    async doHighlightFind(pattern, matchType, token) {
+        if (!this.highlightSessionStartState) {
+            throw new Error('ExplorerFindProvider: no highlight session state');
+        }
+        const roots = Array.from(this.highlightSessionStartState.rootsWithProviders);
+        const searchResults = await this.getSearchResults(pattern, roots, matchType, token);
+        if (token.isCancellationRequested) {
+            return {};
+        }
+        this.clearHighlights();
+        for (const { explorerRoot, files, directories } of searchResults) {
+            this.addWorkspaceHighlightResults(explorerRoot, files.concat(directories));
+        }
+        const hitMaxResults = searchResults.some(({ hitMaxResults }) => hitMaxResults);
+        return { warningMessage: hitMaxResults ? localize('searchMaxResultsWarning', "The result set only contains a subset of all matches. Be more specific in your search to narrow down the results.") : undefined };
+    }
+    addWorkspaceHighlightResults(root, resources) {
+        const highlightedDirectories = new Set();
+        const storeDirectories = (item) => {
+            while (item) {
+                highlightedDirectories.add(item);
+                item = item.parent;
+            }
+        };
+        for (const resource of resources) {
+            const element = root.find(resource);
+            if (element && element.root === root) {
+                // File is already in the model
+                this.findHighlightTree.add(resource, root);
+                storeDirectories(element.parent);
+                continue;
+            }
+            const firstParent = findFirstParent(resource, root);
+            if (firstParent) {
+                this.findHighlightTree.add(resource, root);
+                storeDirectories(firstParent);
+            }
+        }
+        const tree = this.treeProvider();
+        for (const directory of highlightedDirectories) {
+            tree.rerender(directory);
+        }
+    }
+    endHighlightSession() {
+        this.highlightSessionStartState = undefined;
+        this.clearHighlights();
+    }
+    clearHighlights() {
+        const tree = this.treeProvider();
+        for (const item of this.findHighlightTree.highlightedItems) {
+            if (tree.hasNode(item)) {
+                tree.rerender(item);
+            }
+        }
+        this.findHighlightTree.clear();
+    }
+    // Search
+    searchSupportsScheme(scheme) {
+        // Limited by the search API
+        if (scheme !== Schemas.file && scheme !== Schemas.vscodeRemote) {
+            return false;
+        }
+        return this.searchService.schemeHasFileSearchProvider(scheme);
+    }
+    async getSearchResults(pattern, roots, matchType, token) {
+        const patternLowercase = pattern.toLowerCase();
+        const isFuzzyMatch = matchType === TreeFindMatchType.Fuzzy;
+        return await Promise.all(roots.map((root, index) => this.searchInWorkspace(patternLowercase, root, index, isFuzzyMatch, token)));
+    }
+    async searchInWorkspace(patternLowercase, root, rootIndex, isFuzzyMatch, token) {
+        const segmentMatchPattern = caseInsensitiveGlobPattern(isFuzzyMatch ? fuzzyMatchingGlobPattern(patternLowercase) : continousMatchingGlobPattern(patternLowercase));
+        const searchExcludePattern = getExcludes(this.configurationService.getValue({ resource: root.resource })) || {};
+        const searchOptions = {
+            folderQueries: [{ folder: root.resource }],
+            type: 1 /* QueryType.File */,
+            shouldGlobMatchFilePattern: true,
+            cacheKey: `explorerfindprovider:${root.name}:${rootIndex}:${this.sessionId}`,
+            excludePattern: searchExcludePattern,
+        };
+        let fileResults;
+        let folderResults;
+        try {
+            [fileResults, folderResults] = await Promise.all([
+                this.searchService.fileSearch({ ...searchOptions, filePattern: `**/${segmentMatchPattern}`, maxResults: 512 }, token),
+                this.searchService.fileSearch({ ...searchOptions, filePattern: `**/${segmentMatchPattern}/**` }, token)
+            ]);
+        }
+        catch (e) {
+            if (!isCancellationError(e)) {
+                throw e;
+            }
+        }
+        if (!fileResults || !folderResults || token.isCancellationRequested) {
+            return { explorerRoot: root, files: [], directories: [], hitMaxResults: false };
+        }
+        const fileResultResources = fileResults.results.map(result => result.resource);
+        const directoryResources = getMatchingDirectoriesFromFiles(folderResults.results.map(result => result.resource), root, segmentMatchPattern);
+        return { explorerRoot: root, files: fileResultResources, directories: directoryResources, hitMaxResults: !!fileResults.limitHit || !!folderResults.limitHit };
+    }
+};
+ExplorerFindProvider = __decorate([
+    __param(1, ISearchService),
+    __param(2, IFileService),
+    __param(3, IConfigurationService),
+    __param(4, IFilesConfigurationService),
+    __param(5, IProgressService),
+    __param(6, IExplorerService),
+    __param(7, IContextKeyService)
+], ExplorerFindProvider);
+export { ExplorerFindProvider };
+function getMatchingDirectoriesFromFiles(resources, root, segmentMatchPattern) {
+    const uniqueDirectories = new ResourceSet();
+    for (const resource of resources) {
+        const relativePathToRoot = relativePath(root.resource, resource);
+        if (!relativePathToRoot) {
+            throw new Error('Resource is not a child of the root');
+        }
+        let dirResource = root.resource;
+        const stats = relativePathToRoot.split('/').slice(0, -1);
+        for (const stat of stats) {
+            dirResource = dirResource.with({ path: `${dirResource.path}/${stat}` });
+            uniqueDirectories.add(dirResource);
+        }
+    }
+    const matchingDirectories = [];
+    for (const dirResource of uniqueDirectories) {
+        const stats = dirResource.path.split('/');
+        const dirStat = stats[stats.length - 1];
+        if (!dirStat || !glob.match(segmentMatchPattern, dirStat)) {
+            continue;
+        }
+        matchingDirectories.push(dirResource);
+    }
+    return matchingDirectories;
+}
+function findFirstParent(resource, root) {
+    const relativePathToRoot = relativePath(root.resource, resource);
+    if (!relativePathToRoot) {
+        throw new Error('Resource is not a child of the root');
+    }
+    let currentItem = root;
+    let currentResource = root.resource;
+    const pathSegments = relativePathToRoot.split('/');
+    for (const stat of pathSegments) {
+        currentResource = currentResource.with({ path: `${currentResource.path}/${stat}` });
+        const child = currentItem.getChild(stat);
+        if (!child) {
+            return currentItem;
+        }
+        currentItem = child;
+    }
+    return undefined;
+}
+function fuzzyMatchingGlobPattern(pattern) {
+    if (!pattern) {
+        return '*';
+    }
+    return '*' + pattern.split('').join('*') + '*';
+}
+function continousMatchingGlobPattern(pattern) {
+    if (!pattern) {
+        return '*';
+    }
+    return '*' + pattern + '*';
+}
+function caseInsensitiveGlobPattern(pattern) {
+    let caseInsensitiveFilePattern = '';
+    for (let i = 0; i < pattern.length; i++) {
+        const char = pattern[i];
+        if (/[a-zA-Z]/.test(char)) {
+            caseInsensitiveFilePattern += `[${char.toLowerCase()}${char.toUpperCase()}]`;
+        }
+        else {
+            caseInsensitiveFilePattern += char;
+        }
+    }
+    return caseInsensitiveFilePattern;
+}
 export class CompressedNavigationController {
     static { this.ID = 0; }
     get index() { return this._index; }
@@ -243,8 +635,9 @@ export class CompressedNavigationController {
 let FilesRenderer = class FilesRenderer {
     static { FilesRenderer_1 = this; }
     static { this.ID = 'file'; }
-    constructor(container, labels, updateWidth, contextViewService, themeService, configurationService, explorerService, labelService, contextService, contextMenuService, instantiationService) {
+    constructor(container, labels, highlightTree, updateWidth, contextViewService, themeService, configurationService, explorerService, labelService, contextService, contextMenuService, instantiationService) {
         this.labels = labels;
+        this.highlightTree = highlightTree;
         this.updateWidth = updateWidth;
         this.contextViewService = contextViewService;
         this.themeService = themeService;
@@ -328,8 +721,15 @@ let FilesRenderer = class FilesRenderer {
             templateData.label.element.classList.add('compressed');
             templateData.label.element.style.display = 'flex';
             const id = `compressed-explorer_${CompressedNavigationController.ID++}`;
-            const label = node.element.elements.map(e => e.name);
-            this.renderStat(stat, label, id, node.filterData, templateData);
+            const labels = node.element.elements.map(e => e.name);
+            // If there is a fuzzy score, we need to adjust the offset of the score
+            // to align with the last stat of the compressed label
+            let fuzzyScore = node.filterData;
+            if (fuzzyScore && fuzzyScore.length > 2) {
+                const filterDataOffset = labels.join('/').length - labels[labels.length - 1].length;
+                fuzzyScore = [fuzzyScore[0], fuzzyScore[1] + filterDataOffset, ...fuzzyScore.slice(2)];
+            }
+            this.renderStat(stat, labels, id, fuzzyScore, templateData);
             const compressedNavigationController = new CompressedNavigationController(id, node.element.elements, templateData, node.depth, node.collapsed);
             templateData.elementDisposables.add(compressedNavigationController);
             const nodeControllers = this.compressedNavigationControllers.get(stat) ?? [];
@@ -384,10 +784,18 @@ let FilesRenderer = class FilesRenderer {
             fileKind: stat.isRoot ? FileKind.ROOT_FOLDER : stat.isDirectory ? FileKind.FOLDER : FileKind.FILE,
             extraClasses: realignNestedChildren ? [...extraClasses, 'align-nest-icon-with-parent-icon'] : extraClasses,
             fileDecorations: this.config.explorer.decorations,
-            matches: stat.isDirectory ? [] : createMatches(filterData),
+            matches: createMatches(filterData),
             separator: this.labelService.getSeparator(stat.resource.scheme, stat.resource.authority),
             domId
         });
+        const highlightResults = stat.isDirectory ? this.highlightTree.get(stat) : 0;
+        if (highlightResults > 0) {
+            const badge = new CountBadge(templateData.label.element.lastElementChild, {}, { ...defaultCountBadgeStyles, badgeBackground: asCssVariable(listFilterMatchHighlight), badgeBorder: asCssVariable(listFilterMatchHighlightBorder) });
+            badge.setCount(highlightResults);
+            badge.setTitleFormat(localize('explorerHighlightFolderBadgeTitle', "Directory contains {0} matches", highlightResults));
+            templateData.elementDisposables.add(badge);
+        }
+        templateData.label.element.classList.toggle('highlight-badge', highlightResults > 0);
     }
     renderInputBox(container, stat, editableData) {
         // Use a file label only for the icon next to the input box
@@ -424,7 +832,7 @@ let FilesRenderer = class FilesRenderer {
                 }
             },
             ariaLabel: localize('fileInputAriaLabel', "Type file name. Press Enter to confirm or Escape to cancel."),
-            inputBoxStyles: defaultInputBoxStyles
+            inputBoxStyles: defaultInputBoxStyles,
         });
         const lastDot = value.lastIndexOf('.');
         let currentSelectionState = 'prefix';
@@ -556,14 +964,14 @@ let FilesRenderer = class FilesRenderer {
     }
 };
 FilesRenderer = FilesRenderer_1 = __decorate([
-    __param(3, IContextViewService),
-    __param(4, IThemeService),
-    __param(5, IConfigurationService),
-    __param(6, IExplorerService),
-    __param(7, ILabelService),
-    __param(8, IWorkspaceContextService),
-    __param(9, IContextMenuService),
-    __param(10, IInstantiationService)
+    __param(4, IContextViewService),
+    __param(5, IThemeService),
+    __param(6, IConfigurationService),
+    __param(7, IExplorerService),
+    __param(8, ILabelService),
+    __param(9, IWorkspaceContextService),
+    __param(10, IContextMenuService),
+    __param(11, IInstantiationService)
 ], FilesRenderer);
 export { FilesRenderer };
 /**

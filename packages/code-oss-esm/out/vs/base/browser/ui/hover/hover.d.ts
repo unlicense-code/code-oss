@@ -177,7 +177,7 @@ export interface IHoverOptions {
 }
 export type IDelayedHoverOptions = Omit<IHoverOptions, 'target'>;
 export type IDelayedHoverAtMouseOptions = Omit<IDelayedHoverOptions, 'position' | 'appearance'> & {
-    appearance: Omit<IHoverAppearanceOptions, 'showPointer'>;
+    appearance?: Omit<IHoverAppearanceOptions, 'showPointer'>;
 };
 export interface IHoverLifecycleOptions {
     /**

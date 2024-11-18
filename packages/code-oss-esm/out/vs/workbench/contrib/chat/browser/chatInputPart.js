@@ -62,12 +62,13 @@ import { IKeybindingService } from '../../../../platform/keybinding/common/keybi
 import { ILogService } from '../../../../platform/log/common/log.js';
 import { INotificationService } from '../../../../platform/notification/common/notification.js';
 import { IOpenerService } from '../../../../platform/opener/common/opener.js';
-import { IThemeService } from '../../../../platform/theme/common/themeService.js';
+import { FolderThemeIcon, IThemeService } from '../../../../platform/theme/common/themeService.js';
 import { fillEditorsDragData } from '../../../browser/dnd.js';
 import { ResourceLabels } from '../../../browser/labels.js';
 import { ResourceContextKey } from '../../../common/contextkeys.js';
 import { ACTIVE_GROUP, IEditorService, SIDE_GROUP } from '../../../services/editor/common/editorService.js';
 import { getSimpleCodeEditorWidgetOptions, getSimpleEditorOptions, setupSimpleEditorSelectionStyling } from '../../codeEditor/browser/simpleEditorOptions.js';
+import { revealInSideBarCommand } from '../../files/browser/fileActions.contribution.js';
 import { ChatAgentLocation, IChatAgentService } from '../common/chatAgents.js';
 import { ChatContextKeys } from '../common/chatContextKeys.js';
 import { IChatEditingService } from '../common/chatEditingService.js';
@@ -136,7 +137,7 @@ let ChatInputPart = class ChatInputPart extends Disposable {
     }
     constructor(
     // private readonly editorOptions: ChatEditorOptions, // TODO this should be used
-    location, options, getContribsInputState, historyService, modelService, instantiationService, contextKeyService, contextMenuService, configurationService, keybindingService, accessibilityService, languageModelsService, logService, hoverService, fileService, commandService, editorService, openerService, chatEditingService, menuService, languageService) {
+    location, options, getContribsInputState, historyService, modelService, instantiationService, contextKeyService, contextMenuService, configurationService, keybindingService, accessibilityService, languageModelsService, logService, hoverService, fileService, commandService, editorService, openerService, chatEditingService, menuService, languageService, themeService) {
         super();
         this.location = location;
         this.options = options;
@@ -158,6 +159,7 @@ let ChatInputPart = class ChatInputPart extends Disposable {
         this.chatEditingService = chatEditingService;
         this.menuService = menuService;
         this.languageService = languageService;
+        this.themeService = themeService;
         this._onDidLoadInputState = this._register(new Emitter());
         this.onDidLoadInputState = this._onDidLoadInputState.event;
         this._onDidChangeHeight = this._register(new Emitter());
@@ -179,7 +181,7 @@ let ChatInputPart = class ChatInputPart extends Disposable {
         this._inputPartHeight = 0;
         this._followupsHeight = 0;
         this._waitForPersistedLanguageModel = this._register(new MutableDisposable());
-        this._onDidChangeCurrentLanguageModel = new Emitter();
+        this._onDidChangeCurrentLanguageModel = this._register(new Emitter());
         this.inputUri = URI.parse(`${ChatInputPart_1.INPUT_SCHEME}:input-${ChatInputPart_1._counter++}`);
         this._chatEditsActionsDisposables = this._register(new DisposableStore());
         this._chatEditsDisposables = this._register(new DisposableStore());
@@ -478,6 +480,12 @@ let ChatInputPart = class ChatInputPart extends Disposable {
             const inputHasText = !!model && model.getValue().trim().length > 0;
             this.inputEditorHasText.set(inputHasText);
         }));
+        this._register(this._inputEditor.onDidContentSizeChange(e => {
+            if (e.contentHeightChanged) {
+                this.inputEditorHeight = e.contentHeight;
+                this._onDidChangeHeight.fire();
+            }
+        }));
         this._register(this._inputEditor.onDidFocusEditorText(() => {
             this.inputEditorHasFocus.set(true);
             this._onDidFocus.fire();
@@ -581,6 +589,9 @@ let ChatInputPart = class ChatInputPart extends Disposable {
         };
         this._register(this._inputEditor.onDidChangeCursorPosition(e => onDidChangeCursorPosition()));
         onDidChangeCursorPosition();
+        this._register(this.themeService.onDidFileIconThemeChange(() => {
+            this.renderAttachedContext();
+        }));
     }
     async renderAttachedContext() {
         const container = this.attachedContextContainer;
@@ -606,30 +617,35 @@ let ChatInputPart = class ChatInputPart extends Disposable {
             const widget = dom.append(container, $('.chat-attached-context-attachment.show-file-icons'));
             const label = this._contextResourceLabels.create(widget, { supportIcons: true, hoverDelegate, hoverTargetOverride: widget });
             let ariaLabel;
-            const file = URI.isUri(attachment.value) ? attachment.value : attachment.value && typeof attachment.value === 'object' && 'uri' in attachment.value && URI.isUri(attachment.value.uri) ? attachment.value.uri : undefined;
+            const resource = URI.isUri(attachment.value) ? attachment.value : attachment.value && typeof attachment.value === 'object' && 'uri' in attachment.value && URI.isUri(attachment.value.uri) ? attachment.value.uri : undefined;
             const range = attachment.value && typeof attachment.value === 'object' && 'range' in attachment.value && Range.isIRange(attachment.value.range) ? attachment.value.range : undefined;
-            if (file && attachment.isFile) {
-                const fileBasename = basename(file.path);
-                const fileDirname = dirname(file.path);
+            if (resource && (attachment.isFile || attachment.isDirectory)) {
+                const fileBasename = basename(resource.path);
+                const fileDirname = dirname(resource.path);
                 const friendlyName = `${fileBasename} ${fileDirname}`;
                 ariaLabel = range ? localize('chat.fileAttachmentWithRange', "Attached file, {0}, line {1} to line {2}", friendlyName, range.startLineNumber, range.endLineNumber) : localize('chat.fileAttachment', "Attached file, {0}", friendlyName);
-                label.setFile(file, {
+                const fileOptions = { hidePath: true };
+                label.setFile(resource, attachment.isFile ? {
+                    ...fileOptions,
                     fileKind: FileKind.FILE,
-                    hidePath: true,
                     range,
+                } : {
+                    ...fileOptions,
+                    fileKind: FileKind.FOLDER,
+                    icon: !this.themeService.getFileIconTheme().hasFolderIcons ? FolderThemeIcon : undefined
                 });
                 const scopedContextKeyService = store.add(this.contextKeyService.createScoped(widget));
                 const resourceContextKey = store.add(new ResourceContextKey(scopedContextKeyService, this.fileService, this.languageService, this.modelService));
-                resourceContextKey.set(file);
+                resourceContextKey.set(resource);
                 this.attachButtonAndDisposables(widget, index, attachment, hoverDelegate, {
-                    contextMenuArg: file,
+                    contextMenuArg: resource,
                     contextKeyService: scopedContextKeyService,
                     contextMenuId: MenuId.ChatInputResourceAttachmentContext,
                 });
                 // Drag and drop
                 widget.draggable = true;
                 this._register(dom.addDisposableListener(widget, 'dragstart', e => {
-                    this.instantiationService.invokeFunction(accessor => fillEditorsDragData(accessor, [file], e));
+                    this.instantiationService.invokeFunction(accessor => fillEditorsDragData(accessor, [resource], e));
                     e.dataTransfer?.setDragImage(widget, 0, 0);
                 }));
             }
@@ -677,35 +693,27 @@ let ChatInputPart = class ChatInputPart extends Disposable {
             if (store.isDisposed) {
                 return;
             }
-            if (file) {
+            if (resource) {
                 widget.style.cursor = 'pointer';
                 store.add(dom.addDisposableListener(widget, dom.EventType.CLICK, (e) => {
                     dom.EventHelper.stop(e, true);
-                    const options = {
-                        fromUserGesture: true
-                    };
-                    if (range) {
-                        const textEditorOptions = {
-                            selection: range
-                        };
-                        options.editorOptions = textEditorOptions;
+                    if (attachment.isDirectory) {
+                        this.openResource(resource, true);
                     }
-                    this.openerService.open(file, options);
+                    else {
+                        this.openResource(resource, false, range);
+                    }
                 }));
                 store.add(dom.addDisposableListener(widget, dom.EventType.KEY_DOWN, (e) => {
                     const event = new StandardKeyboardEvent(e);
                     if (event.equals(3 /* KeyCode.Enter */) || event.equals(10 /* KeyCode.Space */)) {
                         dom.EventHelper.stop(e, true);
-                        const options = {
-                            fromUserGesture: true
-                        };
-                        if (range) {
-                            const textEditorOptions = {
-                                selection: range
-                            };
-                            options.editorOptions = textEditorOptions;
+                        if (attachment.isDirectory) {
+                            this.openResource(resource, true);
                         }
-                        this.openerService.open(file, options);
+                        else {
+                            this.openResource(resource, false, range);
+                        }
                     }
                 }));
             }
@@ -715,6 +723,20 @@ let ChatInputPart = class ChatInputPart extends Disposable {
         if (oldHeight !== container.offsetHeight) {
             this._onDidChangeHeight.fire();
         }
+    }
+    openResource(resource, isDirectory, range) {
+        if (isDirectory) {
+            // Reveal Directory in explorer
+            this.commandService.executeCommand(revealInSideBarCommand.id, resource);
+            return;
+        }
+        // Open file in editor
+        const openTextEditorOptions = range ? { selection: range } : undefined;
+        const options = {
+            fromUserGesture: true,
+            editorOptions: openTextEditorOptions,
+        };
+        this.openerService.open(resource, options);
     }
     attachButtonAndDisposables(widget, index, attachment, hoverDelegate, contextMenuOpts) {
         const store = this.attachedContextDisposables.value;
@@ -818,7 +840,8 @@ let ChatInputPart = class ChatInputPart extends Disposable {
             if (!seenEntries.has(file)) {
                 entries.unshift({
                     reference: file,
-                    state: state,
+                    state: state.state,
+                    description: state.description,
                     kind: 'reference',
                 });
                 seenEntries.add(file);
@@ -1039,7 +1062,8 @@ ChatInputPart = ChatInputPart_1 = __decorate([
     __param(17, IOpenerService),
     __param(18, IChatEditingService),
     __param(19, IMenuService),
-    __param(20, ILanguageService)
+    __param(20, ILanguageService),
+    __param(21, IThemeService)
 ], ChatInputPart);
 export { ChatInputPart };
 const historyKeyFn = (entry) => JSON.stringify(entry);

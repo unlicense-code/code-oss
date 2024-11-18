@@ -46,6 +46,8 @@ export declare abstract class AbstractExtensionService extends Disposable implem
     protected readonly _remoteAuthorityResolverService: IRemoteAuthorityResolverService;
     private readonly _dialogService;
     _serviceBrand: undefined;
+    private readonly _hasLocalProcess;
+    private readonly _allowRemoteExtensionsInLocalWebWorker;
     private readonly _onDidRegisterExtensions;
     readonly onDidRegisterExtensions: import("../../../../base/common/event.js").Event<void>;
     private readonly _onDidChangeExtensionsStatus;
@@ -72,7 +74,10 @@ export declare abstract class AbstractExtensionService extends Disposable implem
     private _inHandleDeltaExtensions;
     private readonly _extensionHostManagers;
     private _resolveAuthorityAttempt;
-    constructor(_extensionsProposedApi: ExtensionsProposedApi, _extensionHostFactory: IExtensionHostFactory, _extensionHostKindPicker: IExtensionHostKindPicker, _instantiationService: IInstantiationService, _notificationService: INotificationService, _environmentService: IWorkbenchEnvironmentService, _telemetryService: ITelemetryService, _extensionEnablementService: IWorkbenchExtensionEnablementService, _fileService: IFileService, _productService: IProductService, _extensionManagementService: IWorkbenchExtensionManagementService, _contextService: IWorkspaceContextService, _configurationService: IConfigurationService, _extensionManifestPropertiesService: IExtensionManifestPropertiesService, _logService: ILogService, _remoteAgentService: IRemoteAgentService, _remoteExtensionsScannerService: IRemoteExtensionsScannerService, _lifecycleService: ILifecycleService, _remoteAuthorityResolverService: IRemoteAuthorityResolverService, _dialogService: IDialogService);
+    constructor(options: {
+        hasLocalProcess: boolean;
+        allowRemoteExtensionsInLocalWebWorker: boolean;
+    }, _extensionsProposedApi: ExtensionsProposedApi, _extensionHostFactory: IExtensionHostFactory, _extensionHostKindPicker: IExtensionHostKindPicker, _instantiationService: IInstantiationService, _notificationService: INotificationService, _environmentService: IWorkbenchEnvironmentService, _telemetryService: ITelemetryService, _extensionEnablementService: IWorkbenchExtensionEnablementService, _fileService: IFileService, _productService: IProductService, _extensionManagementService: IWorkbenchExtensionManagementService, _contextService: IWorkspaceContextService, _configurationService: IConfigurationService, _extensionManifestPropertiesService: IExtensionManifestPropertiesService, _logService: ILogService, _remoteAgentService: IRemoteAgentService, _remoteExtensionsScannerService: IRemoteExtensionsScannerService, _lifecycleService: ILifecycleService, _remoteAuthorityResolverService: IRemoteAuthorityResolverService, _dialogService: IDialogService);
     protected _getExtensionHostManagers(kind: ExtensionHostKind): IExtensionHostManager[];
     private _handleDeltaExtensions;
     private _deltaExtensions;
@@ -83,7 +88,7 @@ export declare abstract class AbstractExtensionService extends Disposable implem
     canRemoveExtension(extension: IExtensionDescription): boolean;
     private _activateAddedExtensionIfNeeded;
     protected _initialize(): Promise<void>;
-    private _processExtensions;
+    private _resolveAndProcessExtensions;
     private _handleExtensionTests;
     private findTestExtensionHost;
     private _releaseBarrier;
@@ -136,20 +141,27 @@ export declare abstract class AbstractExtensionService extends Disposable implem
     private _onDidActivateExtension;
     private _onDidActivateExtensionError;
     private _onExtensionRuntimeError;
-    protected abstract _resolveExtensions(): Promise<ResolvedExtensions>;
+    protected abstract _resolveExtensions(): AsyncIterable<ResolvedExtensions>;
     protected abstract _onExtensionHostExit(code: number): Promise<void>;
     protected abstract _resolveAuthority(remoteAuthority: string): Promise<ResolverResult>;
 }
-export declare class ResolvedExtensions {
-    readonly local: IExtensionDescription[];
-    readonly remote: IExtensionDescription[];
-    readonly hasLocalProcess: boolean;
-    readonly allowRemoteExtensionsInLocalWebWorker: boolean;
-    constructor(local: IExtensionDescription[], remote: IExtensionDescription[], hasLocalProcess: boolean, allowRemoteExtensionsInLocalWebWorker: boolean);
+export declare class ResolverExtensions {
+    readonly extensions: IExtensionDescription[];
+    constructor(extensions: IExtensionDescription[]);
 }
+export declare class LocalExtensions {
+    readonly extensions: IExtensionDescription[];
+    constructor(extensions: IExtensionDescription[]);
+}
+export declare class RemoteExtensions {
+    readonly extensions: IExtensionDescription[];
+    constructor(extensions: IExtensionDescription[]);
+}
+export type ResolvedExtensions = ResolverExtensions | LocalExtensions | RemoteExtensions;
 export interface IExtensionHostFactory {
     createExtensionHost(runningLocations: ExtensionRunningLocationTracker, runningLocation: ExtensionRunningLocation, isInitialStart: boolean): IExtensionHost | null;
 }
+export declare function isResolverExtension(extension: IExtensionDescription): boolean;
 /**
  * @argument extensions The extensions to be checked.
  * @argument ignoreWorkspaceTrust Do not take workspace trust into account.

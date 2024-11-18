@@ -151,6 +151,7 @@ export class ResourceMarkersRenderer {
     }
     disposeTemplate(templateData) {
         templateData.resourceLabel.dispose();
+        templateData.count.dispose();
     }
     onDidChangeRenderNodeCount(node) {
         const nodeRenders = this.renderedNodes.get(node.element);

@@ -61,6 +61,7 @@ export const TITLE_BAR_SETTINGS = [
     "window.commandCenter" /* LayoutSettings.COMMAND_CENTER */,
     "workbench.editor.editorActionsLocation" /* LayoutSettings.EDITOR_ACTIONS_LOCATION */,
     "workbench.layoutControl.enabled" /* LayoutSettings.LAYOUT_ACTIONS */,
+    'workbench.navigationControl.enabled',
     'window.menuBarVisibility',
     "window.titleBarStyle" /* TitleBarSetting.TITLE_BAR_STYLE */,
     "window.customTitleBarVisibility" /* TitleBarSetting.CUSTOM_TITLE_BAR_VISIBILITY */,

@@ -133,8 +133,9 @@ let InlineChatZoneWidget = class InlineChatZoneWidget extends ZoneWidget {
         container.appendChild(this.widget.domNode);
     }
     _doLayout(heightInPixel) {
+        this._updatePadding();
         const info = this.editor.getLayoutInfo();
-        let width = info.contentWidth + info.glyphMarginWidth - 8;
+        let width = info.contentWidth - info.verticalScrollbarWidth;
         width = Math.min(850, width);
         this._dimension = new Dimension(width, heightInPixel);
         this.widget.layout(this._dimension);
@@ -163,15 +164,19 @@ let InlineChatZoneWidget = class InlineChatZoneWidget extends ZoneWidget {
     }
     show(position) {
         assertType(this.container);
-        const info = this.editor.getLayoutInfo();
-        const marginWithoutIndentation = info.glyphMarginWidth + info.lineNumbersWidth;
-        this.container.style.paddingLeft = `${marginWithoutIndentation}px`;
+        this._updatePadding();
         const revealZone = this._createZoneAndScrollRestoreFn(position);
         super.show(position, this._computeHeight().linesValue);
         this.widget.chatWidget.setVisible(true);
         this.widget.focus();
         revealZone();
         this._scrollUp.enable();
+    }
+    _updatePadding() {
+        assertType(this.container);
+        const info = this.editor.getLayoutInfo();
+        const marginWithoutIndentation = info.glyphMarginWidth + info.lineNumbersWidth + info.decorationsWidth;
+        this.container.style.paddingLeft = `${marginWithoutIndentation}px`;
     }
     reveal(position) {
         const stickyScroll = this.editor.getOption(118 /* EditorOption.stickyScroll */);

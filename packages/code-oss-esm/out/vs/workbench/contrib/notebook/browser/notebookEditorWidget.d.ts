@@ -12,6 +12,8 @@ import './media/notebookCellOutput.css';
 import './media/notebookEditorStickyScroll.css';
 import './media/notebookKernelActionViewItem.css';
 import './media/notebookOutline.css';
+import './media/notebookChatEditController.css';
+import './media/notebookChatEditorOverlay.css';
 import * as DOM from '../../../../base/browser/dom.js';
 import { CancellationToken } from '../../../../base/common/cancellation.js';
 import { Event } from '../../../../base/common/event.js';
@@ -36,7 +38,6 @@ import { NotebookViewModel } from './viewModel/notebookViewModelImpl.js';
 import { NotebookTextModel } from '../common/model/notebookTextModel.js';
 import { INotebookFindOptions } from '../common/notebookCommon.js';
 import { INotebookExecutionService } from '../common/notebookExecutionService.js';
-import { INotebookExecutionStateService } from '../common/notebookExecutionStateService.js';
 import { INotebookKernelService } from '../common/notebookKernelService.js';
 import { NotebookOptions } from './notebookOptions.js';
 import { ICellRange } from '../common/notebookRange.js';
@@ -46,7 +47,6 @@ import { IWebviewElement } from '../../webview/browser/webview.js';
 import { IEditorGroupsService } from '../../../services/editor/common/editorGroupsService.js';
 import { NotebookPerfMarks } from '../common/notebookPerformance.js';
 import { INotebookLoggingService } from '../common/notebookLoggingService.js';
-import { IKeybindingService } from '../../../../platform/keybinding/common/keybinding.js';
 export declare function getDefaultNotebookCreationOptions(): INotebookEditorCreationOptions;
 export declare class NotebookEditorWidget extends Disposable implements INotebookEditorDelegate, INotebookEditor {
     readonly creationOptions: INotebookEditorCreationOptions;
@@ -59,10 +59,8 @@ export declare class NotebookEditorWidget extends Disposable implements INoteboo
     private readonly contextMenuService;
     private readonly telemetryService;
     private readonly notebookExecutionService;
-    private readonly notebookExecutionStateService;
     private editorProgressService;
     private readonly logService;
-    private readonly keybindingService;
     private readonly _onDidChangeCellState;
     readonly onDidChangeCellState: Event<NotebookCellStateChangedEvent>;
     private readonly _onDidChangeViewCells;
@@ -170,7 +168,7 @@ export declare class NotebookEditorWidget extends Disposable implements INoteboo
     private readonly _notebookOptions;
     private _currentProgress;
     get notebookOptions(): NotebookOptions;
-    constructor(creationOptions: INotebookEditorCreationOptions, dimension: DOM.Dimension | undefined, instantiationService: IInstantiationService, editorGroupsService: IEditorGroupsService, notebookRendererMessaging: INotebookRendererMessagingService, notebookEditorService: INotebookEditorService, notebookKernelService: INotebookKernelService, _notebookService: INotebookService, configurationService: IConfigurationService, contextKeyService: IContextKeyService, layoutService: ILayoutService, contextMenuService: IContextMenuService, telemetryService: ITelemetryService, notebookExecutionService: INotebookExecutionService, notebookExecutionStateService: INotebookExecutionStateService, editorProgressService: IEditorProgressService, logService: INotebookLoggingService, keybindingService: IKeybindingService);
+    constructor(creationOptions: INotebookEditorCreationOptions, dimension: DOM.Dimension | undefined, instantiationService: IInstantiationService, editorGroupsService: IEditorGroupsService, notebookRendererMessaging: INotebookRendererMessagingService, notebookEditorService: INotebookEditorService, notebookKernelService: INotebookKernelService, _notebookService: INotebookService, configurationService: IConfigurationService, contextKeyService: IContextKeyService, layoutService: ILayoutService, contextMenuService: IContextMenuService, telemetryService: ITelemetryService, notebookExecutionService: INotebookExecutionService, editorProgressService: IEditorProgressService, logService: INotebookLoggingService);
     private _debugFlag;
     private _debug;
     /**

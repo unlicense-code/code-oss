@@ -5,7 +5,8 @@
 import './media/processExplorer.css';
 import '../../../base/browser/ui/codicons/codiconStyles.js'; // make sure codicon css is loaded
 import { localize } from '../../../nls.js';
-import { $, append, createStyleSheet } from '../../../base/browser/dom.js';
+import { $, append } from '../../../base/browser/dom.js';
+import { createStyleSheet } from '../../../base/browser/domStylesheets.js';
 import { DataTree } from '../../../base/browser/ui/tree/dataTree.js';
 import { RunOnceScheduler } from '../../../base/common/async.js';
 import { popup } from '../../../base/parts/contextmenu/electron-sandbox/contextmenu.js';

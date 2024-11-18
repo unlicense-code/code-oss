@@ -123,6 +123,7 @@ let RepositoryRenderer = class RepositoryRenderer {
     disposeTemplate(templateData) {
         templateData.elementDisposables.dispose();
         templateData.templateDisposable.dispose();
+        templateData.count.dispose();
     }
 };
 RepositoryRenderer = RepositoryRenderer_1 = __decorate([

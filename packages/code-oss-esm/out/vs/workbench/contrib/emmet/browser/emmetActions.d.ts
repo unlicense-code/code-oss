@@ -3,9 +3,9 @@ import { ICodeEditor } from '../../../../editor/browser/editorBrowser.js';
 export interface IGrammarContributions {
     getGrammar(mode: string): string;
 }
-interface IEmmetActionOptions extends IActionOptions {
+type IEmmetActionOptions = IActionOptions & {
     actionName: string;
-}
+};
 export declare abstract class EmmetEditorAction extends EditorAction {
     protected emmetActionName: string;
     constructor(opts: IEmmetActionOptions);

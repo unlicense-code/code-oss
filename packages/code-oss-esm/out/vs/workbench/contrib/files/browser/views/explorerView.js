@@ -15,7 +15,7 @@ var ExplorerView_1;
 import * as nls from '../../../../../nls.js';
 import * as perf from '../../../../../base/common/performance.js';
 import { memoize } from '../../../../../base/common/decorators.js';
-import { ExplorerFolderContext, FilesExplorerFocusedContext, ExplorerFocusedContext, ExplorerRootContext, ExplorerResourceReadonlyContext, ExplorerResourceCut, ExplorerResourceMoveableToTrash, ExplorerCompressedFocusContext, ExplorerCompressedFirstFocusContext, ExplorerCompressedLastFocusContext, ExplorerResourceAvailableEditorIdsContext, VIEW_ID, ExplorerResourceNotReadonlyContext, ViewHasSomeCollapsibleRootItemContext, FoldersViewVisibleContext, ExplorerResourceParentReadOnlyContext } from '../../common/files.js';
+import { ExplorerFolderContext, FilesExplorerFocusedContext, ExplorerFocusedContext, ExplorerRootContext, ExplorerResourceReadonlyContext, ExplorerResourceCut, ExplorerResourceMoveableToTrash, ExplorerCompressedFocusContext, ExplorerCompressedFirstFocusContext, ExplorerCompressedLastFocusContext, ExplorerResourceAvailableEditorIdsContext, VIEW_ID, ExplorerResourceNotReadonlyContext, ViewHasSomeCollapsibleRootItemContext, FoldersViewVisibleContext, ExplorerResourceParentReadOnlyContext, ExplorerFindProviderActive } from '../../common/files.js';
 import { FileCopiedContext, NEW_FILE_COMMAND_ID, NEW_FOLDER_COMMAND_ID } from '../fileActions.js';
 import * as DOM from '../../../../../base/browser/dom.js';
 import { IWorkbenchLayoutService } from '../../../../services/layout/browser/layoutService.js';
@@ -34,14 +34,13 @@ import { DelayedDragHandler } from '../../../../../base/browser/dnd.js';
 import { IEditorService, SIDE_GROUP, ACTIVE_GROUP } from '../../../../services/editor/common/editorService.js';
 import { ViewPane } from '../../../../browser/parts/views/viewPane.js';
 import { ILabelService } from '../../../../../platform/label/common/label.js';
-import { ExplorerDelegate, ExplorerDataSource, FilesRenderer, FilesFilter, FileSorter, FileDragAndDrop, ExplorerCompressionDelegate, isCompressedFolderName } from './explorerViewer.js';
+import { ExplorerDelegate, ExplorerDataSource, FilesRenderer, FilesFilter, FileSorter, FileDragAndDrop, ExplorerCompressionDelegate, isCompressedFolderName, ExplorerFindProvider } from './explorerViewer.js';
 import { IThemeService } from '../../../../../platform/theme/common/themeService.js';
 import { MenuId, Action2, registerAction2 } from '../../../../../platform/actions/common/actions.js';
 import { ITelemetryService } from '../../../../../platform/telemetry/common/telemetry.js';
 import { ExplorerItem, NewExplorerItem } from '../../common/explorerModel.js';
 import { ResourceLabels } from '../../../../browser/labels.js';
 import { IStorageService } from '../../../../../platform/storage/common/storage.js';
-import { fuzzyScore } from '../../../../../base/common/filters.js';
 import { IClipboardService } from '../../../../../platform/clipboard/common/clipboardService.js';
 import { IFileService } from '../../../../../platform/files/common/files.js';
 import { Event } from '../../../../../base/common/event.js';
@@ -56,12 +55,7 @@ import { ICommandService } from '../../../../../platform/commands/common/command
 import { IEditorResolverService } from '../../../../services/editor/common/editorResolverService.js';
 import { EditorOpenSource } from '../../../../../platform/editor/common/editor.js';
 import { ResourceMap } from '../../../../../base/common/map.js';
-import { contiguousFuzzyScore } from '../../../../../base/browser/ui/tree/abstractTree.js';
 import { IHoverService } from '../../../../../platform/hover/browser/hover.js';
-import { basename, relativePath } from '../../../../../base/common/resources.js';
-import { IFilesConfigurationService } from '../../../../services/filesConfiguration/common/filesConfigurationService.js';
-import { getExcludes, ISearchService } from '../../../../services/search/common/search.js';
-import { Schemas } from '../../../../../base/common/network.js';
 function hasExpandedRootChild(tree, treeInput) {
     for (const folder of treeInput) {
         if (tree.hasNode(folder) && !tree.isCollapsed(folder)) {
@@ -134,106 +128,6 @@ export function getContext(focus, selection, respectMultiSelection, compressedNa
     }
     return [focusedStat];
 }
-const explorerFuzzyMatch = {
-    id: 'fuzzyMatch',
-    title: 'Fuzzy Match',
-    icon: Codicon.searchFuzzy,
-    isChecked: false
-};
-let ExplorerFindProvider = class ExplorerFindProvider {
-    constructor(workspaceContextService, searchService, fileService, configurationService, filesConfigService, progressService, explorerService) {
-        this.workspaceContextService = workspaceContextService;
-        this.searchService = searchService;
-        this.fileService = fileService;
-        this.configurationService = configurationService;
-        this.filesConfigService = filesConfigService;
-        this.progressService = progressService;
-        this.explorerService = explorerService;
-        this.toggles = [explorerFuzzyMatch];
-        this.placeholder = nls.localize('type to search files', "Type to search files");
-    }
-    async *getFindResults(pattern, sessionId, token, toggleStates) {
-        const isFuzzyMatch = toggleStates.find(t => t.id === explorerFuzzyMatch.id)?.isChecked;
-        const workspaceFolders = this.workspaceContextService.getWorkspace().folders;
-        const folderPromises = Promise.all(workspaceFolders.map(async (folder) => {
-            // Get exclude settings used for search
-            const searchExcludePattern = getExcludes(this.configurationService.getValue({ resource: folder.uri })) || {};
-            const result = await this.searchService.fileSearch({
-                folderQueries: [{ folder: folder.uri }],
-                type: 1 /* QueryType.File */,
-                shouldGlobMatchFilePattern: !isFuzzyMatch,
-                filePattern: isFuzzyMatch ? pattern : `**/*${pattern}*`,
-                maxResults: 512,
-                sortByScore: true,
-                cacheKey: `explorerfindprovider:${folder.index}:${sessionId}`,
-                excludePattern: searchExcludePattern,
-            }, token);
-            return { folder: folder.uri, result };
-        }));
-        const folderResults = await this.progressService.withProgress({
-            location: 1 /* ProgressLocation.Explorer */,
-            delay: 1000,
-        }, _progress => folderPromises);
-        if (token.isCancellationRequested) {
-            return;
-        }
-        yield* this.createResultItems(folderResults, pattern, isFuzzyMatch);
-    }
-    async *createResultItems(folderResults, pattern, isFuzzyMatch) {
-        const lowercasePattern = pattern.toLowerCase();
-        for (const { folder, result } of folderResults) {
-            const folderRoot = new ExplorerItem(folder, this.fileService, this.configurationService, this.filesConfigService, undefined);
-            for (const file of result.results) {
-                const baseName = basename(file.resource);
-                let filterdata;
-                if (isFuzzyMatch) {
-                    filterdata = fuzzyScore(pattern, lowercasePattern, 0, baseName, baseName.toLowerCase(), 0, { firstMatchCanBeWeak: true, boostFullMatch: true });
-                }
-                else {
-                    filterdata = contiguousFuzzyScore(lowercasePattern, baseName.toLowerCase());
-                }
-                if (!filterdata) {
-                    continue;
-                }
-                const item = this.createItem(file.resource, folderRoot);
-                if (item) {
-                    yield { element: item, filterdata };
-                }
-            }
-        }
-    }
-    createItem(resource, root) {
-        const relativePathToRoot = relativePath(root.resource, resource);
-        if (!relativePathToRoot) {
-            return undefined;
-        }
-        let currentItem = root;
-        let currentResource = root.resource;
-        const pathSegments = relativePathToRoot.split('/');
-        for (const stat of pathSegments) {
-            currentResource = currentResource.with({ path: `${currentResource.path}/${stat}` });
-            let child = currentItem.children.get(stat);
-            if (!child) {
-                const isDirectory = pathSegments[pathSegments.length - 1] !== stat;
-                child = new ExplorerItem(currentResource, this.fileService, this.configurationService, this.filesConfigService, currentItem, isDirectory);
-            }
-            currentItem = child;
-        }
-        return currentItem;
-    }
-    revealResultInTree(findElement) {
-        this.explorerService.select(findElement.resource, true);
-    }
-};
-ExplorerFindProvider = __decorate([
-    __param(0, IWorkspaceContextService),
-    __param(1, ISearchService),
-    __param(2, IFileService),
-    __param(3, IConfigurationService),
-    __param(4, IFilesConfigurationService),
-    __param(5, IProgressService),
-    __param(6, IExplorerService)
-], ExplorerFindProvider);
 let ExplorerView = class ExplorerView extends ViewPane {
     static { ExplorerView_1 = this; }
     static { this.TREE_VIEW_STATE_STORAGE_KEY = 'workbench.explorer.treeViewState'; }
@@ -432,14 +326,14 @@ let ExplorerView = class ExplorerView extends ViewPane {
         this._register(this.filter.onDidChange(() => this.refresh(true)));
         const explorerLabels = this.instantiationService.createInstance(ResourceLabels, { onDidChangeVisibility: this.onDidChangeBodyVisibility });
         this._register(explorerLabels);
+        this.findProvider = this.instantiationService.createInstance(ExplorerFindProvider, () => this.tree);
         const updateWidth = (stat) => this.tree.updateWidth(stat);
-        this.renderer = this.instantiationService.createInstance(FilesRenderer, container, explorerLabels, updateWidth);
+        this.renderer = this.instantiationService.createInstance(FilesRenderer, container, explorerLabels, this.findProvider.highlightTree, updateWidth);
         this._register(this.renderer);
         this._register(createFileIconThemableTreeContainerScope(container, this.themeService));
         const isCompressionEnabled = () => this.configurationService.getValue('explorer.compactFolders');
         const getFileNestingSettings = (item) => this.configurationService.getValue({ resource: item?.root.resource }).explorer.fileNesting;
-        const rootsSupportFindProvider = this.explorerService.roots.every(root => root.resource.scheme === Schemas.file || root.resource.scheme === Schemas.vscodeRemote);
-        this.tree = this.instantiationService.createInstance(WorkbenchCompressibleAsyncDataTree, 'FileExplorer', container, new ExplorerDelegate(), new ExplorerCompressionDelegate(), [this.renderer], this.instantiationService.createInstance(ExplorerDataSource, this.filter), {
+        this.tree = this.instantiationService.createInstance(WorkbenchCompressibleAsyncDataTree, 'FileExplorer', container, new ExplorerDelegate(), new ExplorerCompressionDelegate(), [this.renderer], this.instantiationService.createInstance(ExplorerDataSource, this.filter, this.findProvider), {
             compressionEnabled: isCompressionEnabled(),
             accessibilityProvider: this.renderer,
             identityProvider,
@@ -466,6 +360,9 @@ let ExplorerView = class ExplorerView extends ViewPane {
                     if (e.hasNests && getFileNestingSettings(e).expand) {
                         return false;
                     }
+                    if (this.findProvider.isShowingFilterResults()) {
+                        return false;
+                    }
                 }
                 return true;
             },
@@ -483,7 +380,7 @@ let ExplorerView = class ExplorerView extends ViewPane {
             },
             paddingBottom: ExplorerDelegate.ITEM_HEIGHT,
             overrideStyles: this.getLocationBasedColors().listOverrideStyles,
-            findResultsProvider: rootsSupportFindProvider ? this.instantiationService.createInstance(ExplorerFindProvider) : undefined,
+            findProvider: this.findProvider,
         });
         this._register(this.tree);
         this._register(this.themeService.onDidColorThemeChange(() => this.tree.rerender()));
@@ -657,7 +554,7 @@ let ExplorerView = class ExplorerView extends ViewPane {
      * If the item is passed we refresh only that level of the tree, otherwise we do a full refresh.
      */
     refresh(recursive, item, cancelEditing = true) {
-        if (!this.tree || !this.isBodyVisible() || (item && !this.tree.hasNode(item))) {
+        if (!this.tree || !this.isBodyVisible() || (item && !this.tree.hasNode(item)) || (this.findProvider?.isShowingFilterResults() && recursive)) {
             // Tree node doesn't exist yet, when it becomes visible we will refresh
             return Promise.resolve(undefined);
         }
@@ -891,6 +788,9 @@ let ExplorerView = class ExplorerView extends ViewPane {
         // synchronize state to cache
         this.storeTreeViewState();
     }
+    hasPhantomElements() {
+        return this.findProvider.isShowingFilterResults();
+    }
     dispose() {
         this.dragHandler?.dispose();
         super.dispose();
@@ -996,11 +896,12 @@ registerAction2(class extends Action2 {
                 id: MenuId.ViewTitle,
                 group: 'navigation',
                 when: ContextKeyExpr.equals('view', VIEW_ID),
-                order: 30
+                order: 30,
             },
             metadata: {
                 description: nls.localize2('refreshExplorerMetadata', "Forces a refresh of the Explorer.")
-            }
+            },
+            precondition: ExplorerFindProviderActive.negate()
         });
     }
     async run(accessor) {

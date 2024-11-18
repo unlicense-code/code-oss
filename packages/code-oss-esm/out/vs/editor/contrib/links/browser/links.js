@@ -349,8 +349,7 @@ class OpenLinkAction extends EditorAction {
     constructor() {
         super({
             id: 'editor.action.openLink',
-            label: nls.localize('label', "Open Link"),
-            alias: 'Open Link',
+            label: nls.localize2('label', "Open Link"),
             precondition: undefined
         });
     }

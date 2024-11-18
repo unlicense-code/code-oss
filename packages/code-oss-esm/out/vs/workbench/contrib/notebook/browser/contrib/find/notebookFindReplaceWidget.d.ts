@@ -107,6 +107,7 @@ export declare abstract class SimpleFindReplaceWidget extends Widget {
     protected get replaceValue(): string;
     protected get replacePattern(): ReplacePattern;
     get focusTracker(): dom.IFocusTracker;
+    get isVisible(): boolean;
     private _onStateChanged;
     private _updateButtons;
     private setCellSelectionDecorations;

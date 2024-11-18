@@ -158,7 +158,7 @@ export interface IChatToolInvocation {
     confirmed: DeferredPromise<boolean>;
     /** A 3-way: undefined=don't know yet. */
     isConfirmed: boolean | undefined;
-    invocationMessage: string;
+    invocationMessage: string | IMarkdownString;
     isComplete: boolean;
     isCompleteDeferred: DeferredPromise<void>;
     kind: 'toolInvocation';
@@ -167,7 +167,7 @@ export interface IChatToolInvocation {
  * This is a IChatToolInvocation that has been serialized, like after window reload, so it is no longer an active tool invocation.
  */
 export interface IChatToolInvocationSerialized {
-    invocationMessage: string;
+    invocationMessage: string | IMarkdownString;
     isConfirmed: boolean;
     isComplete: boolean;
     kind: 'toolInvocationSerialized';
@@ -251,7 +251,7 @@ export interface IChatEditingSessionAction {
     kind: 'chatEditingSessionAction';
     uri: URI;
     hasRemainingEdits: boolean;
-    outcome: 'accepted' | 'rejected';
+    outcome: 'accepted' | 'rejected' | 'saved';
 }
 export type ChatUserAction = IChatVoteAction | IChatCopyAction | IChatInsertAction | IChatApplyAction | IChatTerminalAction | IChatCommandAction | IChatFollowupAction | IChatBugReportAction | IChatInlineChatCodeAction | IChatEditingSessionAction;
 export interface IChatUserActionEvent {

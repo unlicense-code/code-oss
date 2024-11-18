@@ -97,4 +97,8 @@ export declare class NotebookTextModel extends Disposable implements INotebookTe
         cell: NotebookCellTextModel;
         match: FindMatch;
     } | null;
+    findMatches(searchString: string, isRegex: boolean, matchCase: boolean, wordSeparators: string | null): {
+        cell: NotebookCellTextModel;
+        matches: FindMatch[];
+    }[];
 }

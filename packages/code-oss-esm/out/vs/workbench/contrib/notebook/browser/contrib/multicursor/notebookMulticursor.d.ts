@@ -6,7 +6,7 @@ import { IAccessibilityService } from '../../../../../../platform/accessibility/
 import { IConfigurationService } from '../../../../../../platform/configuration/common/configuration.js';
 import { IContextKeyService, RawContextKey } from '../../../../../../platform/contextkey/common/contextkey.js';
 import { IUndoRedoService } from '../../../../../../platform/undoRedo/common/undoRedo.js';
-import { ICellViewModel, INotebookEditor, INotebookEditorContribution } from '../../notebookBrowser.js';
+import { CellFindMatchWithIndex, ICellViewModel, INotebookEditor, INotebookEditorContribution } from '../../notebookBrowser.js';
 export declare enum NotebookMultiCursorState {
     Idle = 0,
     Selecting = 1,
@@ -27,7 +27,7 @@ export declare class NotebookMultiCursorController extends Disposable implements
     static readonly id: string;
     private word;
     private startPosition;
-    private trackedMatches;
+    private trackedCells;
     private readonly _onDidChangeAnchorCell;
     readonly onDidChangeAnchorCell: Event<void>;
     private anchorCell;
@@ -39,13 +39,20 @@ export declare class NotebookMultiCursorController extends Disposable implements
     private _nbIsMultiSelectSession;
     private _nbMultiSelectState;
     constructor(notebookEditor: INotebookEditor, contextKeyService: IContextKeyService, textModelService: ITextModelService, languageConfigurationService: ILanguageConfigurationService, accessibilityService: IAccessibilityService, configurationService: IConfigurationService, undoRedoService: IUndoRedoService);
-    private updateCursorsControllers;
+    private syncAnchorListeners;
+    private syncCursorsControllers;
+    private createCursorController;
     private constructCoordinatesConverter;
     private constructCursorSimpleModel;
-    private updateAnchorListeners;
+    private handleEditorOperationEvent;
+    private executeEditorOperation;
     private updateFinalUndoRedo;
     resetToIdleState(): void;
-    findAndTrackNextSelection(cell: ICellViewModel): Promise<void>;
+    findAndTrackNextSelection(focusedCell: ICellViewModel): Promise<void>;
+    selectAllMatches(focusedCell: ICellViewModel, matches?: CellFindMatchWithIndex[]): Promise<void>;
+    private handleFindWidgetSelectAllMatches;
+    private handleCellEditorSelectAllMatches;
+    private updateTrackedCell;
     deleteLeft(): Promise<void>;
     deleteRight(): Promise<void>;
     undo(): Promise<void>;
@@ -54,7 +61,7 @@ export declare class NotebookMultiCursorController extends Disposable implements
     /**
      * Updates the multicursor selection decorations for a specific matched cell
      *
-     * @param match -- match object containing the viewmodel + selections
+     * @param cell -- match object containing the viewmodel + selections
      */
     private initializeMultiSelectDecorations;
     private updateLazyDecorations;

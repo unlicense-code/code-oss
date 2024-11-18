@@ -16,7 +16,8 @@ import * as dom from '../../../../../base/browser/dom.js';
 import { StandardMouseEvent } from '../../../../../base/browser/mouseEvent.js';
 import { Codicon } from '../../../../../base/common/codicons.js';
 import { Emitter } from '../../../../../base/common/event.js';
-import { Disposable } from '../../../../../base/common/lifecycle.js';
+import { Disposable, DisposableStore } from '../../../../../base/common/lifecycle.js';
+import { autorun } from '../../../../../base/common/observable.js';
 import { equalsIgnoreCase } from '../../../../../base/common/strings.js';
 import { ThemeIcon } from '../../../../../base/common/themables.js';
 import { Range } from '../../../../../editor/common/core/range.js';
@@ -24,6 +25,7 @@ import { ILanguageService } from '../../../../../editor/common/languages/languag
 import { getIconClasses } from '../../../../../editor/common/services/getIconClasses.js';
 import { IModelService } from '../../../../../editor/common/services/model.js';
 import { ITextModelService } from '../../../../../editor/common/services/resolverService.js';
+import { localize } from '../../../../../nls.js';
 import { getFlatContextMenuActions } from '../../../../../platform/actions/browser/menuEntryActionViewItem.js';
 import { IMenuService, MenuId } from '../../../../../platform/actions/common/actions.js';
 import { IContextKeyService } from '../../../../../platform/contextkey/common/contextkey.js';
@@ -32,7 +34,9 @@ import { FileKind } from '../../../../../platform/files/common/files.js';
 import { IInstantiationService } from '../../../../../platform/instantiation/common/instantiation.js';
 import { ILabelService } from '../../../../../platform/label/common/label.js';
 import { IEditorService } from '../../../../services/editor/common/editorService.js';
+import { IChatEditingService } from '../../common/chatEditingService.js';
 import { isRequestVM, isResponseVM } from '../../common/chatViewModel.js';
+import { AnimatedValue, ObservableAnimatedValue } from '../chatEditorOverlay.js';
 import { ChatMarkdownDecorationsRenderer } from '../chatMarkdownDecorationsRenderer.js';
 import { CodeBlockPart, localFileLanguageId, parseLocalFileData } from '../codeBlockPart.js';
 import '../media/chatCodeBlockPill.css';
@@ -93,7 +97,7 @@ let ChatMarkdownContentPart = class ChatMarkdownContentPart extends Disposable {
                 const hideToolbar = isResponseVM(element) && element.errorDetails?.responseIsFiltered;
                 const codeBlockInfo = { languageId, textModel, codeBlockIndex: index, element, range, hideToolbar, parentContextKeyService: contextKeyService, vulns, codemapperUri };
                 if (!rendererOptions.renderCodeBlockPills || element.isCompleteAddedRequest || !codemapperUri) {
-                    const ref = this.renderCodeBlock(codeBlockInfo, text, isCodeBlockComplete, currentWidth, rendererOptions.editableCodeBlock);
+                    const ref = this.renderCodeBlock(codeBlockInfo, text, isCodeBlockComplete, currentWidth);
                     this.allRefs.push(ref);
                     // Attach this after updating text/layout of the editor, so it should only be fired when the size updates later (horizontal scrollbar, wrapping)
                     // not during a renderElement OR a progressive render (when we will be firing this event anyway at the end of the render)
@@ -126,8 +130,7 @@ let ChatMarkdownContentPart = class ChatMarkdownContentPart extends Disposable {
                 }
                 else {
                     const requestId = isRequestVM(element) ? element.id : element.requestId;
-                    const isStreaming = isResponseVM(element) ? !element.isComplete : !isCodeBlockComplete;
-                    const ref = this.renderCodeBlockPill(element.sessionId, requestId, codeBlockInfo.codemapperUri, !isStreaming);
+                    const ref = this.renderCodeBlockPill(element.sessionId, requestId, codeBlockInfo.codemapperUri, !isCodeBlockComplete);
                     if (isResponseVM(codeBlockInfo.element)) {
                         // TODO@joyceerhl: remove this code when we change the codeblockUri API to make the URI available synchronously
                         this.codeBlockModelCollection.update(codeBlockInfo.element.sessionId, codeBlockInfo.element, codeBlockInfo.codeBlockIndex, { text, languageId: codeBlockInfo.languageId, isComplete: isCodeBlockComplete }).then((e) => {
@@ -143,7 +146,7 @@ let ChatMarkdownContentPart = class ChatMarkdownContentPart extends Disposable {
                             this.ownerMarkdownPartId = ownerMarkdownPartId;
                             this.codeBlockIndex = index;
                             this.element = element;
-                            this.isStreaming = isStreaming;
+                            this.isStreaming = !isCodeBlockComplete;
                             this.codemapperUri = codemapperUri;
                             this.uriPromise = Promise.resolve(undefined);
                         }
@@ -169,10 +172,10 @@ let ChatMarkdownContentPart = class ChatMarkdownContentPart extends Disposable {
         orderedDisposablesList.reverse().forEach(d => this._register(d));
         this.domNode = result.element;
     }
-    renderCodeBlockPill(sessionId, requestId, codemapperUri, isCodeBlockComplete) {
+    renderCodeBlockPill(sessionId, requestId, codemapperUri, isStreaming) {
         const codeBlock = this.instantiationService.createInstance(CollapsedCodeBlock, sessionId, requestId);
         if (codemapperUri) {
-            codeBlock.render(codemapperUri, !isCodeBlockComplete);
+            codeBlock.render(codemapperUri, isStreaming);
         }
         return {
             object: codeBlock,
@@ -180,7 +183,7 @@ let ChatMarkdownContentPart = class ChatMarkdownContentPart extends Disposable {
             dispose: () => codeBlock.dispose()
         };
     }
-    renderCodeBlock(data, text, isComplete, currentWidth, editableCodeBlock) {
+    renderCodeBlock(data, text, isComplete, currentWidth) {
         const ref = this.editorPool.get();
         const editorInfo = ref.object;
         if (isResponseVM(data.element)) {
@@ -190,7 +193,7 @@ let ChatMarkdownContentPart = class ChatMarkdownContentPart extends Disposable {
                 this._onDidChangeHeight.fire();
             });
         }
-        editorInfo.render(data, currentWidth, editableCodeBlock);
+        editorInfo.render(data, currentWidth);
         return ref;
     }
     hasSameContent(other) {
@@ -252,7 +255,7 @@ let CollapsedCodeBlock = class CollapsedCodeBlock extends Disposable {
     get uri() {
         return this._uri;
     }
-    constructor(sessionId, requestId, labelService, editorService, modelService, languageService, contextMenuService, contextKeyService, menuService) {
+    constructor(sessionId, requestId, labelService, editorService, modelService, languageService, contextMenuService, contextKeyService, menuService, chatEditingService) {
         super();
         this.labelService = labelService;
         this.editorService = editorService;
@@ -261,6 +264,8 @@ let CollapsedCodeBlock = class CollapsedCodeBlock extends Disposable {
         this.contextMenuService = contextMenuService;
         this.contextKeyService = contextKeyService;
         this.menuService = menuService;
+        this.chatEditingService = chatEditingService;
+        this._progressStore = new DisposableStore();
         this.element = $('.chat-codeblock-pill-widget');
         this.element.classList.add('show-file-icons');
         this._register(dom.addDisposableListener(this.element, 'click', async () => {
@@ -282,14 +287,13 @@ let CollapsedCodeBlock = class CollapsedCodeBlock extends Disposable {
         }));
     }
     render(uri, isStreaming) {
-        if (this.uri?.toString() === uri.toString() && this.isStreaming === isStreaming) {
-            return;
-        }
+        this._progressStore.clear();
         this._uri = uri;
-        this.isStreaming = isStreaming;
         const iconText = this.labelService.getUriBasenameLabel(uri);
+        const modifiedEntry = this.chatEditingService.currentEditingSession?.entries.get().find(entry => entry.modifiedURI.toString() === uri.toString());
+        const isComplete = !modifiedEntry?.isCurrentlyBeingModified.get();
         let iconClasses = [];
-        if (isStreaming) {
+        if (isStreaming || !isComplete) {
             const codicon = ThemeIcon.modify(Codicon.loading, 'spin');
             iconClasses = ThemeIcon.asClassNameArray(codicon);
         }
@@ -299,7 +303,40 @@ let CollapsedCodeBlock = class CollapsedCodeBlock extends Disposable {
         }
         const iconEl = dom.$('span.icon');
         iconEl.classList.add(...iconClasses);
-        this.element.replaceChildren(iconEl, dom.$('span.icon-label', {}, iconText));
+        const children = [dom.$('span.icon-label', {}, iconText)];
+        if (isStreaming) {
+            children.push(dom.$('span.label-detail', {}, localize('chat.codeblock.generating', "Generating edits...")));
+        }
+        else if (!isComplete) {
+            children.push(dom.$('span.label-detail', {}, ''));
+        }
+        this.element.replaceChildren(iconEl, ...children);
+        this.element.title = this.labelService.getUriLabel(uri, { relative: false });
+        // Show a percentage progress that is driven by the rewrite
+        const slickRatio = ObservableAnimatedValue.const(0);
+        let t = Date.now();
+        this._progressStore.add(autorun(r => {
+            const rewriteRatio = modifiedEntry?.rewriteRatio.read(r);
+            if (rewriteRatio) {
+                slickRatio.changeAnimation(prev => {
+                    const result = new AnimatedValue(prev.getValue(), rewriteRatio, Date.now() - t);
+                    t = Date.now();
+                    return result;
+                }, undefined);
+            }
+            const labelDetail = this.element.querySelector('.label-detail');
+            const isComplete = !modifiedEntry?.isCurrentlyBeingModified.read(r);
+            if (labelDetail && !isStreaming && !isComplete) {
+                const value = slickRatio.getValue(undefined);
+                labelDetail.textContent = value === 0 ? localize('chat.codeblock.applying', "Applying edits...") : localize('chat.codeblock.applyingPercentage', "Applying edits ({0}%)...", Math.round(value * 100));
+            }
+            else if (labelDetail && !isStreaming && isComplete) {
+                iconEl.classList.remove(...iconClasses);
+                const fileKind = uri.path.endsWith('/') ? FileKind.FOLDER : FileKind.FILE;
+                iconEl.classList.add(...getIconClasses(this.modelService, this.languageService, uri, fileKind));
+                labelDetail.textContent = '';
+            }
+        }));
     }
 };
 CollapsedCodeBlock = __decorate([
@@ -309,5 +346,6 @@ CollapsedCodeBlock = __decorate([
     __param(5, ILanguageService),
     __param(6, IContextMenuService),
     __param(7, IContextKeyService),
-    __param(8, IMenuService)
+    __param(8, IMenuService),
+    __param(9, IChatEditingService)
 ], CollapsedCodeBlock);

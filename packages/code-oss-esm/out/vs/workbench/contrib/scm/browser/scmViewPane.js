@@ -360,7 +360,7 @@ let ResourceGroupRenderer = class ResourceGroupRenderer {
         const actionBar = new WorkbenchToolBar(actionsContainer, { actionViewItemProvider: this.actionViewItemProvider }, this.menuService, this.contextKeyService, this.contextMenuService, this.keybindingService, this.commandService, this.telemetryService);
         const countContainer = append(element, $('.count'));
         const count = new CountBadge(countContainer, {}, defaultCountBadgeStyles);
-        const disposables = combinedDisposable(actionBar);
+        const disposables = combinedDisposable(actionBar, count);
         return { name, count, actionBar, elementDisposables: new DisposableStore(), disposables };
     }
     renderElement(node, index, template) {
@@ -1272,7 +1272,6 @@ class SCMInputWidgetEditorOptions {
             },
             wrappingIndent: 'none',
             wrappingStrategy: 'advanced',
-            defaultColorDecorators: false
         };
     }
     getEditorOptions() {

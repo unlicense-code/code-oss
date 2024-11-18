@@ -32,7 +32,7 @@ import { IBrowserWorkbenchEnvironmentService } from '../../environment/browser/e
 import { IWebExtensionsScannerService, IWorkbenchExtensionEnablementService, IWorkbenchExtensionManagementService } from '../../extensionManagement/common/extensionManagement.js';
 import { WebWorkerExtensionHost } from './webWorkerExtensionHost.js';
 import { FetchFileSystemProvider } from './webWorkerFileSystemProvider.js';
-import { AbstractExtensionService, ResolvedExtensions, checkEnabledAndProposedAPI } from '../common/abstractExtensionService.js';
+import { AbstractExtensionService, LocalExtensions, RemoteExtensions, ResolverExtensions, checkEnabledAndProposedAPI, isResolverExtension } from '../common/abstractExtensionService.js';
 import { extensionHostKindToString, extensionRunningPreferenceToString } from '../common/extensionHostKind.js';
 import { IExtensionManifestPropertiesService } from '../common/extensionManifestPropertiesService.js';
 import { filterExtensionDescriptions } from '../common/extensionRunningLocationTracker.js';
@@ -45,11 +45,12 @@ import { IRemoteAgentService } from '../../remote/common/remoteAgentService.js';
 import { IRemoteExplorerService } from '../../remote/common/remoteExplorerService.js';
 import { IUserDataInitializationService } from '../../userData/browser/userDataInit.js';
 import { IUserDataProfileService } from '../../userDataProfile/common/userDataProfile.js';
+import { AsyncIterableObject } from '../../../../base/common/async.js';
 let ExtensionService = class ExtensionService extends AbstractExtensionService {
     constructor(instantiationService, notificationService, _browserEnvironmentService, telemetryService, extensionEnablementService, fileService, productService, extensionManagementService, contextService, configurationService, extensionManifestPropertiesService, _webExtensionsScannerService, logService, remoteAgentService, remoteExtensionsScannerService, lifecycleService, remoteAuthorityResolverService, _userDataInitializationService, _userDataProfileService, _workspaceTrustManagementService, _remoteExplorerService, dialogService) {
         const extensionsProposedApi = instantiationService.createInstance(ExtensionsProposedApi);
         const extensionHostFactory = new BrowserExtensionHostFactory(extensionsProposedApi, () => this._scanWebExtensions(), () => this._getExtensionRegistrySnapshotWhenReady(), instantiationService, remoteAgentService, remoteAuthorityResolverService, extensionEnablementService, logService);
-        super(extensionsProposedApi, extensionHostFactory, new BrowserExtensionHostKindPicker(logService), instantiationService, notificationService, _browserEnvironmentService, telemetryService, extensionEnablementService, fileService, productService, extensionManagementService, contextService, configurationService, extensionManifestPropertiesService, logService, remoteAgentService, remoteExtensionsScannerService, lifecycleService, remoteAuthorityResolverService, dialogService);
+        super({ hasLocalProcess: false, allowRemoteExtensionsInLocalWebWorker: true }, extensionsProposedApi, extensionHostFactory, new BrowserExtensionHostKindPicker(logService), instantiationService, notificationService, _browserEnvironmentService, telemetryService, extensionEnablementService, fileService, productService, extensionManagementService, contextService, configurationService, extensionManifestPropertiesService, logService, remoteAgentService, remoteExtensionsScannerService, lifecycleService, remoteAuthorityResolverService, dialogService);
         this._browserEnvironmentService = _browserEnvironmentService;
         this._webExtensionsScannerService = _webExtensionsScannerService;
         this._userDataInitializationService = _userDataInitializationService;
@@ -69,35 +70,51 @@ let ExtensionService = class ExtensionService extends AbstractExtensionService {
         this._register(this._fileService.registerProvider(Schemas.https, provider));
     }
     async _scanWebExtensions() {
-        const system = [], user = [], development = [];
-        try {
-            await Promise.all([
-                this._webExtensionsScannerService.scanSystemExtensions().then(extensions => system.push(...extensions.map(e => toExtensionDescription(e)))),
-                this._webExtensionsScannerService.scanUserExtensions(this._userDataProfileService.currentProfile.extensionsResource, { skipInvalidExtensions: true }).then(extensions => user.push(...extensions.map(e => toExtensionDescription(e)))),
-                this._webExtensionsScannerService.scanExtensionsUnderDevelopment().then(extensions => development.push(...extensions.map(e => toExtensionDescription(e, true))))
-            ]);
+        if (!this._scanWebExtensionsPromise) {
+            this._scanWebExtensionsPromise = (async () => {
+                const system = [], user = [], development = [];
+                try {
+                    await Promise.all([
+                        this._webExtensionsScannerService.scanSystemExtensions().then(extensions => system.push(...extensions.map(e => toExtensionDescription(e)))),
+                        this._webExtensionsScannerService.scanUserExtensions(this._userDataProfileService.currentProfile.extensionsResource, { skipInvalidExtensions: true }).then(extensions => user.push(...extensions.map(e => toExtensionDescription(e)))),
+                        this._webExtensionsScannerService.scanExtensionsUnderDevelopment().then(extensions => development.push(...extensions.map(e => toExtensionDescription(e, true))))
+                    ]);
+                }
+                catch (error) {
+                    this._logService.error(error);
+                }
+                return dedupExtensions(system, user, [], development, this._logService);
+            })();
         }
-        catch (error) {
-            this._logService.error(error);
-        }
-        return dedupExtensions(system, user, [], development, this._logService);
+        return this._scanWebExtensionsPromise;
     }
-    async _resolveExtensionsDefault() {
+    async _resolveExtensionsDefault(emitter) {
         const [localExtensions, remoteExtensions] = await Promise.all([
             this._scanWebExtensions(),
             this._remoteExtensionsScannerService.scanExtensions()
         ]);
-        return new ResolvedExtensions(localExtensions, remoteExtensions, /*hasLocalProcess*/ false, /*allowRemoteExtensionsInLocalWebWorker*/ true);
+        if (remoteExtensions.length) {
+            emitter.emitOne(new RemoteExtensions(remoteExtensions));
+        }
+        emitter.emitOne(new LocalExtensions(localExtensions));
     }
-    async _resolveExtensions() {
+    _resolveExtensions() {
+        return new AsyncIterableObject(emitter => this._doResolveExtensions(emitter));
+    }
+    async _doResolveExtensions(emitter) {
         if (!this._browserEnvironmentService.expectsResolverExtension) {
-            return this._resolveExtensionsDefault();
+            return this._resolveExtensionsDefault(emitter);
         }
         const remoteAuthority = this._environmentService.remoteAuthority;
         // Now that the canonical URI provider has been registered, we need to wait for the trust state to be
         // calculated. The trust state will be used while resolving the authority, however the resolver can
         // override the trust state through the resolver result.
         await this._workspaceTrustManagementService.workspaceResolved;
+        const localExtensions = await this._scanWebExtensions();
+        const resolverExtensions = localExtensions.filter(extension => isResolverExtension(extension));
+        if (resolverExtensions.length) {
+            emitter.emitOne(new ResolverExtensions(resolverExtensions));
+        }
         let resolverResult;
         try {
             resolverResult = await this._resolveAuthorityInitial(remoteAuthority);
@@ -108,7 +125,7 @@ let ExtensionService = class ExtensionService extends AbstractExtensionService {
             }
             this._remoteAuthorityResolverService._setResolvedAuthorityError(remoteAuthority, err);
             // Proceed with the local extension host
-            return this._resolveExtensionsDefault();
+            return this._resolveExtensionsDefault(emitter);
         }
         // set the resolved authority
         this._remoteAuthorityResolverService._setResolvedAuthority(resolverResult.authority, resolverResult.options);
@@ -123,7 +140,7 @@ let ExtensionService = class ExtensionService extends AbstractExtensionService {
             });
             connection.onReconnecting(() => this._resolveAuthorityAgain());
         }
-        return this._resolveExtensionsDefault();
+        return this._resolveExtensionsDefault(emitter);
     }
     async _onExtensionHostExit(code) {
         // Dispose everything associated with the extension host

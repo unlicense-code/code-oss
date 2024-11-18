@@ -5,7 +5,7 @@ import { BrandedService, GetLeadingNonServiceArgs } from '../../instantiation/co
  * When the wrapper is created, the original class is created.
  * When the original class changes, the instance is re-created.
 */
-export declare function wrapInReloadableClass0<TArgs extends BrandedService[]>(getClass: () => Result<TArgs>): Result<GetLeadingNonServiceArgs<TArgs>>;
+export declare function wrapInReloadableClass0<TArgs extends BrandedService[]>(getClass: () => Result<TArgs>): Result<TArgs>;
 type Result<TArgs extends any[]> = new (...args: TArgs) => IDisposable;
 /**
  * Wrap a class in a reloadable wrapper.

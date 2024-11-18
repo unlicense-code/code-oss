@@ -35,8 +35,5 @@ export declare function registerChatActions(): void;
 export declare function stringifyItem(item: IChatRequestViewModel | IChatResponseViewModel, includeName?: boolean): string;
 export declare class ChatCommandCenterRendering implements IWorkbenchContribution {
     static readonly ID = "chat.commandCenterRendering";
-    private readonly _store;
-    private _dropdown;
     constructor(actionViewItemService: IActionViewItemService, agentService: IChatAgentService, instantiationService: IInstantiationService);
-    dispose(): void;
 }

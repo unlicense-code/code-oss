@@ -162,12 +162,13 @@ function patchFetch(originalFetch, configProvider, resolveProxyURL, lookupProxyA
             return originalFetch(input, init);
         }
         const ca = addCerts ? [...tls.rootCertificates, ...await loadAdditionalCertificates()] : undefined;
+        const { allowH2, requestCA, proxyCA } = getAgentOptions(ca, init);
         if (!proxyURL) {
             const modifiedInit = {
                 ...init,
                 dispatcher: new undici.Agent({
-                    allowH2: true,
-                    connect: { ca },
+                    allowH2,
+                    connect: { ca: requestCA },
                 })
             };
             return originalFetch(input, modifiedInit);
@@ -178,12 +179,10 @@ function patchFetch(originalFetch, configProvider, resolveProxyURL, lookupProxyA
             ...init,
             dispatcher: new undici.ProxyAgent({
                 uri: proxyURL,
-                allowH2: true,
+                allowH2,
                 headers: proxyAuthorization ? { 'Proxy-Authorization': proxyAuthorization } : undefined,
-                ...(addCerts ? {
-                    proxyTls: { ca },
-                    requestTls: { ca },
-                } : {}),
+                ...(requestCA ? { requestTls: { ca: requestCA } } : {}),
+                ...(proxyCA ? { proxyTls: { ca: proxyCA } } : {}),
                 clientFactory: (origin, opts) => new undici.Pool(origin, opts).compose((dispatch) => {
                     class ProxyAuthHandler extends undici.DecoratorHandler {
                         constructor(dispatch, options, handler) {
@@ -329,7 +328,7 @@ function configureModuleLoading(extensionService, lookup) {
             if (request === 'tls') {
                 return lookup.tls;
             }
-            if (request !== 'http' && request !== 'https') {
+            if (request !== 'http' && request !== 'https' && request !== 'undici') {
                 return original.apply(this, arguments);
             }
             const ext = extensionPaths.findSubstr(URI.file(parent.filename));
@@ -338,12 +337,63 @@ function configureModuleLoading(extensionService, lookup) {
                 modulesCache.set(ext, cache = {});
             }
             if (!cache[request]) {
-                const mod = lookup[request];
-                cache[request] = { ...mod }; // Copy to work around #93167.
+                if (request === 'undici') {
+                    const undici = original.apply(this, arguments);
+                    patchUndici(undici);
+                    cache[request] = undici;
+                }
+                else {
+                    const mod = lookup[request];
+                    cache[request] = { ...mod }; // Copy to work around #93167.
+                }
             }
             return cache[request];
         };
     });
+}
+const agentOptions = Symbol('agentOptions');
+const proxyAgentOptions = Symbol('proxyAgentOptions');
+function patchUndici(undici) {
+    const originalAgent = undici.Agent;
+    const patchedAgent = function PatchedAgent(opts) {
+        const agent = new originalAgent(opts);
+        agent[agentOptions] = {
+            ...opts,
+            ...(opts?.connect && typeof opts?.connect === 'object' ? { connect: { ...opts.connect } } : undefined),
+        };
+        return agent;
+    };
+    patchedAgent.prototype = originalAgent.prototype;
+    undici.Agent = patchedAgent;
+    const originalProxyAgent = undici.ProxyAgent;
+    const patchedProxyAgent = function PatchedProxyAgent(opts) {
+        const proxyAgent = new originalProxyAgent(opts);
+        proxyAgent[proxyAgentOptions] = typeof opts === 'string' ? opts : {
+            ...opts,
+            ...(opts?.connect && typeof opts?.connect === 'object' ? { connect: { ...opts.connect } } : undefined),
+        };
+        return proxyAgent;
+    };
+    patchedProxyAgent.prototype = originalProxyAgent.prototype;
+    undici.ProxyAgent = patchedProxyAgent;
+}
+function getAgentOptions(systemCA, requestInit) {
+    let allowH2;
+    let requestCA = systemCA;
+    let proxyCA = systemCA;
+    const dispatcher = requestInit?.dispatcher;
+    const originalAgentOptions = dispatcher && dispatcher[agentOptions];
+    if (originalAgentOptions) {
+        allowH2 = originalAgentOptions.allowH2;
+        requestCA = originalAgentOptions.connect && typeof originalAgentOptions.connect === 'object' && 'ca' in originalAgentOptions.connect && originalAgentOptions.connect.ca || systemCA;
+    }
+    const originalProxyAgentOptions = dispatcher && dispatcher[proxyAgentOptions];
+    if (originalProxyAgentOptions && typeof originalProxyAgentOptions === 'object') {
+        allowH2 = originalProxyAgentOptions.allowH2;
+        requestCA = originalProxyAgentOptions.requestTls && 'ca' in originalProxyAgentOptions.requestTls && originalProxyAgentOptions.requestTls.ca || systemCA;
+        proxyCA = originalProxyAgentOptions.proxyTls && 'ca' in originalProxyAgentOptions.proxyTls && originalProxyAgentOptions.proxyTls.ca || systemCA;
+    }
+    return { allowH2, requestCA, proxyCA };
 }
 async function lookupProxyAuthorization(extHostWorkspace, extHostLogService, mainThreadTelemetry, configProvider, proxyAuthenticateCache, basicAuthCache, isRemote, useHostProxy, proxyURL, proxyAuthenticate, state) {
     const cached = proxyAuthenticateCache[proxyURL];

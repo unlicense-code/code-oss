@@ -32,9 +32,9 @@ import { CellUri, NotebookCellExecutionState, RENDERER_NOT_AVAILABLE, isTextStre
 import { INotebookExecutionStateService } from '../../../common/notebookExecutionStateService.js';
 import { INotebookService } from '../../../common/notebookService.js';
 import { COPY_OUTPUT_COMMAND_ID } from '../../controller/cellOutputActions.js';
-import { TEXT_BASED_MIMETYPES } from '../../contrib/clipboard/cellOutputClipboard.js';
 import { autorun, observableValue } from '../../../../../../base/common/observable.js';
 import { NOTEBOOK_CELL_HAS_HIDDEN_OUTPUTS, NOTEBOOK_CELL_IS_FIRST_OUTPUT } from '../../../common/notebookContextKeys.js';
+import { TEXT_BASED_MIMETYPES } from '../../viewModel/cellOutputTextHelper.js';
 // DOM structure
 //
 //  #output

@@ -34,6 +34,7 @@ import { Dto } from '../../services/extensions/common/proxyIdentifier.js';
 import * as extHostProtocol from './extHost.protocol.js';
 import { CommandsConverter } from './extHostCommands.js';
 import * as types from './extHostTypes.js';
+import { IChatRequestDraft } from '../../contrib/chat/common/chatEditingService.js';
 export declare namespace Command {
     interface ICommandsConverter {
         fromInternal(command: extHostProtocol.ICommandDto): vscode.Command | undefined;
@@ -496,6 +497,9 @@ export declare namespace ChatResponsePart {
 }
 export declare namespace ChatAgentRequest {
     function to(request: IChatAgentRequest, location2: vscode.ChatRequestEditorData | vscode.ChatRequestNotebookData | undefined, model: vscode.LanguageModelChat): vscode.ChatRequest;
+}
+export declare namespace ChatRequestDraft {
+    function to(request: IChatRequestDraft): vscode.ChatRequestDraft;
 }
 export declare namespace ChatLocation {
     function to(loc: ChatAgentLocation): types.ChatLocation;

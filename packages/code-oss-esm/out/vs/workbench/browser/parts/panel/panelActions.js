@@ -275,7 +275,7 @@ registerAction2(class extends Action2 {
                     id: MenuId.AuxiliaryBarTitle,
                     group: 'navigation',
                     order: 2,
-                    when: ContextKeyExpr.notEquals(`config.${"workbench.activityBar.location" /* LayoutSettings.ACTIVITY_BAR_LOCATION */}`, "top" /* ActivityBarPosition.TOP */)
+                    when: ContextKeyExpr.equals(`config.${"workbench.activityBar.location" /* LayoutSettings.ACTIVITY_BAR_LOCATION */}`, "default" /* ActivityBarPosition.DEFAULT */)
                 }]
         });
     }

@@ -160,6 +160,7 @@ export declare const TestProductService: {
         readonly itemUrl: string;
         readonly publisherUrl: string;
         readonly resourceUrlTemplate: string;
+        readonly extensionUrlTemplate: string;
         readonly controlUrl: string;
         readonly nlsBaseUrl: string;
     };

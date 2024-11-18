@@ -51,7 +51,7 @@ import { ChatAgentVoteDirection, ChatAgentVoteDownReason } from '../common/chatS
 import { isRequestVM, isResponseVM } from '../common/chatViewModel.js';
 import { getNWords } from '../common/chatWordCounter.js';
 import { MarkUnhelpfulActionId } from './actions/chatTitleActions.js';
-import { GeneratingPhrase, IChatWidgetService } from './chat.js';
+import { IChatWidgetService } from './chat.js';
 import { ChatAgentHover, getChatAgentHoverOptions } from './chatAgentHover.js';
 import { ChatAttachmentsContentPart } from './chatContentParts/chatAttachmentsContentPart.js';
 import { ChatCodeCitationContentPart } from './chatContentParts/chatCodeCitationContentPart.js';
@@ -366,7 +366,7 @@ let ChatListItemRenderer = class ChatListItemRenderer extends Disposable {
             }));
         }
         else if (!element.isComplete) {
-            templateData.detail.textContent = GeneratingPhrase;
+            templateData.detail.textContent = localize('generating', "Generating");
         }
     }
     renderConfirmationAction(element, templateData) {
@@ -606,7 +606,6 @@ let ChatListItemRenderer = class ChatListItemRenderer extends Disposable {
                             partsToRender.push(nextPart);
                         }
                         else {
-                            moreContentAvailable = true;
                             break;
                         }
                     }

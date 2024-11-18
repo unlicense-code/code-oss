@@ -1035,14 +1035,11 @@ export class ChatWidgetService extends Disposable {
     get lastFocusedWidget() {
         return this._lastFocusedWidget;
     }
-    getAllWidgets(location) {
+    getWidgetsByLocations(location) {
         return this._widgets.filter(w => w.location === location);
     }
     getWidgetByInputUri(uri) {
         return this._widgets.find(w => isEqual(w.inputUri, uri));
-    }
-    getWidgetByLocation(location) {
-        return this._widgets.filter(w => w.location === location);
     }
     getWidgetBySessionId(sessionId) {
         return this._widgets.find(w => w.viewModel?.sessionId === sessionId);

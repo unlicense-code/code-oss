@@ -12,6 +12,7 @@ export var TerminalSuggestCommandId;
     TerminalSuggestCommandId["AcceptSelectedSuggestionEnter"] = "workbench.action.terminal.acceptSelectedSuggestionEnter";
     TerminalSuggestCommandId["HideSuggestWidget"] = "workbench.action.terminal.hideSuggestWidget";
     TerminalSuggestCommandId["ClearSuggestCache"] = "workbench.action.terminal.clearSuggestCache";
+    TerminalSuggestCommandId["RequestCompletions"] = "workbench.action.terminal.requestCompletions";
 })(TerminalSuggestCommandId || (TerminalSuggestCommandId = {}));
 export const defaultTerminalSuggestCommandsToSkipShell = [
     "workbench.action.terminal.selectPrevSuggestion" /* TerminalSuggestCommandId.SelectPrevSuggestion */,
@@ -22,4 +23,5 @@ export const defaultTerminalSuggestCommandsToSkipShell = [
     "workbench.action.terminal.acceptSelectedSuggestionEnter" /* TerminalSuggestCommandId.AcceptSelectedSuggestionEnter */,
     "workbench.action.terminal.hideSuggestWidget" /* TerminalSuggestCommandId.HideSuggestWidget */,
     "workbench.action.terminal.clearSuggestCache" /* TerminalSuggestCommandId.ClearSuggestCache */,
+    "workbench.action.terminal.requestCompletions" /* TerminalSuggestCommandId.RequestCompletions */,
 ];

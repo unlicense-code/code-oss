@@ -7,17 +7,20 @@ import { TargetPlatform } from '../../extensions/common/extensions.js';
 import { IFileService } from '../../files/common/files.js';
 import { ILogService } from '../../log/common/log.js';
 import { ITelemetryService } from '../../telemetry/common/telemetry.js';
+import { IUriIdentityService } from '../../uriIdentity/common/uriIdentity.js';
 export declare class ExtensionsDownloader extends Disposable {
     private readonly fileService;
     private readonly extensionGalleryService;
     private readonly extensionSignatureVerificationService;
     private readonly telemetryService;
+    private readonly uriIdentityService;
     private readonly logService;
     private static readonly SignatureArchiveExtension;
     readonly extensionsDownloadDir: URI;
+    private readonly extensionsTrashDir;
     private readonly cache;
     private readonly cleanUpPromise;
-    constructor(environmentService: INativeEnvironmentService, fileService: IFileService, extensionGalleryService: IExtensionGalleryService, extensionSignatureVerificationService: IExtensionSignatureVerificationService, telemetryService: ITelemetryService, logService: ILogService);
+    constructor(environmentService: INativeEnvironmentService, fileService: IFileService, extensionGalleryService: IExtensionGalleryService, extensionSignatureVerificationService: IExtensionSignatureVerificationService, telemetryService: ITelemetryService, uriIdentityService: IUriIdentityService, logService: ILogService);
     download(extension: IGalleryExtension, operation: InstallOperation, verifySignature: boolean, clientTargetPlatform?: TargetPlatform): Promise<{
         readonly location: URI;
         readonly verificationStatus: ExtensionSignatureVerificationCode | undefined;

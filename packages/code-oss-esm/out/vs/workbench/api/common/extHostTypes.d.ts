@@ -1326,6 +1326,17 @@ export declare class NotebookCellOutput {
     metadata?: Record<string, any>;
     constructor(items: NotebookCellOutputItem[], idOrMetadata?: string | Record<string, any>, metadata?: Record<string, any>);
 }
+export declare class CellErrorStackFrame {
+    label: string;
+    uri?: vscode.Uri | undefined;
+    position?: Position | undefined;
+    /**
+     * @param label The name of the stack frame
+     * @param file The file URI of the stack frame
+     * @param position The position of the stack frame within the file
+     */
+    constructor(label: string, uri?: vscode.Uri | undefined, position?: Position | undefined);
+}
 export declare enum NotebookCellKind {
     Markup = 1,
     Code = 2
@@ -1619,7 +1630,8 @@ export declare class ChatCompletionItem implements vscode.ChatCompletionItem {
 }
 export declare enum ChatEditingSessionActionOutcome {
     Accepted = 1,
-    Rejected = 2
+    Rejected = 2,
+    Saved = 3
 }
 export declare enum InteractiveEditorResponseFeedbackKind {
     Unhelpful = 0,

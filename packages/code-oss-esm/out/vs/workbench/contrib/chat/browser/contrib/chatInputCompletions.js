@@ -12,6 +12,7 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
 var BuiltinDynamicCompletions_1, VariableCompletions_1;
+import { raceTimeout } from '../../../../../base/common/async.js';
 import { isPatternInWord } from '../../../../../base/common/filters.js';
 import { Disposable } from '../../../../../base/common/lifecycle.js';
 import { ResourceSet } from '../../../../../base/common/map.js';
@@ -32,6 +33,7 @@ import { IHistoryService } from '../../../../services/history/common/history.js'
 import { QueryBuilder } from '../../../../services/search/common/queryBuilder.js';
 import { ISearchService } from '../../../../services/search/common/search.js';
 import { ChatAgentLocation, IChatAgentNameService, IChatAgentService, getFullyQualifiedId } from '../../common/chatAgents.js';
+import { IChatEditingService } from '../../common/chatEditingService.js';
 import { ChatRequestAgentPart, ChatRequestAgentSubcommandPart, ChatRequestTextPart, ChatRequestToolPart, ChatRequestVariablePart, chatAgentLeader, chatSubcommandLeader, chatVariableLeader } from '../../common/chatParserTypes.js';
 import { IChatSlashCommandService } from '../../common/chatSlashCommands.js';
 import { IChatVariablesService } from '../../common/chatVariables.js';
@@ -383,7 +385,7 @@ let BuiltinDynamicCompletions = class BuiltinDynamicCompletions extends Disposab
     static { BuiltinDynamicCompletions_1 = this; }
     static { this.addReferenceCommand = '_addReferenceCmd'; }
     static { this.VariableNameDef = new RegExp(`${chatVariableLeader}\\w*`, 'g'); } // MUST be using `g`-flag
-    constructor(historyService, workspaceContextService, searchService, labelService, languageFeaturesService, chatWidgetService, instantiationService) {
+    constructor(historyService, workspaceContextService, searchService, labelService, languageFeaturesService, chatWidgetService, _chatEditingService, instantiationService) {
         super();
         this.historyService = historyService;
         this.workspaceContextService = workspaceContextService;
@@ -391,6 +393,7 @@ let BuiltinDynamicCompletions = class BuiltinDynamicCompletions extends Disposab
         this.labelService = labelService;
         this.languageFeaturesService = languageFeaturesService;
         this.chatWidgetService = chatWidgetService;
+        this._chatEditingService = _chatEditingService;
         this.instantiationService = instantiationService;
         this._register(this.languageFeaturesService.completionProvider.register({ scheme: ChatInputPart.INPUT_SCHEME, hasAccessToAllModels: true }, {
             _debugDisplayName: 'chatDynamicCompletions',
@@ -425,16 +428,21 @@ let BuiltinDynamicCompletions = class BuiltinDynamicCompletions extends Disposab
         this.queryBuilder = this.instantiationService.createInstance(QueryBuilder);
     }
     async addFileEntries(widget, result, info, token) {
-        const makeFileCompletionItem = (resource) => {
+        const makeFileCompletionItem = (resource, description) => {
             const basename = this.labelService.getUriBasenameLabel(resource);
             const text = `${chatVariableLeader}file:${basename}`;
+            const uriLabel = this.labelService.getUriLabel(resource, { relative: true });
+            const labelDescription = description
+                ? localize('fileEntryDescription', '{0} ({1})', uriLabel, description)
+                : uriLabel;
+            const sortText = description ? 'z' : '{'; // after `z`
             return {
-                label: { label: basename, description: this.labelService.getUriLabel(resource, { relative: true }) },
+                label: { label: basename, description: labelDescription },
                 filterText: `${chatVariableLeader}${basename}`,
                 insertText: info.varWord?.endColumn === info.replace.endColumn ? `${text} ` : text,
                 range: info,
                 kind: 20 /* CompletionItemKind.File */,
-                sortText: '{', // after `z`
+                sortText,
                 command: {
                     id: BuiltinDynamicCompletions_1.addReferenceCommand, title: '', arguments: [new ReferenceArgument(widget, {
                             id: 'vscode.file',
@@ -452,6 +460,19 @@ let BuiltinDynamicCompletions = class BuiltinDynamicCompletions extends Disposab
         }
         const seen = new ResourceSet();
         const len = result.suggestions.length;
+        // RELATED FILES
+        if (widget.location === ChatAgentLocation.EditingSession && widget.viewModel && this._chatEditingService.currentEditingSessionObs.get()?.chatSessionId === widget.viewModel?.sessionId) {
+            const relatedFiles = (await raceTimeout(this._chatEditingService.getRelatedFiles(widget.viewModel.sessionId, widget.getInput(), token), 1000)) ?? [];
+            for (const relatedFileGroup of relatedFiles) {
+                for (const relatedFile of relatedFileGroup.files) {
+                    if (seen.has(relatedFile.uri)) {
+                        continue;
+                    }
+                    seen.add(relatedFile.uri);
+                    result.suggestions.push(makeFileCompletionItem(relatedFile.uri, relatedFile.description));
+                }
+            }
+        }
         // HISTORY
         // always take the last N items
         for (const item of this.historyService.getHistory()) {
@@ -517,7 +538,8 @@ BuiltinDynamicCompletions = BuiltinDynamicCompletions_1 = __decorate([
     __param(3, ILabelService),
     __param(4, ILanguageFeaturesService),
     __param(5, IChatWidgetService),
-    __param(6, IInstantiationService)
+    __param(6, IChatEditingService),
+    __param(7, IInstantiationService)
 ], BuiltinDynamicCompletions);
 Registry.as(WorkbenchExtensions.Workbench).registerWorkbenchContribution(BuiltinDynamicCompletions, 4 /* LifecyclePhase.Eventually */);
 export function computeCompletionRanges(model, position, reg, onlyOnWordStart = false) {

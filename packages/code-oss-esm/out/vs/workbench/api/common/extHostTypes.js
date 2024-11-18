@@ -3207,6 +3207,18 @@ export class NotebookCellOutput {
         }
     }
 }
+export class CellErrorStackFrame {
+    /**
+     * @param label The name of the stack frame
+     * @param file The file URI of the stack frame
+     * @param position The position of the stack frame within the file
+     */
+    constructor(label, uri, position) {
+        this.label = label;
+        this.uri = uri;
+        this.position = position;
+    }
+}
 export var NotebookCellKind;
 (function (NotebookCellKind) {
     NotebookCellKind[NotebookCellKind["Markup"] = 1] = "Markup";
@@ -3599,6 +3611,7 @@ export var ChatEditingSessionActionOutcome;
 (function (ChatEditingSessionActionOutcome) {
     ChatEditingSessionActionOutcome[ChatEditingSessionActionOutcome["Accepted"] = 1] = "Accepted";
     ChatEditingSessionActionOutcome[ChatEditingSessionActionOutcome["Rejected"] = 2] = "Rejected";
+    ChatEditingSessionActionOutcome[ChatEditingSessionActionOutcome["Saved"] = 3] = "Saved";
 })(ChatEditingSessionActionOutcome || (ChatEditingSessionActionOutcome = {}));
 //#endregion
 //#region Interactive Editor

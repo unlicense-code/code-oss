@@ -34,8 +34,11 @@ export declare const allowedMarkdownAttr: string[];
  */
 export declare function renderStringAsPlaintext(string: IMarkdownString | string): string;
 /**
- * Strips all markdown from `markdown`. For example `# Header` would be output as `Header`.
- * provide @param withCodeBlocks to retain code blocks
+ * Strips all markdown from `markdown`
+ *
+ * For example `# Header` would be output as `Header`.
+ *
+ * @param withCodeBlocks Include the ``` of code blocks as well
  */
 export declare function renderMarkdownAsPlaintext(markdown: IMarkdownString, withCodeBlocks?: boolean): string;
 export declare function fillInIncompleteTokens(tokens: marked.TokensList): marked.TokensList;

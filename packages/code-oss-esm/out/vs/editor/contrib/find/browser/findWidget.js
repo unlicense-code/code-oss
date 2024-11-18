@@ -27,6 +27,7 @@ import { isHighContrast } from '../../../../platform/theme/common/theme.js';
 import { assertIsDefined } from '../../../../base/common/types.js';
 import { defaultInputBoxStyles, defaultToggleStyles } from '../../../../platform/theme/browser/defaultStyles.js';
 import { createInstantHoverDelegate, getDefaultHoverDelegate } from '../../../../base/browser/ui/hover/hoverDelegateFactory.js';
+import { FindWidgetSearchHistory } from './findWidgetSearchHistory.js';
 const findCollapsedIcon = registerIcon('find-collapsed', Codicon.chevronRight, nls.localize('findCollapsedIcon', 'Icon to indicate that the editor find widget is collapsed.'));
 const findExpandedIcon = registerIcon('find-expanded', Codicon.chevronDown, nls.localize('findExpandedIcon', 'Icon to indicate that the editor find widget is expanded.'));
 export const findSelectionIcon = registerIcon('find-selection', Codicon.selection, nls.localize('findSelectionIcon', 'Icon for \'Find in Selection\' in the editor find widget.'));
@@ -95,6 +96,7 @@ export class FindWidget extends Widget {
         this._contextKeyService = contextKeyService;
         this._storageService = storageService;
         this._notificationService = notificationService;
+        this._findWidgetSearchHistory = new FindWidgetSearchHistory(this._storageService);
         this._ctrlEnterReplaceAllWarningPrompted = !!storageService.getBoolean(ctrlEnterReplaceAllWarningPromptedKey, 0 /* StorageScope.PROFILE */);
         this._isVisible = false;
         this._isReplaceVisible = false;
@@ -741,6 +743,7 @@ export class FindWidget extends Widget {
         const flexibleHeight = true;
         const flexibleWidth = true;
         // Find input
+        const findSearchHistoryConfig = this._codeEditor.getOption(43 /* EditorOption.find */).findSearchHistory;
         this._findInput = this._register(new ContextScopedFindInput(null, this._contextViewProvider, {
             width: FIND_INPUT_AREA_WIDTH,
             label: NLS_FIND_INPUT_LABEL,
@@ -767,7 +770,8 @@ export class FindWidget extends Widget {
             showCommonFindToggles: true,
             showHistoryHint: () => showHistoryKeybindingHint(this._keybindingService),
             inputBoxStyles: defaultInputBoxStyles,
-            toggleStyles: defaultToggleStyles
+            toggleStyles: defaultToggleStyles,
+            history: findSearchHistoryConfig === 'workspace' ? this._findWidgetSearchHistory : new Set([]),
         }, this._contextKeyService));
         this._findInput.setRegex(!!this._state.isRegex);
         this._findInput.setCaseSensitive(!!this._state.matchCase);

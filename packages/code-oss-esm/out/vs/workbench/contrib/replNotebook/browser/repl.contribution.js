@@ -46,13 +46,14 @@ import { InlineChatController } from '../../inlineChat/browser/inlineChatControl
 import { IInteractiveHistoryService } from '../../interactive/browser/interactiveHistoryService.js';
 import { NOTEBOOK_EDITOR_WIDGET_ACTION_WEIGHT } from '../../notebook/browser/controller/coreActions.js';
 import * as icons from '../../notebook/browser/notebookIcons.js';
+import { ReplEditorAccessibleView } from '../../notebook/browser/replEditorAccessibleView.js';
 import { INotebookEditorService } from '../../notebook/browser/services/notebookEditorService.js';
 import { CellKind, NotebookSetting, NotebookWorkingCopyTypeIdentifier, REPL_EDITOR_ID } from '../../notebook/common/notebookCommon.js';
-import { MOST_RECENT_REPL_EDITOR } from '../../notebook/common/notebookContextKeys.js';
+import { IS_COMPOSITE_NOTEBOOK, MOST_RECENT_REPL_EDITOR, NOTEBOOK_CELL_LIST_FOCUSED, NOTEBOOK_EDITOR_FOCUSED } from '../../notebook/common/notebookContextKeys.js';
 import { INotebookEditorModelResolverService } from '../../notebook/common/notebookEditorModelResolverService.js';
 import { INotebookService } from '../../notebook/common/notebookService.js';
 import { isReplEditorControl, ReplEditor } from './replEditor.js';
-import { ReplEditorAccessibilityHelp } from './replEditorAccessibilityHelp.js';
+import { ReplEditorHistoryAccessibilityHelp, ReplEditorInputAccessibilityHelp } from './replEditorAccessibilityHelp.js';
 import { ReplEditorInput } from './replEditorInput.js';
 class ReplEditorSerializer {
     canSerialize(input) {
@@ -193,18 +194,24 @@ ReplWindowWorkingCopyEditorHandler = __decorate([
 ], ReplWindowWorkingCopyEditorHandler);
 registerWorkbenchContribution2(ReplWindowWorkingCopyEditorHandler.ID, ReplWindowWorkingCopyEditorHandler, 2 /* WorkbenchPhase.BlockRestore */);
 registerWorkbenchContribution2(ReplDocumentContribution.ID, ReplDocumentContribution, 2 /* WorkbenchPhase.BlockRestore */);
-AccessibleViewRegistry.register(new ReplEditorAccessibilityHelp());
+AccessibleViewRegistry.register(new ReplEditorInputAccessibilityHelp());
+AccessibleViewRegistry.register(new ReplEditorHistoryAccessibilityHelp());
 registerAction2(class extends Action2 {
     constructor() {
         super({
             id: 'repl.focusLastItemExecuted',
             title: localize2('repl.focusLastReplOutput', 'Focus Most Recent REPL Execution'),
             category: 'REPL',
+            menu: {
+                id: MenuId.CommandPalette,
+                when: MOST_RECENT_REPL_EDITOR,
+            },
             keybinding: [{
                     primary: KeyChord(512 /* KeyMod.Alt */ | 13 /* KeyCode.End */, 512 /* KeyMod.Alt */ | 13 /* KeyCode.End */),
-                    weight: NOTEBOOK_EDITOR_WIDGET_ACTION_WEIGHT
+                    weight: NOTEBOOK_EDITOR_WIDGET_ACTION_WEIGHT,
+                    when: ContextKeyExpr.or(IS_COMPOSITE_NOTEBOOK, NOTEBOOK_CELL_LIST_FOCUSED.negate())
                 }],
-            precondition: MOST_RECENT_REPL_EDITOR.notEqualsTo(undefined),
+            precondition: MOST_RECENT_REPL_EDITOR
         });
     }
     async run(accessor, context) {
@@ -237,6 +244,47 @@ registerAction2(class extends Action2 {
             if (lastCellIndex >= 0) {
                 const cell = viewModel.viewCells[lastCellIndex];
                 notebookEditor.focusNotebookCell(cell, 'container');
+            }
+        }
+    }
+});
+registerAction2(class extends Action2 {
+    constructor() {
+        super({
+            id: 'repl.input.focus',
+            title: localize2('repl.input.focus', 'Focus Input Editor'),
+            category: 'REPL',
+            menu: {
+                id: MenuId.CommandPalette,
+                when: MOST_RECENT_REPL_EDITOR,
+            },
+            keybinding: [{
+                    when: ContextKeyExpr.and(IS_COMPOSITE_NOTEBOOK, NOTEBOOK_EDITOR_FOCUSED),
+                    weight: NOTEBOOK_EDITOR_WIDGET_ACTION_WEIGHT,
+                    primary: 2048 /* KeyMod.CtrlCmd */ | 18 /* KeyCode.DownArrow */
+                }, {
+                    when: ContextKeyExpr.and(MOST_RECENT_REPL_EDITOR),
+                    weight: 200 /* KeybindingWeight.WorkbenchContrib */ + 5,
+                    primary: KeyChord(512 /* KeyMod.Alt */ | 14 /* KeyCode.Home */, 512 /* KeyMod.Alt */ | 14 /* KeyCode.Home */),
+                }]
+        });
+    }
+    async run(accessor) {
+        const editorService = accessor.get(IEditorService);
+        const editorControl = editorService.activeEditorPane?.getControl();
+        const contextKeyService = accessor.get(IContextKeyService);
+        if (editorControl && isReplEditorControl(editorControl) && editorControl.notebookEditor) {
+            editorService.activeEditorPane?.focus();
+        }
+        else {
+            const uriString = MOST_RECENT_REPL_EDITOR.getValue(contextKeyService);
+            const uri = uriString ? URI.parse(uriString) : undefined;
+            if (!uri) {
+                return;
+            }
+            const replEditor = editorService.findEditors(uri)[0];
+            if (replEditor) {
+                await editorService.openEditor({ resource: uri, options: { preserveFocus: false } }, replEditor.groupId);
             }
         }
     }
@@ -360,6 +408,7 @@ async function executeReplInput(bulkEditService, historyService, notebookEditorS
         }
     }
 }
+AccessibleViewRegistry.register(new ReplEditorAccessibleView());
 KeybindingsRegistry.registerCommandAndKeybindingRule({
     id: 'list.find.replInputFocus',
     weight: 200 /* KeybindingWeight.WorkbenchContrib */ + 1,

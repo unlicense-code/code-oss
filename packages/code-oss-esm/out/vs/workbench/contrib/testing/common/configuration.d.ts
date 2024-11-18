@@ -1,10 +1,9 @@
 import { IConfigurationService } from '../../../../platform/configuration/common/configuration.js';
 import { IConfigurationNode } from '../../../../platform/configuration/common/configurationRegistry.js';
 export declare const enum TestingConfigKeys {
-    AutoRunDelay = "testing.autoRun.delay",
     AutoOpenPeekView = "testing.automaticallyOpenPeekView",
     AutoOpenPeekViewDuringContinuousRun = "testing.automaticallyOpenPeekViewDuringAutoRun",
-    OpenTesting = "testing.openTesting",
+    OpenResults = "testing.automaticallyOpenResults",
     FollowRunningTest = "testing.followRunningTest",
     DefaultGutterClickAction = "testing.defaultGutterClickAction",
     GutterEnabled = "testing.gutterEnabled",
@@ -52,7 +51,6 @@ export interface ITestingCoverageBarThresholds {
     yellow: number;
 }
 export interface ITestingConfiguration {
-    [TestingConfigKeys.AutoRunDelay]: number;
     [TestingConfigKeys.AutoOpenPeekView]: AutoOpenPeekViewWhen;
     [TestingConfigKeys.AutoOpenPeekViewDuringContinuousRun]: boolean;
     [TestingConfigKeys.CountBadge]: TestingCountBadge;
@@ -60,7 +58,7 @@ export interface ITestingConfiguration {
     [TestingConfigKeys.DefaultGutterClickAction]: DefaultGutterClickAction;
     [TestingConfigKeys.GutterEnabled]: boolean;
     [TestingConfigKeys.SaveBeforeTest]: boolean;
-    [TestingConfigKeys.OpenTesting]: AutoOpenTesting;
+    [TestingConfigKeys.OpenResults]: AutoOpenTesting;
     [TestingConfigKeys.AlwaysRevealTestOnStateChange]: boolean;
     [TestingConfigKeys.ShowAllMessages]: boolean;
     [TestingConfigKeys.CoveragePercent]: TestingDisplayedCoveragePercent;

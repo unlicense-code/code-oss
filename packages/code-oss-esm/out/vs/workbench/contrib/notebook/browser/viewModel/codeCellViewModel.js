@@ -19,7 +19,6 @@ import { ICodeEditorService } from '../../../../../editor/browser/services/codeE
 import { PrefixSumComputer } from '../../../../../editor/common/model/prefixSumComputer.js';
 import { ITextModelService } from '../../../../../editor/common/services/resolverService.js';
 import { IConfigurationService } from '../../../../../platform/configuration/common/configuration.js';
-import { IInstantiationService } from '../../../../../platform/instantiation/common/instantiation.js';
 import { IUndoRedoService } from '../../../../../platform/undoRedo/common/undoRedo.js';
 import { CellEditState, CellLayoutState } from '../notebookBrowser.js';
 import { CellOutputViewModel } from './cellOutputViewModel.js';
@@ -84,7 +83,10 @@ let CodeCellViewModel = class CodeCellViewModel extends BaseCellViewModel {
     get outputsViewModels() {
         return this._outputViewModels;
     }
-    constructor(viewType, model, initialNotebookLayoutInfo, viewContext, configurationService, _notebookService, modelService, undoRedoService, codeEditorService, instantiationService) {
+    get executionError() {
+        return this._executionError;
+    }
+    constructor(viewType, model, initialNotebookLayoutInfo, viewContext, configurationService, _notebookService, modelService, undoRedoService, codeEditorService) {
         super(viewType, model, UUID.generateUuid(), viewContext, configurationService, modelService, undoRedoService, codeEditorService);
         this.viewContext = viewContext;
         this._notebookService = _notebookService;
@@ -109,7 +111,7 @@ let CodeCellViewModel = class CodeCellViewModel extends BaseCellViewModel {
         this._focusOnOutput = false;
         this._focusInputInOutput = false;
         this._outputMinHeight = 0;
-        this.excecutionError = observableValue('excecutionError', undefined);
+        this._executionError = observableValue('excecutionError', undefined);
         this._hasFindResult = this._register(new Emitter());
         this.hasFindResult = this._hasFindResult.event;
         this._outputViewModels = this.model.outputs.map(output => new CellOutputViewModel(this, output, this._notebookService));
@@ -128,6 +130,9 @@ let CodeCellViewModel = class CodeCellViewModel extends BaseCellViewModel {
             this._onDidRemoveOutputs.fire(removedOutputs);
             if (outputLayoutChange) {
                 this.layoutChange({ outputHeight: true }, 'CodeCellViewModel#model.onDidChangeOutputs');
+            }
+            if (!this._outputCollection.length) {
+                this._executionError.set(undefined, undefined);
             }
             dispose(removedOutputs);
         }));
@@ -156,10 +161,15 @@ let CodeCellViewModel = class CodeCellViewModel extends BaseCellViewModel {
     }
     updateExecutionState(e) {
         if (e.changed) {
+            this._executionError.set(undefined, undefined);
             this._onDidStartExecution.fire(e);
         }
         else {
             this._onDidStopExecution.fire(e);
+            if (this.internalMetadata.lastRunSuccess === false && this.internalMetadata.error) {
+                const metadata = this.internalMetadata;
+                this._executionError.set(metadata.error, undefined);
+            }
         }
     }
     updateOptions(e) {
@@ -455,7 +465,6 @@ CodeCellViewModel = __decorate([
     __param(5, INotebookService),
     __param(6, ITextModelService),
     __param(7, IUndoRedoService),
-    __param(8, ICodeEditorService),
-    __param(9, IInstantiationService)
+    __param(8, ICodeEditorService)
 ], CodeCellViewModel);
 export { CodeCellViewModel };

@@ -166,6 +166,7 @@ let ReplOutputElementRenderer = class ReplOutputElementRenderer {
     disposeTemplate(templateData) {
         templateData.source.dispose();
         templateData.elementDisposable.dispose();
+        templateData.count.dispose();
     }
     disposeElement(_element, _index, templateData) {
         templateData.elementDisposable.clear();

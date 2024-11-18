@@ -1,6 +1,6 @@
 import { IIdentityProvider, IListVirtualDelegate } from '../list/list.js';
 import { IListStyles } from '../list/listWidget.js';
-import { TreeFindMode as TreeFindMode, IAbstractTreeOptions, IAbstractTreeOptionsUpdate, TreeFindMatchType, AbstractTreePart, LabelFuzzyScore, ITreeFindToggleContribution } from './abstractTree.js';
+import { TreeFindMode as TreeFindMode, IAbstractTreeOptions, IAbstractTreeOptionsUpdate, TreeFindMatchType, AbstractTreePart } from './abstractTree.js';
 import { ICompressedTreeElement, ICompressedTreeNode } from './compressedObjectTreeModel.js';
 import { CompressibleObjectTree, ICompressibleKeyboardNavigationLabelProvider, ICompressibleTreeRenderer, IObjectTreeSetChildrenOptions, ObjectTree } from './objectTree.js';
 import { IAsyncDataSource, ICollapseStateChangeEvent, IObjectTreeElement, ITreeContextMenuEvent, ITreeEvent, ITreeMouseEvent, ITreeNavigator, ITreeNode, ITreeRenderer, ITreeSorter, ObjectTreeElementCollapseState, WeakMapper } from './tree.js';
@@ -8,7 +8,6 @@ import { Emitter, Event } from '../../../common/event.js';
 import { DisposableStore, IDisposable } from '../../../common/lifecycle.js';
 import { ScrollEvent } from '../../../common/scrollable.js';
 import { CancellationToken } from '../../../common/cancellation.js';
-import { FuzzyScore } from '../../../common/filters.js';
 interface IAsyncDataTreeNode<TInput, T> {
     element: TInput | T;
     readonly parent: IAsyncDataTreeNode<TInput, T> | null;
@@ -22,18 +21,33 @@ interface IAsyncDataTreeNode<TInput, T> {
     forceExpanded: boolean;
 }
 type AsyncDataTreeNodeMapper<TInput, T, TFilterData> = WeakMapper<ITreeNode<IAsyncDataTreeNode<TInput, T> | null, TFilterData>, ITreeNode<TInput | T, TFilterData>>;
-export interface IAsyncFindResult<T> {
-    element: T;
-    filterdata?: FuzzyScore | LabelFuzzyScore;
+export interface IAsyncFindToggles {
+    matchType: TreeFindMatchType;
+    findMode: TreeFindMode;
+}
+export interface IAsyncFindResultMetadata {
+    warningMessage?: string;
 }
 export interface IAsyncFindProvider<T> {
-    toggles?: ITreeFindToggleContribution[];
-    placeholder?: string;
-    getFindResults(pattern: string, sessionId: number, token: CancellationToken, toggleStates: {
-        id: string;
-        isChecked: boolean;
-    }[]): AsyncIterable<IAsyncFindResult<T>>;
-    revealResultInTree?(findElement: T): void;
+    /**
+     * `startSession` is called when the user enters the first character in the find widget.
+     * This can be used to allocate some state to preserve for the session.
+     */
+    startSession?(): void;
+    /**
+     * `find` is called when the user types one or more character into the find input.
+     */
+    find(pattern: string, toggles: IAsyncFindToggles, token: CancellationToken): Promise<IAsyncFindResultMetadata>;
+    /**
+     * `isVisible` is called to check if an element should be visible.
+     * For an element to be visible, all its ancestors must also be visible and the label must match the find pattern.
+     */
+    isVisible?(element: T): boolean;
+    /**
+     * End Session is called when the user either closes the find widget or has an empty find input.
+     * This can be used to deallocate any state that was allocated.
+     */
+    endSession?(): Promise<void>;
 }
 export interface IAsyncDataTreeOptionsUpdate extends IAbstractTreeOptionsUpdate {
 }
@@ -46,7 +60,7 @@ export interface IAsyncDataTreeOptions<T, TFilterData = void> extends IAsyncData
     readonly identityProvider?: IIdentityProvider<T>;
     readonly sorter?: ITreeSorter<T>;
     readonly autoExpandSingleChildren?: boolean;
-    readonly findResultsProvider?: IAsyncFindProvider<T>;
+    readonly findProvider?: IAsyncFindProvider<T>;
 }
 export interface IAsyncDataTreeViewState {
     readonly focus?: string[];
@@ -63,7 +77,6 @@ export declare class AsyncDataTree<TInput, T, TFilterData = void> implements IDi
     protected user: string;
     private dataSource;
     protected readonly tree: ObjectTree<IAsyncDataTreeNode<TInput, T>, TFilterData>;
-    private readonly model;
     protected readonly root: IAsyncDataTreeNode<TInput, T>;
     private readonly nodes;
     private readonly sorter?;

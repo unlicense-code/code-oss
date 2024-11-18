@@ -407,6 +407,10 @@ export function createApiFactoryAndRegisterActors(accessor) {
                 checkProposedApiEnabled(extension, 'resolvers');
                 return initData.commit;
             },
+            get handle() {
+                checkProposedApiEnabled(extension, 'nativeWindowHandle');
+                return initData.handle;
+            }
         };
         if (!initData.environment.extensionTestsLocationURI) {
             // allow to patch env-function when running tests
@@ -1382,6 +1386,10 @@ export function createApiFactoryAndRegisterActors(accessor) {
                 checkProposedApiEnabled(extension, 'chatParticipantAdditions');
                 return extHostChatAgents2.registerChatParticipantDetectionProvider(extension, provider);
             },
+            registerRelatedFilesProvider(provider, metadata) {
+                checkProposedApiEnabled(extension, 'chatEditing');
+                return extHostChatAgents2.registerRelatedFilesProvider(extension, provider, metadata);
+            }
         };
         // namespace: lm
         const lm = {
@@ -1626,6 +1634,7 @@ export function createApiFactoryAndRegisterActors(accessor) {
             NotebookEditorRevealType: extHostTypes.NotebookEditorRevealType,
             NotebookCellOutput: extHostTypes.NotebookCellOutput,
             NotebookCellOutputItem: extHostTypes.NotebookCellOutputItem,
+            CellErrorStackFrame: extHostTypes.CellErrorStackFrame,
             NotebookCellStatusBarItem: extHostTypes.NotebookCellStatusBarItem,
             NotebookControllerAffinity: extHostTypes.NotebookControllerAffinity,
             NotebookControllerAffinity2: extHostTypes.NotebookControllerAffinity2,

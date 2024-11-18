@@ -25,7 +25,10 @@ import './media/notebookCellOutput.css';
 import './media/notebookEditorStickyScroll.css';
 import './media/notebookKernelActionViewItem.css';
 import './media/notebookOutline.css';
+import './media/notebookChatEditController.css';
+import './media/notebookChatEditorOverlay.css';
 import * as DOM from '../../../../base/browser/dom.js';
+import * as domStylesheets from '../../../../base/browser/domStylesheets.js';
 import { mainWindow } from '../../../../base/browser/window.js';
 import { DeferredPromise, SequencerByKey } from '../../../../base/common/async.js';
 import { Color, RGBA } from '../../../../base/common/color.js';
@@ -75,7 +78,6 @@ import { ListTopCellToolbar } from './viewParts/notebookTopCellToolbar.js';
 import { CellKind, NotebookFindScopeType, RENDERER_NOT_AVAILABLE, SelectionStateType } from '../common/notebookCommon.js';
 import { NOTEBOOK_CURSOR_NAVIGATION_MODE, NOTEBOOK_EDITOR_EDITABLE, NOTEBOOK_EDITOR_FOCUSED, NOTEBOOK_OUTPUT_FOCUSED, NOTEBOOK_OUTPUT_INPUT_FOCUSED } from '../common/notebookContextKeys.js';
 import { INotebookExecutionService } from '../common/notebookExecutionService.js';
-import { INotebookExecutionStateService } from '../common/notebookExecutionStateService.js';
 import { INotebookKernelService } from '../common/notebookKernelService.js';
 import { NotebookOptions, OutputInnerContainerTopPadding } from './notebookOptions.js';
 import { cellRangesToIndexes } from '../common/notebookRange.js';
@@ -91,7 +93,6 @@ import { Schemas } from '../../../../base/common/network.js';
 import { DropIntoEditorController } from '../../../../editor/contrib/dropOrPasteInto/browser/dropIntoEditorController.js';
 import { CopyPasteController } from '../../../../editor/contrib/dropOrPasteInto/browser/copyPasteController.js';
 import { NotebookStickyScroll } from './viewParts/notebookEditorStickyScroll.js';
-import { IKeybindingService } from '../../../../platform/keybinding/common/keybinding.js';
 import { PixelRatio } from '../../../../base/browser/pixelRatio.js';
 import { PreventDefaultContextMenuItemsContextKeyName } from '../../webview/browser/webview.contribution.js';
 import { NotebookAccessibilityProvider } from './notebookAccessibilityProvider.js';
@@ -172,7 +173,7 @@ let NotebookEditorWidget = class NotebookEditorWidget extends Disposable {
     get notebookOptions() {
         return this._notebookOptions;
     }
-    constructor(creationOptions, dimension, instantiationService, editorGroupsService, notebookRendererMessaging, notebookEditorService, notebookKernelService, _notebookService, configurationService, contextKeyService, layoutService, contextMenuService, telemetryService, notebookExecutionService, notebookExecutionStateService, editorProgressService, logService, keybindingService) {
+    constructor(creationOptions, dimension, instantiationService, editorGroupsService, notebookRendererMessaging, notebookEditorService, notebookKernelService, _notebookService, configurationService, contextKeyService, layoutService, contextMenuService, telemetryService, notebookExecutionService, editorProgressService, logService) {
         super();
         this.creationOptions = creationOptions;
         this.notebookRendererMessaging = notebookRendererMessaging;
@@ -184,10 +185,8 @@ let NotebookEditorWidget = class NotebookEditorWidget extends Disposable {
         this.contextMenuService = contextMenuService;
         this.telemetryService = telemetryService;
         this.notebookExecutionService = notebookExecutionService;
-        this.notebookExecutionStateService = notebookExecutionStateService;
         this.editorProgressService = editorProgressService;
         this.logService = logService;
-        this.keybindingService = keybindingService;
         //#region Eventing
         this._onDidChangeCellState = this._register(new Emitter());
         this.onDidChangeCellState = this._onDidChangeCellState.event;
@@ -519,7 +518,7 @@ let NotebookEditorWidget = class NotebookEditorWidget extends Disposable {
         return this._fontInfo?.fontFamily ?? `"SF Mono", Monaco, Menlo, Consolas, "Ubuntu Mono", "Liberation Mono", "DejaVu Sans Mono", "Courier New", monospace`;
     }
     _createLayoutStyles() {
-        this._styleElement = DOM.createStyleSheet(this._body);
+        this._styleElement = domStylesheets.createStyleSheet(this._body);
         const { cellRightMargin, cellTopMargin, cellRunGutter, cellBottomMargin, codeCellLeftMargin, markdownCellGutter, markdownCellLeftMargin, markdownCellBottomMargin, markdownCellTopMargin, collapsedIndicatorHeight, focusIndicator, insertToolbarPosition, outputFontSize, focusIndicatorLeftMargin, focusIndicatorGap } = this._notebookOptions.getLayoutConfiguration();
         const { insertToolbarAlignment, compactView, fontSize } = this._notebookOptions.getDisplayOptions();
         const getCellEditorContainerLeftMargin = this._notebookOptions.getCellEditorContainerLeftMargin();
@@ -662,6 +661,10 @@ let NotebookEditorWidget = class NotebookEditorWidget extends Disposable {
 			}`);
         }
         styleSheets.push(`.notebookOverlay .cell-list-container > .monaco-list > .monaco-scrollable-element > .monaco-list-rows > .code-cell-row div.cell.code { margin-left: ${getCellEditorContainerLeftMargin}px; }`);
+        // Chat Edit, deleted Cell Overlay
+        styleSheets.push(`.notebookOverlay .cell-list-container > .monaco-list > .monaco-scrollable-element > .monaco-list-rows > .view-zones .code-cell-row div.cell.code { margin-left: ${getCellEditorContainerLeftMargin}px; }`);
+        // Chat Edit, deleted Cell Overlay
+        styleSheets.push(`.notebookOverlay .cell-list-container > .monaco-list > .monaco-scrollable-element > .monaco-list-rows > .view-zones .code-cell-row div.cell { margin-right: ${cellRightMargin}px; }`);
         styleSheets.push(`.notebookOverlay .cell-list-container > .monaco-list > .monaco-scrollable-element > .monaco-list-rows > .monaco-list-row div.cell { margin-right: ${cellRightMargin}px; }`);
         styleSheets.push(`.notebookOverlay .cell-list-container > .monaco-list > .monaco-scrollable-element > .monaco-list-rows > .monaco-list-row > .cell-inner-container { padding-top: ${cellTopMargin}px; }`);
         styleSheets.push(`.notebookOverlay .cell-list-container > .monaco-list > .monaco-scrollable-element > .monaco-list-rows > .markdown-cell-row > .cell-inner-container { padding-bottom: ${markdownCellBottomMargin}px; padding-top: ${markdownCellTopMargin}px; }`);
@@ -760,7 +763,7 @@ let NotebookEditorWidget = class NotebookEditorWidget extends Disposable {
         });
         this._listDelegate = this.instantiationService.createInstance(NotebookCellListDelegate, DOM.getWindow(this.getDomNode()));
         this._register(this._listDelegate);
-        const accessibilityProvider = new NotebookAccessibilityProvider(this.notebookExecutionStateService, () => this.viewModel, this.keybindingService, this.configurationService, this.isReplHistory);
+        const accessibilityProvider = this.instantiationService.createInstance(NotebookAccessibilityProvider, () => this.viewModel, this.isReplHistory);
         this._register(accessibilityProvider);
         this._list = this.instantiationService.createInstance(NotebookCellList, 'NotebookCellList', this._body, this._viewContext.notebookOptions, this._listDelegate, renderers, this.scopedContextKeyService, {
             setRowLineHeight: false,
@@ -2657,10 +2660,8 @@ NotebookEditorWidget = __decorate([
     __param(11, IContextMenuService),
     __param(12, ITelemetryService),
     __param(13, INotebookExecutionService),
-    __param(14, INotebookExecutionStateService),
-    __param(15, IEditorProgressService),
-    __param(16, INotebookLoggingService),
-    __param(17, IKeybindingService)
+    __param(14, IEditorProgressService),
+    __param(15, INotebookLoggingService)
 ], NotebookEditorWidget);
 export { NotebookEditorWidget };
 registerZIndex(ZIndex.Base, 5, 'notebook-progress-bar');

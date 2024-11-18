@@ -82,9 +82,9 @@ let CellDiagnostics = class CellDiagnostics extends Disposable {
         }
     }
     clear(cellHandle) {
-        const diagnostic = this.diagnosticsByHandle.get(cellHandle);
-        if (diagnostic) {
-            for (const disposable of diagnostic.disposables) {
+        const disposables = this.diagnosticsByHandle.get(cellHandle);
+        if (disposables) {
+            for (const disposable of disposables) {
                 disposable.dispose();
             }
             this.diagnosticsByHandle.delete(cellHandle);
@@ -102,11 +102,10 @@ let CellDiagnostics = class CellDiagnostics extends Disposable {
         const metadata = cell.model.internalMetadata;
         if (cell instanceof CodeCellViewModel && !metadata.lastRunSuccess && metadata?.error?.location) {
             const disposables = [];
-            const marker = this.createMarkerData(metadata.error.message, metadata.error.location);
+            const errorLabel = metadata.error.name ? `${metadata.error.name}: ${metadata.error.message}` : metadata.error.message;
+            const marker = this.createMarkerData(errorLabel, metadata.error.location);
             this.markerService.changeOne(CellDiagnostics_1.ID, cell.uri, [marker]);
             disposables.push(toDisposable(() => this.markerService.changeOne(CellDiagnostics_1.ID, cell.uri, [])));
-            cell.excecutionError.set(metadata.error, undefined);
-            disposables.push(toDisposable(() => cell.excecutionError.set(undefined, undefined)));
             disposables.push(cell.model.onDidChangeOutputs(() => {
                 if (cell.model.outputs.length === 0) {
                     this.clear(cellHandle);
@@ -115,7 +114,7 @@ let CellDiagnostics = class CellDiagnostics extends Disposable {
             disposables.push(cell.model.onDidChangeContent(() => {
                 this.clear(cellHandle);
             }));
-            this.diagnosticsByHandle.set(cellHandle, { cellUri: cell.uri, error: metadata.error, disposables });
+            this.diagnosticsByHandle.set(cellHandle, disposables);
         }
     }
     createMarkerData(message, location) {

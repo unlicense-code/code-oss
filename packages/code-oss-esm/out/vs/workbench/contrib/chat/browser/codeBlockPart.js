@@ -17,12 +17,11 @@ import { renderFormattedText } from '../../../../base/browser/formattedTextRende
 import { Button } from '../../../../base/browser/ui/button/button.js';
 import { Codicon } from '../../../../base/common/codicons.js';
 import { Emitter, Event } from '../../../../base/common/event.js';
-import { combinedDisposable, Disposable, DisposableStore, MutableDisposable } from '../../../../base/common/lifecycle.js';
+import { combinedDisposable, Disposable, MutableDisposable } from '../../../../base/common/lifecycle.js';
 import { Schemas } from '../../../../base/common/network.js';
 import { isEqual } from '../../../../base/common/resources.js';
 import { assertType } from '../../../../base/common/types.js';
 import { URI } from '../../../../base/common/uri.js';
-import { TabFocus } from '../../../../editor/browser/config/tabFocus.js';
 import { EditorExtensionsRegistry } from '../../../../editor/browser/editorExtensions.js';
 import { ICodeEditorService } from '../../../../editor/browser/services/codeEditorService.js';
 import { CodeEditorWidget } from '../../../../editor/browser/widget/codeEditor/codeEditorWidget.js';
@@ -105,7 +104,6 @@ let CodeBlockPart = class CodeBlockPart extends Disposable {
         this._onDidChangeContentHeight = this._register(new Emitter());
         this.onDidChangeContentHeight = this._onDidChangeContentHeight.event;
         this.currentScrollWidth = 0;
-        this.disposableStore = this._register(new DisposableStore());
         this.isDisposed = false;
         this.element = $('.interactive-result-code-block');
         this.resourceContextKey = this._register(instantiationService.createInstance(ResourceContextKey));
@@ -282,7 +280,7 @@ let CodeBlockPart = class CodeBlockPart extends Disposable {
         }
         return this.editor.getContentHeight();
     }
-    async render(data, width, editable) {
+    async render(data, width) {
         this.currentCodeBlockData = data;
         if (data.parentContextKeyService) {
             this.contextKeyService.updateParent(data.parentContextKeyService);
@@ -297,12 +295,7 @@ let CodeBlockPart = class CodeBlockPart extends Disposable {
             return;
         }
         this.layout(width);
-        if (editable) {
-            this.disposableStore.clear();
-            this.disposableStore.add(this.editor.onDidFocusEditorWidget(() => TabFocus.setTabFocusMode(true)));
-            this.disposableStore.add(this.editor.onDidBlurEditorWidget(() => TabFocus.setTabFocusMode(false)));
-        }
-        this.editor.updateOptions({ ariaLabel: localize('chat.codeBlockLabel', "Code block {0}", data.codeBlockIndex + 1), readOnly: !editable });
+        this.editor.updateOptions({ ariaLabel: localize('chat.codeBlockLabel', "Code block {0}", data.codeBlockIndex + 1) });
         if (data.hideToolbar) {
             dom.hide(this.toolbar.getElement());
         }
@@ -329,7 +322,6 @@ let CodeBlockPart = class CodeBlockPart extends Disposable {
     }
     async updateEditor(data) {
         const textModel = await data.textModel;
-        console.log(textModel.id);
         this.editor.setModel(textModel);
         if (data.range) {
             this.editor.setSelection(data.range);

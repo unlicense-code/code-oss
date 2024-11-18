@@ -41,6 +41,7 @@ export declare const ExplorerResourceMoveableToTrash: RawContextKey<boolean>;
 export declare const FilesExplorerFocusedContext: RawContextKey<boolean>;
 export declare const OpenEditorsFocusedContext: RawContextKey<boolean>;
 export declare const ExplorerFocusedContext: RawContextKey<boolean>;
+export declare const ExplorerFindProviderActive: RawContextKey<boolean>;
 export declare const ExplorerCompressedFocusContext: RawContextKey<boolean>;
 export declare const ExplorerCompressedFirstFocusContext: RawContextKey<boolean>;
 export declare const ExplorerCompressedLastFocusContext: RawContextKey<boolean>;

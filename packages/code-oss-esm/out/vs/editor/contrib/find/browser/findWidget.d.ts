@@ -43,6 +43,7 @@ export declare class FindWidget extends Widget implements IOverlayWidget, IVerti
     private readonly _contextKeyService;
     private readonly _storageService;
     private readonly _notificationService;
+    private _findWidgetSearchHistory;
     private _domNode;
     private _cachedHeight;
     private _findInput;

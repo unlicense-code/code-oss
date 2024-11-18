@@ -24,6 +24,11 @@ import { ILanguageFeaturesService } from '../../../common/services/languageFeatu
 import { localize } from '../../../../nls.js';
 import { IWorkspaceContextService } from '../../../../platform/workspace/common/workspace.js';
 class SimplePasteAndDropProvider {
+    constructor(kind) {
+        this.kind = kind;
+        this.providedDropEditKinds = [this.kind];
+        this.providedPasteEditKinds = [this.kind];
+    }
     async provideDocumentPasteEdits(_model, _ranges, dataTransfer, context, token) {
         const edit = await this.getEdit(dataTransfer, token);
         if (!edit) {
@@ -46,15 +51,13 @@ class SimplePasteAndDropProvider {
     }
 }
 export class DefaultTextPasteOrDropEditProvider extends SimplePasteAndDropProvider {
+    static { this.id = 'text'; }
     constructor() {
-        super(...arguments);
+        super(HierarchicalKind.Empty.append('text', 'plain'));
         this.id = DefaultTextPasteOrDropEditProvider.id;
-        this.kind = DefaultTextPasteOrDropEditProvider.kind;
         this.dropMimeTypes = [Mimes.text];
         this.pasteMimeTypes = [Mimes.text];
     }
-    static { this.id = 'text'; }
-    static { this.kind = new HierarchicalKind('text.plain'); }
     async getEdit(dataTransfer, _token) {
         const textEntry = dataTransfer.get(Mimes.text);
         if (!textEntry) {
@@ -76,8 +79,7 @@ export class DefaultTextPasteOrDropEditProvider extends SimplePasteAndDropProvid
 }
 class PathProvider extends SimplePasteAndDropProvider {
     constructor() {
-        super(...arguments);
-        this.kind = new HierarchicalKind('uri.absolute');
+        super(HierarchicalKind.Empty.append('uri', 'absolute'));
         this.dropMimeTypes = [Mimes.uriList];
         this.pasteMimeTypes = [Mimes.uriList];
     }
@@ -121,9 +123,8 @@ class PathProvider extends SimplePasteAndDropProvider {
 }
 let RelativePathProvider = class RelativePathProvider extends SimplePasteAndDropProvider {
     constructor(_workspaceContextService) {
-        super();
+        super(HierarchicalKind.Empty.append('uri', 'relative'));
         this._workspaceContextService = _workspaceContextService;
-        this.kind = new HierarchicalKind('uri.relative');
         this.dropMimeTypes = [Mimes.uriList];
         this.pasteMimeTypes = [Mimes.uriList];
     }
@@ -155,6 +156,7 @@ RelativePathProvider = __decorate([
 class PasteHtmlProvider {
     constructor() {
         this.kind = new HierarchicalKind('html');
+        this.providedPasteEditKinds = [this.kind];
         this.pasteMimeTypes = ['text/html'];
         this._yieldTo = [{ mimeType: Mimes.text }];
     }

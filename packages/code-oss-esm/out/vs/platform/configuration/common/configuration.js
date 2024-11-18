@@ -113,9 +113,6 @@ function doRemoveFromValueTree(valueTree, segments) {
         }
     }
 }
-/**
- * A helper function to get the configuration value with a specific settings path (e.g. config.some.setting)
- */
 export function getConfigurationValue(config, settingPath, defaultValue) {
     function accessSetting(config, path) {
         let current = config;

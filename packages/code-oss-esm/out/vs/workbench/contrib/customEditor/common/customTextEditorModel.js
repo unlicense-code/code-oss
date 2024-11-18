@@ -19,7 +19,7 @@ import { isEqual } from '../../../../base/common/resources.js';
 import { ITextModelService } from '../../../../editor/common/services/resolverService.js';
 import { localize } from '../../../../nls.js';
 import { ILabelService } from '../../../../platform/label/common/label.js';
-import { IExtensionService } from '../../../../workbench/services/extensions/common/extensions.js';
+import { IExtensionService } from '../../../services/extensions/common/extensions.js';
 import { ITextFileService } from '../../../services/textfile/common/textfiles.js';
 let CustomTextEditorModel = CustomTextEditorModel_1 = class CustomTextEditorModel extends Disposable {
     static async create(instantiationService, viewType, resource) {

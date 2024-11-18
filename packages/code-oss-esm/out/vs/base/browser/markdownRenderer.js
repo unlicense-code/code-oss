@@ -489,8 +489,11 @@ export function renderStringAsPlaintext(string) {
     return typeof string === 'string' ? string : renderMarkdownAsPlaintext(string);
 }
 /**
- * Strips all markdown from `markdown`. For example `# Header` would be output as `Header`.
- * provide @param withCodeBlocks to retain code blocks
+ * Strips all markdown from `markdown`
+ *
+ * For example `# Header` would be output as `Header`.
+ *
+ * @param withCodeBlocks Include the ``` of code blocks as well
  */
 export function renderMarkdownAsPlaintext(markdown, withCodeBlocks) {
     // values that are too long will freeze the UI
@@ -499,7 +502,10 @@ export function renderMarkdownAsPlaintext(markdown, withCodeBlocks) {
         value = `${value.substr(0, 100_000)}…`;
     }
     const html = marked.parse(value, { async: false, renderer: withCodeBlocks ? plainTextWithCodeBlocksRenderer.value : plainTextRenderer.value });
-    return sanitizeRenderedMarkdown({ isTrusted: false }, html).toString().replace(/&(#\d+|[a-zA-Z]+);/g, m => unescapeInfo.get(m) ?? m);
+    return sanitizeRenderedMarkdown({ isTrusted: false }, html)
+        .toString()
+        .replace(/&(#\d+|[a-zA-Z]+);/g, m => unescapeInfo.get(m) ?? m)
+        .trim();
 }
 const unescapeInfo = new Map([
     ['&quot;', '"'],
@@ -512,7 +518,7 @@ const unescapeInfo = new Map([
 function createRenderer() {
     const renderer = new marked.Renderer();
     renderer.code = ({ text }) => {
-        return text;
+        return escape(text);
     };
     renderer.blockquote = ({ text }) => {
         return text + '\n';
@@ -551,7 +557,7 @@ function createRenderer() {
         return text;
     };
     renderer.codespan = ({ text }) => {
-        return text;
+        return escape(text);
     };
     renderer.br = (_) => {
         return '\n';
@@ -570,11 +576,11 @@ function createRenderer() {
     };
     return renderer;
 }
-const plainTextRenderer = new Lazy((withCodeBlocks) => createRenderer());
+const plainTextRenderer = new Lazy(createRenderer);
 const plainTextWithCodeBlocksRenderer = new Lazy(() => {
     const renderer = createRenderer();
     renderer.code = ({ text }) => {
-        return `\n\`\`\`\n${text}\n\`\`\`\n`;
+        return `\n\`\`\`\n${escape(text)}\n\`\`\`\n`;
     };
     return renderer;
 });

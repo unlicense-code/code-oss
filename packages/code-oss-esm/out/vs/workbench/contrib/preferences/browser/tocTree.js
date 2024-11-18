@@ -12,6 +12,7 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
 import * as DOM from '../../../../base/browser/dom.js';
+import * as domStylesheetsJs from '../../../../base/browser/domStylesheets.js';
 import { getDefaultHoverDelegate } from '../../../../base/browser/ui/hover/hoverDelegateFactory.js';
 import { DefaultStyleController } from '../../../../base/browser/ui/list/listWidget.js';
 import { RenderIndentGuides } from '../../../../base/browser/ui/tree/abstractTree.js';
@@ -181,7 +182,7 @@ let TOCTree = class TOCTree extends WorkbenchObjectTree {
                     return e.id;
                 }
             },
-            styleController: id => new DefaultStyleController(DOM.createStyleSheet(container), id),
+            styleController: id => new DefaultStyleController(domStylesheetsJs.createStyleSheet(container), id),
             accessibilityProvider: instantiationService.createInstance(SettingsAccessibilityProvider),
             collapseByDefault: true,
             horizontalScrolling: false,

@@ -188,19 +188,6 @@ export declare function getActiveDocument(): Document;
  * the main window.
  */
 export declare function getActiveWindow(): CodeWindow;
-export declare function isGlobalStylesheet(node: Node): boolean;
-/**
- * A version of createStyleSheet which has a unified API to initialize/set the style content.
- */
-export declare function createStyleSheet2(): WrappedStyleElement;
-declare class WrappedStyleElement {
-    private _currentCssStyle;
-    private _styleSheet;
-    setStyle(cssStyle: string): void;
-    dispose(): void;
-}
-export declare function createStyleSheet(container?: HTMLElement, beforeAppend?: (style: HTMLStyleElement) => void, disposableStore?: DisposableStore): HTMLStyleElement;
-export declare function cloneGlobalStylesheets(targetWindow: Window): IDisposable;
 interface IMutationObserver {
     users: number;
     readonly observer: MutationObserver;
@@ -212,8 +199,6 @@ export declare const sharedMutationObserver: {
 };
 export declare function createMetaElement(container?: HTMLElement): HTMLMetaElement;
 export declare function createLinkElement(container?: HTMLElement): HTMLLinkElement;
-export declare function createCSSRule(selector: string, cssText: string, style?: HTMLStyleElement): void;
-export declare function removeCSSRulesContainingSelector(ruleName: string, style?: HTMLStyleElement): void;
 export declare function isHTMLElement(e: unknown): e is HTMLElement;
 export declare function isHTMLAnchorElement(e: unknown): e is HTMLAnchorElement;
 export declare function isHTMLSpanElement(e: unknown): e is HTMLSpanElement;

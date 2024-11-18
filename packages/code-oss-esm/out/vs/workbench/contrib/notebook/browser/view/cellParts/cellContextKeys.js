@@ -80,7 +80,7 @@ let CellContextKeyManager = class CellContextKeyManager extends Disposable {
         if (element instanceof CodeCellViewModel) {
             this.elementDisposables.add(element.onDidChangeOutputs(() => this.updateForOutputs()));
             this.elementDisposables.add(autorun(reader => {
-                this.cellHasErrorDiagnostics.set(!!reader.readObservable(element.excecutionError));
+                this.cellHasErrorDiagnostics.set(!!reader.readObservable(element.executionError));
             }));
         }
         this.elementDisposables.add(this.notebookEditor.onDidChangeActiveCell(() => this.updateForFocusState()));

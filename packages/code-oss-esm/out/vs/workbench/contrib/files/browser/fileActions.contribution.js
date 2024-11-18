@@ -15,7 +15,7 @@ import { FilesExplorerFocusCondition, ExplorerRootContext, ExplorerFolderContext
 import { ADD_ROOT_FOLDER_COMMAND_ID, ADD_ROOT_FOLDER_LABEL } from '../../../browser/actions/workspaceCommands.js';
 import { CLOSE_SAVED_EDITORS_COMMAND_ID, CLOSE_EDITORS_IN_GROUP_COMMAND_ID, CLOSE_EDITOR_COMMAND_ID, CLOSE_OTHER_EDITORS_IN_GROUP_COMMAND_ID, REOPEN_WITH_COMMAND_ID } from '../../../browser/parts/editor/editorCommands.js';
 import { AutoSaveAfterShortDelayContext } from '../../../services/filesConfiguration/common/filesConfigurationService.js';
-import { WorkbenchListDoubleSelection, WorkbenchTreeFindOpen } from '../../../../platform/list/browser/listService.js';
+import { WorkbenchListDoubleSelection } from '../../../../platform/list/browser/listService.js';
 import { Schemas } from '../../../../base/common/network.js';
 import { DirtyWorkingCopiesContext, EnterMultiRootWorkspaceSupportContext, HasWebFileSystemAccess, WorkbenchStateContext, WorkspaceFolderCountContext, SidebarFocusContext, ActiveEditorCanRevertContext, ActiveEditorContext, ResourceContextKey, ActiveEditorAvailableEditorIdsContext, MultipleEditorsSelectedInGroupContext, TwoEditorsSelectedInGroupContext, SelectedEditorsInGroupFileOrUntitledResourceContextKey } from '../../../common/contextkeys.js';
 import { IsWebContext } from '../../../../platform/contextkey/common/contextkeys.js';
@@ -53,7 +53,7 @@ const MOVE_FILE_TO_TRASH_ID = 'moveFileToTrash';
 KeybindingsRegistry.registerCommandAndKeybindingRule({
     id: MOVE_FILE_TO_TRASH_ID,
     weight: 200 /* KeybindingWeight.WorkbenchContrib */ + explorerCommandsWeightBonus,
-    when: ContextKeyExpr.and(FilesExplorerFocusCondition, ExplorerResourceNotReadonlyContext, ExplorerResourceMoveableToTrash, WorkbenchTreeFindOpen.toNegated()),
+    when: ContextKeyExpr.and(FilesExplorerFocusCondition, ExplorerResourceNotReadonlyContext, ExplorerResourceMoveableToTrash),
     primary: 20 /* KeyCode.Delete */,
     mac: {
         primary: 2048 /* KeyMod.CtrlCmd */ | 1 /* KeyCode.Backspace */,
@@ -65,7 +65,7 @@ const DELETE_FILE_ID = 'deleteFile';
 KeybindingsRegistry.registerCommandAndKeybindingRule({
     id: DELETE_FILE_ID,
     weight: 200 /* KeybindingWeight.WorkbenchContrib */ + explorerCommandsWeightBonus,
-    when: ContextKeyExpr.and(FilesExplorerFocusCondition, ExplorerResourceNotReadonlyContext, WorkbenchTreeFindOpen.toNegated()),
+    when: ContextKeyExpr.and(FilesExplorerFocusCondition, ExplorerResourceNotReadonlyContext),
     primary: 1024 /* KeyMod.Shift */ | 20 /* KeyCode.Delete */,
     mac: {
         primary: 2048 /* KeyMod.CtrlCmd */ | 512 /* KeyMod.Alt */ | 1 /* KeyCode.Backspace */
@@ -75,7 +75,7 @@ KeybindingsRegistry.registerCommandAndKeybindingRule({
 KeybindingsRegistry.registerCommandAndKeybindingRule({
     id: DELETE_FILE_ID,
     weight: 200 /* KeybindingWeight.WorkbenchContrib */ + explorerCommandsWeightBonus,
-    when: ContextKeyExpr.and(FilesExplorerFocusCondition, ExplorerResourceNotReadonlyContext, ExplorerResourceMoveableToTrash.toNegated(), WorkbenchTreeFindOpen.toNegated()),
+    when: ContextKeyExpr.and(FilesExplorerFocusCondition, ExplorerResourceNotReadonlyContext, ExplorerResourceMoveableToTrash.toNegated()),
     primary: 20 /* KeyCode.Delete */,
     mac: {
         primary: 2048 /* KeyMod.CtrlCmd */ | 1 /* KeyCode.Backspace */
@@ -86,7 +86,7 @@ const CUT_FILE_ID = 'filesExplorer.cut';
 KeybindingsRegistry.registerCommandAndKeybindingRule({
     id: CUT_FILE_ID,
     weight: 200 /* KeybindingWeight.WorkbenchContrib */ + explorerCommandsWeightBonus,
-    when: ContextKeyExpr.and(FilesExplorerFocusCondition, ExplorerRootContext.toNegated(), ExplorerResourceNotReadonlyContext, WorkbenchTreeFindOpen.toNegated()),
+    when: ContextKeyExpr.and(FilesExplorerFocusCondition, ExplorerRootContext.toNegated(), ExplorerResourceNotReadonlyContext),
     primary: 2048 /* KeyMod.CtrlCmd */ | 54 /* KeyCode.KeyX */,
     handler: cutFileHandler,
 });
@@ -103,7 +103,7 @@ CommandsRegistry.registerCommand(PASTE_FILE_ID, pasteFileHandler);
 KeybindingsRegistry.registerKeybindingRule({
     id: `^${PASTE_FILE_ID}`, // the `^` enables pasting files into the explorer by preventing default bubble up
     weight: 200 /* KeybindingWeight.WorkbenchContrib */ + explorerCommandsWeightBonus,
-    when: ContextKeyExpr.and(FilesExplorerFocusCondition, ExplorerResourceNotReadonlyContext, WorkbenchTreeFindOpen.toNegated()),
+    when: ContextKeyExpr.and(FilesExplorerFocusCondition, ExplorerResourceNotReadonlyContext),
     primary: 2048 /* KeyMod.CtrlCmd */ | 52 /* KeyCode.KeyV */,
 });
 KeybindingsRegistry.registerCommandAndKeybindingRule({
@@ -131,14 +131,14 @@ const copyRelativePathCommand = {
     id: COPY_RELATIVE_PATH_COMMAND_ID,
     title: nls.localize('copyRelativePath', "Copy Relative Path")
 };
-export const revealInsideBarCommand = {
+export const revealInSideBarCommand = {
     id: REVEAL_IN_EXPLORER_COMMAND_ID,
     title: nls.localize('revealInSideBar', "Reveal in Explorer View")
 };
 // Editor Title Context Menu
 appendEditorTitleContextMenuItem(COPY_PATH_COMMAND_ID, copyPathCommand.title, ResourceContextKey.IsFileSystemResource, '1_cutcopypaste', true);
 appendEditorTitleContextMenuItem(COPY_RELATIVE_PATH_COMMAND_ID, copyRelativePathCommand.title, ResourceContextKey.IsFileSystemResource, '1_cutcopypaste', true);
-appendEditorTitleContextMenuItem(revealInsideBarCommand.id, revealInsideBarCommand.title, ResourceContextKey.IsFileSystemResource, '2_files', false, 1);
+appendEditorTitleContextMenuItem(revealInSideBarCommand.id, revealInSideBarCommand.title, ResourceContextKey.IsFileSystemResource, '2_files', false, 1);
 export function appendEditorTitleContextMenuItem(id, title, when, group, supportsMultiSelect, order) {
     const precondition = supportsMultiSelect !== true ? MultipleEditorsSelectedInGroupContext.negate() : undefined;
     // Menu
@@ -412,7 +412,7 @@ MenuRegistry.appendMenuItem(MenuId.ExplorerContext, {
     command: {
         id: NEW_FILE_COMMAND_ID,
         title: NEW_FILE_LABEL,
-        precondition: ContextKeyExpr.and(ExplorerResourceNotReadonlyContext, WorkbenchTreeFindOpen.toNegated())
+        precondition: ExplorerResourceNotReadonlyContext
     },
     when: ExplorerFolderContext
 });
@@ -422,7 +422,7 @@ MenuRegistry.appendMenuItem(MenuId.ExplorerContext, {
     command: {
         id: NEW_FOLDER_COMMAND_ID,
         title: NEW_FOLDER_LABEL,
-        precondition: ContextKeyExpr.and(ExplorerResourceNotReadonlyContext, WorkbenchTreeFindOpen.toNegated())
+        precondition: ExplorerResourceNotReadonlyContext
     },
     when: ExplorerFolderContext
 });
@@ -465,7 +465,6 @@ MenuRegistry.appendMenuItem(MenuId.ExplorerContext, {
     command: {
         id: CUT_FILE_ID,
         title: nls.localize('cut', "Cut"),
-        precondition: WorkbenchTreeFindOpen.toNegated()
     },
     when: ContextKeyExpr.and(ExplorerRootContext.toNegated(), ExplorerResourceNotReadonlyContext)
 });
@@ -484,7 +483,7 @@ MenuRegistry.appendMenuItem(MenuId.ExplorerContext, {
     command: {
         id: PASTE_FILE_ID,
         title: PASTE_FILE_LABEL,
-        precondition: ContextKeyExpr.and(ExplorerResourceNotReadonlyContext, FileCopiedContext, WorkbenchTreeFindOpen.toNegated())
+        precondition: ContextKeyExpr.and(ExplorerResourceNotReadonlyContext, FileCopiedContext)
     },
     when: ExplorerFolderContext
 });
@@ -536,7 +535,6 @@ MenuRegistry.appendMenuItem(MenuId.ExplorerContext, {
     command: {
         id: ADD_ROOT_FOLDER_COMMAND_ID,
         title: ADD_ROOT_FOLDER_LABEL,
-        precondition: WorkbenchTreeFindOpen.toNegated()
     },
     when: ContextKeyExpr.and(ExplorerRootContext, ContextKeyExpr.or(EnterMultiRootWorkspaceSupportContext, WorkbenchStateContext.isEqualTo('workspace')))
 });
@@ -546,7 +544,6 @@ MenuRegistry.appendMenuItem(MenuId.ExplorerContext, {
     command: {
         id: REMOVE_ROOT_FOLDER_COMMAND_ID,
         title: REMOVE_ROOT_FOLDER_LABEL,
-        precondition: WorkbenchTreeFindOpen.toNegated()
     },
     when: ContextKeyExpr.and(ExplorerRootContext, ExplorerFolderContext, ContextKeyExpr.and(WorkspaceFolderCountContext.notEqualsTo('0'), ContextKeyExpr.or(EnterMultiRootWorkspaceSupportContext, WorkbenchStateContext.isEqualTo('workspace'))))
 });
@@ -556,7 +553,7 @@ MenuRegistry.appendMenuItem(MenuId.ExplorerContext, {
     command: {
         id: RENAME_ID,
         title: TRIGGER_RENAME_LABEL,
-        precondition: ContextKeyExpr.and(ExplorerResourceNotReadonlyContext, WorkbenchTreeFindOpen.toNegated()),
+        precondition: ExplorerResourceNotReadonlyContext,
     },
     when: ExplorerRootContext.toNegated()
 });
@@ -566,12 +563,12 @@ MenuRegistry.appendMenuItem(MenuId.ExplorerContext, {
     command: {
         id: MOVE_FILE_TO_TRASH_ID,
         title: MOVE_FILE_TO_TRASH_LABEL,
-        precondition: ContextKeyExpr.and(ExplorerResourceNotReadonlyContext, WorkbenchTreeFindOpen.toNegated()),
+        precondition: ContextKeyExpr.and(ExplorerResourceNotReadonlyContext),
     },
     alt: {
         id: DELETE_FILE_ID,
         title: nls.localize('deleteFile', "Delete Permanently"),
-        precondition: ContextKeyExpr.and(ExplorerResourceNotReadonlyContext, WorkbenchTreeFindOpen.toNegated()),
+        precondition: ContextKeyExpr.and(ExplorerResourceNotReadonlyContext),
     },
     when: ContextKeyExpr.and(ExplorerRootContext.toNegated(), ExplorerResourceMoveableToTrash)
 });
@@ -581,7 +578,7 @@ MenuRegistry.appendMenuItem(MenuId.ExplorerContext, {
     command: {
         id: DELETE_FILE_ID,
         title: nls.localize('deleteFile', "Delete Permanently"),
-        precondition: ContextKeyExpr.and(ExplorerResourceNotReadonlyContext, WorkbenchTreeFindOpen.toNegated()),
+        precondition: ExplorerResourceNotReadonlyContext,
     },
     when: ContextKeyExpr.and(ExplorerRootContext.toNegated(), ExplorerResourceMoveableToTrash.toNegated())
 });
@@ -676,7 +673,7 @@ MenuRegistry.appendMenuItem(MenuId.ChatAttachmentsContext, {
 MenuRegistry.appendMenuItem(MenuId.ChatAttachmentsContext, {
     group: 'navigation',
     order: 20,
-    command: revealInsideBarCommand,
+    command: revealInSideBarCommand,
     when: ResourceContextKey.IsFileSystemResource
 });
 MenuRegistry.appendMenuItem(MenuId.ChatAttachmentsContext, {
@@ -702,7 +699,7 @@ for (const menuId of [MenuId.ChatInlineResourceAnchorContext, MenuId.ChatInputRe
     MenuRegistry.appendMenuItem(menuId, {
         group: 'navigation',
         order: 20,
-        command: revealInsideBarCommand,
+        command: revealInSideBarCommand,
         when: ResourceContextKey.IsFileSystemResource
     });
     MenuRegistry.appendMenuItem(menuId, {

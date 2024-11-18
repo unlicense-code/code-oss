@@ -29,9 +29,11 @@ export declare namespace ChatContextKeys {
     const hasFileAttachments: RawContextKey<boolean>;
     const languageModelsAreUserSelectable: RawContextKey<boolean>;
     const ChatSetup: {
-        entitled: RawContextKey<boolean>;
         signedIn: RawContextKey<boolean>;
-        running: RawContextKey<boolean>;
+        entitled: RawContextKey<boolean>;
+        triggering: RawContextKey<boolean>;
+        installing: RawContextKey<boolean>;
+        signingIn: RawContextKey<boolean>;
     };
-    const shouldShowMovedViewWelcome: RawContextKey<boolean>;
+    const setupRunning: import("../../../../platform/contextkey/common/contextkey.js").ContextKeyExpression | undefined;
 }

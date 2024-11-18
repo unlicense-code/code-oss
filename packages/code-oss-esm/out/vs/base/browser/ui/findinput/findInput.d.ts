@@ -7,6 +7,7 @@ import { HistoryInputBox, IInputBoxStyles, IInputValidator, IMessage as InputBox
 import { Widget } from '../widget.js';
 import { Event } from '../../../common/event.js';
 import './findInput.css';
+import { IHistory } from '../../../common/history.js';
 export interface IFindInputOptions {
     readonly placeholder?: string;
     readonly width?: number;
@@ -19,11 +20,11 @@ export interface IFindInputOptions {
     readonly appendCaseSensitiveLabel?: string;
     readonly appendWholeWordsLabel?: string;
     readonly appendRegexLabel?: string;
-    readonly history?: string[];
     readonly additionalToggles?: Toggle[];
     readonly showHistoryHint?: () => boolean;
     readonly toggleStyles: IToggleStyles;
     readonly inputBoxStyles: IInputBoxStyles;
+    readonly history?: IHistory<string>;
 }
 export declare class FindInput extends Widget {
     static readonly OPTION_CHANGE: string;

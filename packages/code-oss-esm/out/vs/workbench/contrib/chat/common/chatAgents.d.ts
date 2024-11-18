@@ -204,6 +204,7 @@ export declare class ChatAgentService extends Disposable implements IChatAgentSe
     private readonly _hasDefaultAgent;
     private readonly _defaultAgentRegistered;
     private readonly _editingAgentRegistered;
+    private _chatParticipantDetectionProviders;
     constructor(contextKeyService: IContextKeyService);
     registerAgent(id: string, data: IChatAgentData): IDisposable;
     private _updateAgentsContextKeys;
@@ -232,7 +233,6 @@ export declare class ChatAgentService extends Disposable implements IChatAgentSe
     invokeAgent(id: string, request: IChatAgentRequest, progress: (part: IChatProgress) => void, history: IChatAgentHistoryEntry[], token: CancellationToken): Promise<IChatAgentResult>;
     getFollowups(id: string, request: IChatAgentRequest, result: IChatAgentResult, history: IChatAgentHistoryEntry[], token: CancellationToken): Promise<IChatFollowup[]>;
     getChatTitle(id: string, history: IChatAgentHistoryEntry[], token: CancellationToken): Promise<string | undefined>;
-    private _chatParticipantDetectionProviders;
     registerChatParticipantDetectionProvider(handle: number, provider: IChatParticipantDetectionProvider): IDisposable;
     hasChatParticipantDetectionProviders(): boolean;
     detectAgentOrCommand(request: IChatAgentRequest, history: IChatAgentHistoryEntry[], options: {

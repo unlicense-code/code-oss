@@ -209,6 +209,7 @@ export declare class MenuId {
     static readonly ChatInputSide: MenuId;
     static readonly ChatEditingWidgetToolbar: MenuId;
     static readonly ChatEditingEditorContent: MenuId;
+    static readonly ChatEditingEditorHunk: MenuId;
     static readonly ChatEditingWidgetModifiedFilesToolbar: MenuId;
     static readonly ChatInputResourceAttachmentContext: MenuId;
     static readonly ChatInlineResourceAnchorContext: MenuId;

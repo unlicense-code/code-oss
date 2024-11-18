@@ -3,18 +3,15 @@ import { RawContextKey } from '../../../../../platform/contextkey/common/context
 export declare const enum TerminalChatCommandId {
     Start = "workbench.action.terminal.chat.start",
     Close = "workbench.action.terminal.chat.close",
-    Discard = "workbench.action.terminal.chat.discard",
     MakeRequest = "workbench.action.terminal.chat.makeRequest",
     Cancel = "workbench.action.terminal.chat.cancel",
     RunCommand = "workbench.action.terminal.chat.runCommand",
     RunFirstCommand = "workbench.action.terminal.chat.runFirstCommand",
     InsertCommand = "workbench.action.terminal.chat.insertCommand",
     InsertFirstCommand = "workbench.action.terminal.chat.insertFirstCommand",
-    ViewInChat = "workbench.action.terminal.chat.viewInChat",
-    PreviousFromHistory = "workbench.action.terminal.chat.previousFromHistory",
-    NextFromHistory = "workbench.action.terminal.chat.nextFromHistory"
+    ViewInChat = "workbench.action.terminal.chat.viewInChat"
 }
-export declare const MENU_TERMINAL_CHAT_WIDGET: MenuId;
+export declare const MENU_TERMINAL_CHAT_WIDGET_INPUT_SIDE_TOOLBAR: MenuId;
 export declare const MENU_TERMINAL_CHAT_WIDGET_STATUS: MenuId;
 export declare const MENU_TERMINAL_CHAT_WIDGET_TOOLBAR: MenuId;
 export declare const enum TerminalChatContextKeyStrings {

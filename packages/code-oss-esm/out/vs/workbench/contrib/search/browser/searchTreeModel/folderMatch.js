@@ -20,7 +20,7 @@ import { TernarySearchTree } from '../../../../../base/common/ternarySearchTree.
 import { IInstantiationService } from '../../../../../platform/instantiation/common/instantiation.js';
 import { ILabelService } from '../../../../../platform/label/common/label.js';
 import { IUriIdentityService } from '../../../../../platform/uriIdentity/common/uriIdentity.js';
-import { IReplaceService } from './../replace.js';
+import { IReplaceService } from '../replace.js';
 import { resultIsMatch } from '../../../../services/search/common/search.js';
 import { isSearchTreeFolderMatchWorkspaceRoot, isSearchTreeFolderMatchNoRoot, FOLDER_MATCH_PREFIX, getFileMatches } from './searchTreeCommon.js';
 import { isINotebookFileMatchNoModel } from '../../common/searchNotebookHelpers.js';

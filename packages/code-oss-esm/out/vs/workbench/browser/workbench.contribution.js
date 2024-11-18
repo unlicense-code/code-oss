@@ -600,6 +600,13 @@ const registry = Registry.as(ConfigurationExtensions.Configuration);
                 tags: ['accessibility'],
                 enum: ['on', 'off', 'auto']
             },
+            'workbench.navigationControl.enabled': {
+                'type': 'boolean',
+                'default': true,
+                'markdownDescription': isWeb ?
+                    localize('navigationControlEnabledWeb', "Controls whether the navigation control in the title bar is shown.") :
+                    localize({ key: 'navigationControlEnabled', comment: ['{0}, {1} is a placeholder for a setting identifier.'] }, "Controls whether the navigation control is shown in the custom title bar. This setting only has an effect when {0} is not set to {1}.", '`#window.customTitleBarVisibility#`', '`never`')
+            },
             ["workbench.layoutControl.enabled" /* LayoutSettings.LAYOUT_ACTIONS */]: {
                 'type': 'boolean',
                 'default': true,
@@ -615,7 +622,7 @@ const registry = Registry.as(ConfigurationExtensions.Configuration);
                     localize('layoutcontrol.type.toggles', "Shows several buttons for toggling the visibility of the panels and side bar."),
                     localize('layoutcontrol.type.both', "Shows both the dropdown and toggle buttons."),
                 ],
-                'default': 'both',
+                'default': 'toggles',
                 'description': localize('layoutControlType', "Controls whether the layout control in the custom title bar is displayed as a single menu button or with multiple UI toggles."),
             },
             'workbench.tips.enabled': {

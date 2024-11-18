@@ -22,10 +22,9 @@ export interface IChatWidgetService {
      */
     readonly lastFocusedWidget: IChatWidget | undefined;
     readonly onDidAddWidget: Event<IChatWidget>;
-    getAllWidgets(location: ChatAgentLocation): ReadonlyArray<IChatWidget>;
     getWidgetByInputUri(uri: URI): IChatWidget | undefined;
     getWidgetBySessionId(sessionId: string): IChatWidget | undefined;
-    getWidgetByLocation(location: ChatAgentLocation): IChatWidget[];
+    getWidgetsByLocations(location: ChatAgentLocation): ReadonlyArray<IChatWidget>;
 }
 export declare function showChatView(viewsService: IViewsService): Promise<IChatWidget | undefined>;
 export declare function showEditsView(viewsService: IViewsService): Promise<IChatWidget | undefined>;
@@ -179,6 +178,5 @@ export interface IChatCodeBlockContextProviderService {
     readonly providers: ICodeBlockActionContextProvider[];
     registerProvider(provider: ICodeBlockActionContextProvider, id: string): IDisposable;
 }
-export declare const GeneratingPhrase: string;
-export declare const CHAT_VIEW_ID = "workbench.panel.chat.view.copilot";
-export declare const EDITS_VIEW_ID = "workbench.panel.chat.view.edits";
+export declare const ChatViewId = "workbench.panel.chat.view.copilot";
+export declare const EditsViewId = "workbench.panel.chat.view.edits";

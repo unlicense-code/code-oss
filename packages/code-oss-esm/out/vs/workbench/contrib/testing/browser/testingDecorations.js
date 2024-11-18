@@ -23,7 +23,7 @@ import { Emitter, Event } from '../../../../base/common/event.js';
 import { MarkdownString } from '../../../../base/common/htmlContent.js';
 import { stripIcons } from '../../../../base/common/iconLabels.js';
 import { Iterable } from '../../../../base/common/iterator.js';
-import { Disposable, DisposableMap, DisposableStore, MutableDisposable } from '../../../../base/common/lifecycle.js';
+import { Disposable, DisposableMap, DisposableStore, MutableDisposable, toDisposable } from '../../../../base/common/lifecycle.js';
 import { ResourceMap } from '../../../../base/common/map.js';
 import { clamp } from '../../../../base/common/numbers.js';
 import { autorun } from '../../../../base/common/observable.js';
@@ -452,9 +452,6 @@ let TestingDecorations = class TestingDecorations extends Disposable {
         this.applyResultsLoggedMessages(uriStr, seenLines);
     }
     clearResults() {
-        for (const widget of this.errorContentWidgets.values()) {
-            this.editor.removeContentWidget(widget);
-        }
         this.errorContentWidgets.clearAndDisposeAll();
     }
     isMessageInvalidated(message) {
@@ -468,9 +465,8 @@ let TestingDecorations = class TestingDecorations extends Disposable {
         else if (this.results.results.length) {
             this.applyContentWidgetsFromResult(this.results.results[0], uriStr, seen, seenLines);
         }
-        for (const [message, widget] of this.errorContentWidgets) {
+        for (const message of this.errorContentWidgets.keys()) {
             if (!seen.has(message)) {
-                this.editor.removeContentWidget(widget);
                 this.errorContentWidgets.deleteAndDispose(message);
             }
         }
@@ -505,7 +501,6 @@ let TestingDecorations = class TestingDecorations extends Disposable {
                             resultId: lastResult.id,
                             testExtId: test.item.extId,
                         }));
-                        this.editor.addContentWidget(deco);
                         this.errorContentWidgets.set(m, deco);
                     }
                     seen.add(m);
@@ -1107,9 +1102,11 @@ let TestErrorContentWidget = class TestErrorContentWidget extends Disposable {
         /** @inheritdoc */
         this.allowEditorOverflow = false;
         this.node = dom.h('div.test-error-content-widget', [
-            dom.h('div.arrow@arrow'),
-            dom.h(`span${ThemeIcon.asCSSSelector(testingStatesToIcons.get(4 /* TestResultState.Failed */))}`),
-            dom.h('span.content@name'),
+            dom.h('div.inner@inner', [
+                dom.h('div.arrow@arrow'),
+                dom.h(`span${ThemeIcon.asCSSSelector(testingStatesToIcons.get(4 /* TestResultState.Failed */))}`),
+                dom.h('span.content@name'),
+            ]),
         ]);
         let text;
         if (message.expected !== undefined && message.actual !== undefined) {
@@ -1134,14 +1131,16 @@ let TestErrorContentWidget = class TestErrorContentWidget extends Disposable {
         }
         this.node.name.innerText = text || 'Test Failed';
         const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-        svg.setAttribute('width', '10');
+        svg.setAttribute('width', '15');
         svg.setAttribute('height', '10');
         svg.setAttribute('preserveAspectRatio', 'none');
-        svg.setAttribute('viewBox', '0 0 10 10');
+        svg.setAttribute('viewBox', '0 0 15 10');
         const leftArrow = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-        leftArrow.setAttribute('d', 'M10 0 L0 5 L10 10 Z');
+        leftArrow.setAttribute('d', 'M15 0 L10 0 L0 5 L10 10 L15 10 Z');
         svg.append(leftArrow);
         this.node.arrow.appendChild(svg);
+        editor.addContentWidget(this);
+        this._register(toDisposable(() => editor.removeContentWidget(this)));
     }
     getId() {
         return this.id;
@@ -1157,8 +1156,9 @@ let TestErrorContentWidget = class TestErrorContentWidget extends Disposable {
     }
     afterRender(_position, coordinate) {
         if (coordinate) {
-            const { contentWidth, verticalScrollbarWidth } = this.editor.getLayoutInfo();
-            this.node.root.style.maxWidth = `${contentWidth - verticalScrollbarWidth - coordinate.left - 20}px`;
+            const { verticalScrollbarWidth } = this.editor.getLayoutInfo();
+            const scrollWidth = this.editor.getScrollWidth();
+            this.node.inner.style.maxWidth = `${scrollWidth - verticalScrollbarWidth - coordinate.left - 20}px`;
         }
     }
 };

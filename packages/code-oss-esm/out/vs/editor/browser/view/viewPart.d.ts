@@ -19,7 +19,8 @@ export declare const enum PartFingerprint {
     ScrollableElement = 6,
     TextArea = 7,
     ViewLines = 8,
-    Minimap = 9
+    Minimap = 9,
+    ViewLinesGpu = 10
 }
 export declare class PartFingerprints {
     static write(target: Element | FastDomNode<HTMLElement>, partId: PartFingerprint): void;

@@ -4,5 +4,4 @@ export declare const ReplEditorSettings: {
     interactiveWindowAlwaysScrollOnNewCell: string;
     executeWithShiftEnter: string;
     showExecutionHint: string;
-    autoFocusAppendedCell: string;
 };

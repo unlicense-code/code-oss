@@ -15,8 +15,7 @@ import { Disposable } from '../../../../../../base/common/lifecycle.js';
 import { autorun } from '../../../../../../base/common/observable.js';
 import { localize } from '../../../../../../nls.js';
 import { IInstantiationService } from '../../../../../../platform/instantiation/common/instantiation.js';
-import { IKeybindingService } from '../../../../../../platform/keybinding/common/keybinding.js';
-import { OPEN_CELL_FAILURE_ACTIONS_COMMAND_ID } from './cellDiagnosticsActions.js';
+import { EXPLAIN_CELL_ERROR_COMMAND_ID, FIX_CELL_ERROR_COMMAND_ID } from './cellDiagnosticsActions.js';
 import { NotebookStatusBarController } from '../cellStatusBar/executionStatusBarItemController.js';
 import { registerNotebookContribution } from '../../notebookEditorExtensions.js';
 import { CodeCellViewModel } from '../../viewModel/codeCellViewModel.js';
@@ -34,36 +33,35 @@ DiagnosticCellStatusBarContrib = __decorate([
 ], DiagnosticCellStatusBarContrib);
 export { DiagnosticCellStatusBarContrib };
 registerNotebookContribution(DiagnosticCellStatusBarContrib.id, DiagnosticCellStatusBarContrib);
-let DiagnosticCellStatusBarItem = class DiagnosticCellStatusBarItem extends Disposable {
-    constructor(_notebookViewModel, cell, keybindingService) {
+class DiagnosticCellStatusBarItem extends Disposable {
+    constructor(_notebookViewModel, cell) {
         super();
         this._notebookViewModel = _notebookViewModel;
         this.cell = cell;
-        this.keybindingService = keybindingService;
         this._currentItemIds = [];
-        this._register(autorun((reader) => this.updateSparkleItem(reader.readObservable(cell.excecutionError))));
+        this._register(autorun((reader) => this.updateQuickActions(reader.readObservable(cell.executionError))));
     }
-    async updateSparkleItem(error) {
-        let item;
+    async updateQuickActions(error) {
+        let items = [];
         if (error?.location) {
-            const keybinding = this.keybindingService.lookupKeybinding(OPEN_CELL_FAILURE_ACTIONS_COMMAND_ID)?.getLabel();
-            const tooltip = localize('notebook.cell.status.diagnostic', "Quick Actions {0}", `(${keybinding})`);
-            item = {
-                text: `$(sparkle)`,
-                tooltip,
-                alignment: 1 /* CellStatusbarAlignment.Left */,
-                command: OPEN_CELL_FAILURE_ACTIONS_COMMAND_ID,
-                priority: Number.MAX_SAFE_INTEGER - 1
-            };
+            items = [{
+                    text: `$(sparkle) fix`,
+                    tooltip: localize('notebook.cell.status.fix', 'Fix With Inline Chat'),
+                    alignment: 1 /* CellStatusbarAlignment.Left */,
+                    command: FIX_CELL_ERROR_COMMAND_ID,
+                    priority: Number.MAX_SAFE_INTEGER - 1
+                }, {
+                    text: `$(sparkle) explain`,
+                    tooltip: localize('notebook.cell.status.explain', 'Explain With Chat'),
+                    alignment: 1 /* CellStatusbarAlignment.Left */,
+                    command: EXPLAIN_CELL_ERROR_COMMAND_ID,
+                    priority: Number.MAX_SAFE_INTEGER - 1
+                }];
         }
-        const items = item ? [item] : [];
         this._currentItemIds = this._notebookViewModel.deltaCellStatusBarItems(this._currentItemIds, [{ handle: this.cell.handle, items }]);
     }
     dispose() {
         super.dispose();
         this._notebookViewModel.deltaCellStatusBarItems(this._currentItemIds, [{ handle: this.cell.handle, items: [] }]);
     }
-};
-DiagnosticCellStatusBarItem = __decorate([
-    __param(2, IKeybindingService)
-], DiagnosticCellStatusBarItem);
+}

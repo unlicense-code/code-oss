@@ -525,6 +525,9 @@ let SimpleFindReplaceWidget = class SimpleFindReplaceWidget extends Widget {
     get focusTracker() {
         return this._focusTracker;
     }
+    get isVisible() {
+        return this._isVisible;
+    }
     _onStateChanged(e) {
         this._updateButtons();
         this._updateMatchesCount();

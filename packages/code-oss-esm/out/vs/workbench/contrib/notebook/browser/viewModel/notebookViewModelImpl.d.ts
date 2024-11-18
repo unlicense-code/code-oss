@@ -31,6 +31,7 @@ export declare class NotebookViewModel extends Disposable implements EditorFoldi
     private readonly _bulkEditService;
     private readonly _undoService;
     private readonly _textModelService;
+    private readonly notebookExecutionStateService;
     private readonly _localStore;
     private _handleToViewCellMapping;
     get options(): NotebookViewModelOptions;
@@ -70,6 +71,7 @@ export declare class NotebookViewModel extends Disposable implements EditorFoldi
     updateOptions(newOptions: Partial<NotebookViewModelOptions>): void;
     getFocus(): ICellRange;
     getSelections(): ICellRange[];
+    getMostRecentlyExecutedCell(): ICellViewModel | undefined;
     setEditorFocus(focused: boolean): void;
     validateRange(cellRange: ICellRange | null | undefined): ICellRange | null;
     updateSelectionsState(state: ISelectionState, source?: 'view' | 'model'): void;

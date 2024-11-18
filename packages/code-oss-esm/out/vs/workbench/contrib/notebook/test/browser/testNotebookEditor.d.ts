@@ -85,6 +85,7 @@ export declare class TestNotebookExecutionStateService implements INotebookExecu
     createCellExecution(notebook: URI, cellHandle: number): INotebookCellExecution;
     getCellExecutionsByHandleForNotebook(notebook: URI): Map<number, INotebookCellExecution> | undefined;
     getLastFailedCellForNotebook(notebook: URI): number | undefined;
+    getLastCompletedCellForNotebook(notebook: URI): number | undefined;
     getExecution(notebook: URI): INotebookExecution | undefined;
     createExecution(notebook: URI): INotebookExecution;
 }

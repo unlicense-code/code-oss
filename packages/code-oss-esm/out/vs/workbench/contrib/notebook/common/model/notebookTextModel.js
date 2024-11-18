@@ -1050,6 +1050,22 @@ let NotebookTextModel = NotebookTextModel_1 = class NotebookTextModel extends Di
         }
         return null;
     }
+    findMatches(searchString, isRegex, matchCase, wordSeparators) {
+        const searchParams = new SearchParams(searchString, isRegex, matchCase, wordSeparators);
+        const searchData = searchParams.parseSearchRequest();
+        if (!searchData) {
+            return [];
+        }
+        const results = [];
+        for (const cell of this._cells) {
+            const searchRange = new Range(1, 1, cell.textBuffer.getLineCount(), cell.textBuffer.getLineMaxColumn(cell.textBuffer.getLineCount()));
+            const matches = cell.textBuffer.findMatchesLineByLine(searchRange, searchData, false, 1000);
+            if (matches.length > 0) {
+                results.push({ cell, matches: matches });
+            }
+        }
+        return results;
+    }
 };
 NotebookTextModel = NotebookTextModel_1 = __decorate([
     __param(5, IUndoRedoService),

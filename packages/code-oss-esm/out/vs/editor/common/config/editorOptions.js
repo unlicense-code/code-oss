@@ -521,7 +521,8 @@ class EditorFind extends BaseEditorOption {
             autoFindInSelection: 'never',
             globalFindClipboard: false,
             addExtraSpaceOnTop: true,
-            loop: true
+            loop: true,
+            findSearchHistory: 'never',
         };
         super(43 /* EditorOption.find */, 'find', defaults, {
             'editor.find.cursorMoveOnType': {
@@ -567,6 +568,16 @@ class EditorFind extends BaseEditorOption {
                 default: defaults.loop,
                 description: nls.localize('find.loop', "Controls whether the search automatically restarts from the beginning (or the end) when no further matches can be found.")
             },
+            'editor.find.findSearchHistory': {
+                type: 'string',
+                enum: ['never', 'workspace'],
+                default: defaults.findSearchHistory,
+                enumDescriptions: [
+                    nls.localize('editor.find.findSearchHistory.never', 'Do not store search history from the find widget.'),
+                    nls.localize('editor.find.findSearchHistory.workspace', 'Store search history across the active workspace'),
+                ],
+                description: nls.localize('find.findSearchHistory', "Controls how the find widget search history should be stored")
+            }
         });
     }
     validate(_input) {
@@ -585,6 +596,7 @@ class EditorFind extends BaseEditorOption {
             globalFindClipboard: boolean(input.globalFindClipboard, this.defaultValue.globalFindClipboard),
             addExtraSpaceOnTop: boolean(input.addExtraSpaceOnTop, this.defaultValue.addExtraSpaceOnTop),
             loop: boolean(input.loop, this.defaultValue.loop),
+            findSearchHistory: stringSet(input.findSearchHistory, this.defaultValue.findSearchHistory, ['never', 'workspace']),
         };
     }
 }

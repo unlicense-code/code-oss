@@ -10,6 +10,7 @@ import { ExtHostChatAgentsShape2, IChatAgentCompletionItem, IChatAgentHistoryEnt
 import { ExtHostCommands } from './extHostCommands.js';
 import { ExtHostDocuments } from './extHostDocuments.js';
 import { ExtHostLanguageModels } from './extHostLanguageModels.js';
+import { IChatRelatedFile, IChatRequestDraft } from '../../contrib/chat/common/chatEditingService.js';
 export declare class ExtHostChatAgents2 extends Disposable implements ExtHostChatAgentsShape2 {
     private readonly _logService;
     private readonly _commands;
@@ -20,6 +21,8 @@ export declare class ExtHostChatAgents2 extends Disposable implements ExtHostCha
     private readonly _proxy;
     private static _participantDetectionProviderIdPool;
     private readonly _participantDetectionProviders;
+    private static _relatedFilesProviderIdPool;
+    private readonly _relatedFilesProviders;
     private readonly _sessionDisposables;
     private readonly _completionDisposables;
     constructor(mainContext: IMainContext, _logService: ILogService, _commands: ExtHostCommands, _documents: ExtHostDocuments, _languageModels: ExtHostLanguageModels);
@@ -27,6 +30,8 @@ export declare class ExtHostChatAgents2 extends Disposable implements ExtHostCha
     createChatAgent(extension: IExtensionDescription, id: string, handler: vscode.ChatExtendedRequestHandler): vscode.ChatParticipant;
     createDynamicChatAgent(extension: IExtensionDescription, id: string, dynamicProps: vscode.DynamicChatParticipantProps, handler: vscode.ChatExtendedRequestHandler): vscode.ChatParticipant;
     registerChatParticipantDetectionProvider(extension: IExtensionDescription, provider: vscode.ChatParticipantDetectionProvider): vscode.Disposable;
+    registerRelatedFilesProvider(extension: IExtensionDescription, provider: vscode.ChatRelatedFilesProvider, metadata: vscode.ChatRelatedFilesProviderMetadata): vscode.Disposable;
+    $provideRelatedFiles(handle: number, request: IChatRequestDraft, token: CancellationToken): Promise<Dto<IChatRelatedFile>[] | undefined>;
     $detectChatParticipant(handle: number, requestDto: Dto<IChatAgentRequest>, context: {
         history: IChatAgentHistoryEntryDto[];
     }, options: {

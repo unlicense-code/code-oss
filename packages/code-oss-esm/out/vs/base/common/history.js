@@ -5,8 +5,8 @@
 import { SetWithKey } from './collections.js';
 import { ArrayNavigator } from './navigator.js';
 export class HistoryNavigator {
-    constructor(history = [], limit = 10) {
-        this._initialize(history);
+    constructor(_history = new Set(), limit = 10) {
+        this._history = _history;
         this._limit = limit;
         this._onChange();
     }
@@ -50,7 +50,7 @@ export class HistoryNavigator {
         return this._history.has(t);
     }
     clear() {
-        this._initialize([]);
+        this._history.clear();
         this._onChange();
     }
     _onChange() {
@@ -61,7 +61,13 @@ export class HistoryNavigator {
     _reduceToLimit() {
         const data = this._elements;
         if (data.length > this._limit) {
-            this._initialize(data.slice(data.length - this._limit));
+            const replaceValue = data.slice(data.length - this._limit);
+            if (this._history.replace) {
+                this._history.replace(replaceValue);
+            }
+            else {
+                this._history = new Set(replaceValue);
+            }
         }
     }
     _currentPosition() {
@@ -70,12 +76,6 @@ export class HistoryNavigator {
             return -1;
         }
         return this._elements.indexOf(currentElement);
-    }
-    _initialize(history) {
-        this._history = new Set();
-        for (const entry of history) {
-            this._history.add(entry);
-        }
     }
     get _elements() {
         const elements = [];

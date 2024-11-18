@@ -27,20 +27,23 @@ import { ExtensionManagementError, ExtensionSignatureVerificationCode, IExtensio
 import { ExtensionKey, groupByExtension } from '../common/extensionManagementUtil.js';
 import { fromExtractError } from './extensionManagementUtil.js';
 import { IExtensionSignatureVerificationService } from './extensionSignatureVerificationService.js';
-import { IFileService } from '../../files/common/files.js';
+import { IFileService, toFileOperationResult } from '../../files/common/files.js';
 import { ILogService } from '../../log/common/log.js';
 import { ITelemetryService } from '../../telemetry/common/telemetry.js';
+import { IUriIdentityService } from '../../uriIdentity/common/uriIdentity.js';
 let ExtensionsDownloader = class ExtensionsDownloader extends Disposable {
     static { ExtensionsDownloader_1 = this; }
     static { this.SignatureArchiveExtension = '.sigzip'; }
-    constructor(environmentService, fileService, extensionGalleryService, extensionSignatureVerificationService, telemetryService, logService) {
+    constructor(environmentService, fileService, extensionGalleryService, extensionSignatureVerificationService, telemetryService, uriIdentityService, logService) {
         super();
         this.fileService = fileService;
         this.extensionGalleryService = extensionGalleryService;
         this.extensionSignatureVerificationService = extensionSignatureVerificationService;
         this.telemetryService = telemetryService;
+        this.uriIdentityService = uriIdentityService;
         this.logService = logService;
         this.extensionsDownloadDir = environmentService.extensionsDownloadLocation;
+        this.extensionsTrashDir = uriIdentityService.extUri.joinPath(environmentService.extensionsDownloadLocation, `.trash`);
         this.cache = 20; // Cache 20 downloaded VSIX files
         this.cleanUpPromise = this.cleanUp();
     }
@@ -120,7 +123,7 @@ let ExtensionsDownloader = class ExtensionsDownloader extends Disposable {
     }
     async downloadSignatureArchive(extension) {
         try {
-            const location = joinPath(this.extensionsDownloadDir, `.${generateUuid()}`);
+            const location = joinPath(this.extensionsDownloadDir, `${this.getName(extension)}${ExtensionsDownloader_1.SignatureArchiveExtension}`);
             const attempts = await this.doDownload(extension, 'sigzip', async () => {
                 await this.extensionGalleryService.downloadSignatureArchive(extension, location);
                 try {
@@ -218,13 +221,27 @@ let ExtensionsDownloader = class ExtensionsDownloader extends Disposable {
     }
     async delete(location) {
         await this.cleanUpPromise;
-        await this.fileService.del(location);
+        const trashRelativePath = this.uriIdentityService.extUri.relativePath(this.extensionsDownloadDir, location);
+        if (trashRelativePath) {
+            await this.fileService.move(location, this.uriIdentityService.extUri.joinPath(this.extensionsTrashDir, trashRelativePath), true);
+        }
+        else {
+            await this.fileService.del(location);
+        }
     }
     async cleanUp() {
         try {
             if (!(await this.fileService.exists(this.extensionsDownloadDir))) {
                 this.logService.trace('Extension VSIX downloads cache dir does not exist');
                 return;
+            }
+            try {
+                await this.fileService.del(this.extensionsTrashDir, { recursive: true });
+            }
+            catch (error) {
+                if (toFileOperationResult(error) !== 1 /* FileOperationResult.FILE_NOT_FOUND */) {
+                    this.logService.error(error);
+                }
             }
             const folderStat = await this.fileService.resolve(this.extensionsDownloadDir, { resolveMetadata: true });
             if (folderStat.children) {
@@ -263,7 +280,7 @@ let ExtensionsDownloader = class ExtensionsDownloader extends Disposable {
         }
     }
     getName(extension) {
-        return this.cache ? ExtensionKey.create(extension).toString().toLowerCase() : generateUuid();
+        return ExtensionKey.create(extension).toString().toLowerCase();
     }
 };
 ExtensionsDownloader = ExtensionsDownloader_1 = __decorate([
@@ -272,6 +289,7 @@ ExtensionsDownloader = ExtensionsDownloader_1 = __decorate([
     __param(2, IExtensionGalleryService),
     __param(3, IExtensionSignatureVerificationService),
     __param(4, ITelemetryService),
-    __param(5, ILogService)
+    __param(5, IUriIdentityService),
+    __param(6, ILogService)
 ], ExtensionsDownloader);
 export { ExtensionsDownloader };

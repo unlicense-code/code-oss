@@ -36,15 +36,10 @@ function _findRange(model, match) {
     };
     return range;
 }
-function _findHexColorInformation(range, hexSchema, hexParameters) {
+function _findHexColorInformation(range, hexValue) {
     if (!range) {
         return;
     }
-    // Even though length 3 and 4 hex values are valid, do not show default color decorators for these lengths
-    if (hexParameters.length !== 6 && hexParameters.length !== 8) {
-        return;
-    }
-    const hexValue = hexSchema + hexParameters;
     const parsedHexColor = Color.Format.CSS.parseHex(hexValue);
     if (!parsedHexColor) {
         return;
@@ -90,7 +85,7 @@ function _findMatches(model, regex) {
 function computeColors(model) {
     const result = [];
     // Early validation for RGB and HSL
-    const initialValidationRegex = /\b(rgb|rgba|hsl|hsla)(\([0-9\s,.\%]*\))|(#)([A-Fa-f0-9]{3})\b|(#)([A-Fa-f0-9]{4})\b|(#)([A-Fa-f0-9]{6})\b|(#)([A-Fa-f0-9]{8})\b/gm;
+    const initialValidationRegex = /\b(rgb|rgba|hsl|hsla)(\([0-9\s,.\%]*\))|\s+(#)([A-Fa-f0-9]{6})\b|\s+(#)([A-Fa-f0-9]{8})\b|^(#)([A-Fa-f0-9]{6})\b|^(#)([A-Fa-f0-9]{8})\b/gm;
     const initialValidationMatches = _findMatches(model, initialValidationRegex);
     // Potential colors have been found, validate the parameters
     if (initialValidationMatches.length > 0) {
@@ -119,7 +114,7 @@ function computeColors(model) {
                 colorInformation = _findHSLColorInformation(_findRange(model, initialMatch), _findMatches(colorParameters, regexParameters), true);
             }
             else if (colorScheme === '#') {
-                colorInformation = _findHexColorInformation(_findRange(model, initialMatch), colorScheme, colorParameters);
+                colorInformation = _findHexColorInformation(_findRange(model, initialMatch), colorScheme + colorParameters);
             }
             if (colorInformation) {
                 result.push(colorInformation);

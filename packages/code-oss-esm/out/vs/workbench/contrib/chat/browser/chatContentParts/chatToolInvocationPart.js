@@ -14,6 +14,7 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 import * as dom from '../../../../../base/browser/dom.js';
 import { Codicon } from '../../../../../base/common/codicons.js';
 import { Emitter } from '../../../../../base/common/event.js';
+import { MarkdownString } from '../../../../../base/common/htmlContent.js';
 import { Disposable, DisposableStore } from '../../../../../base/common/lifecycle.js';
 import { localize } from '../../../../../nls.js';
 import { IInstantiationService } from '../../../../../platform/instantiation/common/instantiation.js';
@@ -67,10 +68,12 @@ let ChatToolInvocationSubPart = class ChatToolInvocationSubPart extends Disposab
             toolInvocation.confirmed.p.then(() => this._onNeedsRerender.fire());
         }
         else {
-            const message = toolInvocation.invocationMessage + '…';
+            const content = typeof toolInvocation.invocationMessage === 'string' ?
+                new MarkdownString().appendText(toolInvocation.invocationMessage + '…') :
+                new MarkdownString(toolInvocation.invocationMessage.value + '…');
             const progressMessage = {
                 kind: 'progressMessage',
-                content: { value: message }
+                content
             };
             const iconOverride = toolInvocation.isConfirmed === false ?
                 Codicon.error :

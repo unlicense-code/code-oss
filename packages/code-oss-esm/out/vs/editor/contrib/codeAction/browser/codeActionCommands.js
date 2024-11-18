@@ -51,8 +51,7 @@ export class QuickFixAction extends EditorAction {
     constructor() {
         super({
             id: quickFixCommandId,
-            label: nls.localize('quickfix.trigger.label', "Quick Fix..."),
-            alias: 'Quick Fix...',
+            label: nls.localize2('quickfix.trigger.label', "Quick Fix..."),
             precondition: ContextKeyExpr.and(EditorContextKeys.writable, EditorContextKeys.hasCodeActionsProvider),
             kbOpts: {
                 kbExpr: EditorContextKeys.textInputFocus,
@@ -98,8 +97,7 @@ export class RefactorAction extends EditorAction {
     constructor() {
         super({
             id: refactorCommandId,
-            label: nls.localize('refactor.label', "Refactor..."),
-            alias: 'Refactor...',
+            label: nls.localize2('refactor.label', "Refactor..."),
             precondition: ContextKeyExpr.and(EditorContextKeys.writable, EditorContextKeys.hasCodeActionsProvider),
             kbOpts: {
                 kbExpr: EditorContextKeys.textInputFocus,
@@ -141,8 +139,7 @@ export class SourceAction extends EditorAction {
     constructor() {
         super({
             id: sourceActionCommandId,
-            label: nls.localize('source.label', "Source Action..."),
-            alias: 'Source Action...',
+            label: nls.localize2('source.label', "Source Action..."),
             precondition: ContextKeyExpr.and(EditorContextKeys.writable, EditorContextKeys.hasCodeActionsProvider),
             contextMenuOpts: {
                 group: '1_modification',
@@ -177,8 +174,7 @@ export class OrganizeImportsAction extends EditorAction {
     constructor() {
         super({
             id: organizeImportsCommandId,
-            label: nls.localize('organizeImports.label', "Organize Imports"),
-            alias: 'Organize Imports',
+            label: nls.localize2('organizeImports.label', "Organize Imports"),
             precondition: ContextKeyExpr.and(EditorContextKeys.writable, contextKeyForSupportedActions(CodeActionKind.SourceOrganizeImports)),
             kbOpts: {
                 kbExpr: EditorContextKeys.textInputFocus,
@@ -198,8 +194,7 @@ export class FixAllAction extends EditorAction {
     constructor() {
         super({
             id: fixAllCommandId,
-            label: nls.localize('fixAll.label', "Fix All"),
-            alias: 'Fix All',
+            label: nls.localize2('fixAll.label', "Fix All"),
             precondition: ContextKeyExpr.and(EditorContextKeys.writable, contextKeyForSupportedActions(CodeActionKind.SourceFixAll))
         });
     }
@@ -211,8 +206,7 @@ export class AutoFixAction extends EditorAction {
     constructor() {
         super({
             id: autoFixCommandId,
-            label: nls.localize('autoFix.label', "Auto Fix..."),
-            alias: 'Auto Fix...',
+            label: nls.localize2('autoFix.label', "Auto Fix..."),
             precondition: ContextKeyExpr.and(EditorContextKeys.writable, contextKeyForSupportedActions(CodeActionKind.QuickFix)),
             kbOpts: {
                 kbExpr: EditorContextKeys.textInputFocus,

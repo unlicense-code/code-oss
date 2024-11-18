@@ -28,6 +28,7 @@ import { getAuthenticationProviderActivationEvent } from '../../services/authent
 import { URI } from '../../../base/common/uri.js';
 import { IOpenerService } from '../../../platform/opener/common/opener.js';
 import { CancellationError } from '../../../base/common/errors.js';
+import { ILogService } from '../../../platform/log/common/log.js';
 export class MainThreadAuthenticationProvider extends Disposable {
     constructor(_proxy, id, label, supportsMultipleAccounts, notificationService, onDidChangeSessionsEmitter) {
         super();
@@ -50,7 +51,7 @@ export class MainThreadAuthenticationProvider extends Disposable {
     }
 }
 let MainThreadAuthentication = class MainThreadAuthentication extends Disposable {
-    constructor(extHostContext, authenticationService, authenticationExtensionsService, authenticationAccessService, authenticationUsageService, dialogService, notificationService, extensionService, telemetryService, openerService) {
+    constructor(extHostContext, authenticationService, authenticationExtensionsService, authenticationAccessService, authenticationUsageService, dialogService, notificationService, extensionService, telemetryService, openerService, logService) {
         super();
         this.authenticationService = authenticationService;
         this.authenticationExtensionsService = authenticationExtensionsService;
@@ -61,7 +62,9 @@ let MainThreadAuthentication = class MainThreadAuthentication extends Disposable
         this.extensionService = extensionService;
         this.telemetryService = telemetryService;
         this.openerService = openerService;
+        this.logService = logService;
         this._registrations = this._register(new DisposableMap());
+        this._sentProviderUsageEvents = new Set();
         this._proxy = extHostContext.getProxy(ExtHostContext.ExtHostAuthentication);
         this._register(this.authenticationService.onDidChangeSessions(e => {
             this._proxy.$onDidChangeAuthenticationSessions(e.providerId, e.label);
@@ -72,6 +75,11 @@ let MainThreadAuthentication = class MainThreadAuthentication extends Disposable
         }));
     }
     async $registerAuthenticationProvider(id, label, supportsMultipleAccounts) {
+        if (!this.authenticationService.declaredProviders.find(p => p.id === id)) {
+            // If telemetry shows that this is not happening much, we can instead throw an error here.
+            this.logService.warn(`Authentication provider ${id} was not declared in the Extension Manifest.`);
+            this.telemetryService.publicLog2('authentication.providerNotDeclared', { id });
+        }
         const emitter = new Emitter();
         this._registrations.set(id, emitter);
         const provider = new MainThreadAuthenticationProvider(this._proxy, id, label, supportsMultipleAccounts, this.notificationService, emitter);
@@ -252,6 +260,11 @@ let MainThreadAuthentication = class MainThreadAuthentication extends Disposable
         return accounts;
     }
     sendProviderUsageTelemetry(extensionId, providerId) {
+        const key = `${extensionId}|${providerId}`;
+        if (this._sentProviderUsageEvents.has(key)) {
+            return;
+        }
+        this._sentProviderUsageEvents.add(key);
         this.telemetryService.publicLog2('authentication.providerUsage', { providerId, extensionId });
     }
     //#region Account Preferences
@@ -295,6 +308,7 @@ MainThreadAuthentication = __decorate([
     __param(6, INotificationService),
     __param(7, IExtensionService),
     __param(8, ITelemetryService),
-    __param(9, IOpenerService)
+    __param(9, IOpenerService),
+    __param(10, ILogService)
 ], MainThreadAuthentication);
 export { MainThreadAuthentication };

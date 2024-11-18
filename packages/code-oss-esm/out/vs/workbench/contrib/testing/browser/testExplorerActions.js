@@ -821,7 +821,12 @@ export class GoToTest extends Action2 {
             id: "testing.editFocusedTest" /* TestCommandId.GoToTest */,
             title: localize2('testing.editFocusedTest', 'Go to Test'),
             icon: Codicon.goToFile,
-            menu: testItemInlineAndInContext(20 /* ActionOrder.GoToTest */, TestingContextKeys.testItemHasUri.isEqualTo(true)),
+            menu: {
+                id: MenuId.TestItem,
+                group: 'builtin@1',
+                order: 20 /* ActionOrder.GoToTest */,
+                when: TestingContextKeys.testItemHasUri.isEqualTo(true),
+            },
             keybinding: {
                 weight: 100 /* KeybindingWeight.EditorContrib */ - 10,
                 when: FocusedViewContext.isEqualTo("workbench.view.testing" /* Testing.ExplorerViewId */),

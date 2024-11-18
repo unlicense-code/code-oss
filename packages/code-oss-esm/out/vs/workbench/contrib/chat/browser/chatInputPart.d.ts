@@ -17,6 +17,7 @@ import { IInstantiationService } from '../../../../platform/instantiation/common
 import { IKeybindingService } from '../../../../platform/keybinding/common/keybinding.js';
 import { ILogService } from '../../../../platform/log/common/log.js';
 import { IOpenerService } from '../../../../platform/opener/common/opener.js';
+import { IThemeService } from '../../../../platform/theme/common/themeService.js';
 import { IEditorService } from '../../../services/editor/common/editorService.js';
 import { ChatAgentLocation } from '../common/chatAgents.js';
 import { IChatEditingService, IChatEditingSession } from '../common/chatEditingService.js';
@@ -61,6 +62,7 @@ export declare class ChatInputPart extends Disposable implements IHistoryNavigat
     private readonly chatEditingService;
     private readonly menuService;
     private readonly languageService;
+    private readonly themeService;
     static readonly INPUT_SCHEME = "chatSessionInput";
     private static _counter;
     private _onDidLoadInputState;
@@ -138,7 +140,7 @@ export declare class ChatInputPart extends Disposable implements IHistoryNavigat
     private _combinedChatEditWorkingSetEntries;
     get chatEditWorkingSetFiles(): URI[];
     private readonly getInputState;
-    constructor(location: ChatAgentLocation, options: IChatInputPartOptions, getContribsInputState: () => any, historyService: IChatWidgetHistoryService, modelService: IModelService, instantiationService: IInstantiationService, contextKeyService: IContextKeyService, contextMenuService: IContextMenuService, configurationService: IConfigurationService, keybindingService: IKeybindingService, accessibilityService: IAccessibilityService, languageModelsService: ILanguageModelsService, logService: ILogService, hoverService: IHoverService, fileService: IFileService, commandService: ICommandService, editorService: IEditorService, openerService: IOpenerService, chatEditingService: IChatEditingService, menuService: IMenuService, languageService: ILanguageService);
+    constructor(location: ChatAgentLocation, options: IChatInputPartOptions, getContribsInputState: () => any, historyService: IChatWidgetHistoryService, modelService: IModelService, instantiationService: IInstantiationService, contextKeyService: IContextKeyService, contextMenuService: IContextMenuService, configurationService: IConfigurationService, keybindingService: IKeybindingService, accessibilityService: IAccessibilityService, languageModelsService: ILanguageModelsService, logService: ILogService, hoverService: IHoverService, fileService: IFileService, commandService: ICommandService, editorService: IEditorService, openerService: IOpenerService, chatEditingService: IChatEditingService, menuService: IMenuService, languageService: ILanguageService, themeService: IThemeService);
     private setCurrentLanguageModelToDefault;
     private setCurrentLanguageModelByUser;
     private loadHistory;
@@ -163,6 +165,7 @@ export declare class ChatInputPart extends Disposable implements IHistoryNavigat
     private _handleAttachedContextChange;
     render(container: HTMLElement, initialValue: string, widget: IChatWidget): void;
     private renderAttachedContext;
+    private openResource;
     private attachButtonAndDisposables;
     private createImageElements;
     renderChatEditingSessionState(chatEditingSession: IChatEditingSession | null, chatWidget?: IChatWidget): Promise<void>;

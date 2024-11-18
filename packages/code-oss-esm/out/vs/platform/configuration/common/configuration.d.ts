@@ -157,6 +157,7 @@ export declare function removeFromValueTree(valueTree: any, key: string): void;
 /**
  * A helper function to get the configuration value with a specific settings path (e.g. config.some.setting)
  */
-export declare function getConfigurationValue<T>(config: any, settingPath: string, defaultValue?: T): T;
+export declare function getConfigurationValue<T>(config: any, settingPath: string): T | undefined;
+export declare function getConfigurationValue<T>(config: any, settingPath: string, defaultValue: T): T;
 export declare function merge(base: any, add: any, overwrite: boolean): void;
 export declare function getLanguageTagSettingPlainKey(settingKey: string): string;

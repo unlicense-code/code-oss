@@ -57,6 +57,7 @@ import { mainWindow } from '../../../../base/browser/window.js';
 import { ACCOUNTS_ACTIVITY_TILE_ACTION, GLOBAL_ACTIVITY_TITLE_ACTION } from './titlebarActions.js';
 import { createInstantHoverDelegate } from '../../../../base/browser/ui/hover/hoverDelegateFactory.js';
 import { CommandsRegistry } from '../../../../platform/commands/common/commands.js';
+import { safeIntl } from '../../../../base/common/date.js';
 let BrowserTitleService = class BrowserTitleService extends MultiWindowParts {
     constructor(instantiationService, storageService, themeService) {
         super('workbench.titleService', themeService, storageService);
@@ -329,7 +330,7 @@ let BrowserTitlebarPart = class BrowserTitlebarPart extends Part {
             if (isMacintosh && isNative) {
                 // Check if the locale is RTL, macOS will move traffic lights in RTL locales
                 // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Intl/Locale/textInfo
-                const localeInfo = new Intl.Locale(platformLocale);
+                const localeInfo = safeIntl.Locale(platformLocale);
                 if (localeInfo?.textInfo?.direction === 'rtl') {
                     primaryWindowControlsLocation = 'right';
                 }
@@ -459,17 +460,17 @@ let BrowserTitlebarPart = class BrowserTitlebarPart extends Part {
                     this.editorActionsChangeDisposable.add(editorActions.onDidChange(() => updateToolBarActions()));
                 }
             }
-            // --- Layout Actions
-            if (this.layoutToolbarMenu) {
-                fillInActionBarActions(this.layoutToolbarMenu.getActions(), actions, () => !this.editorActionsEnabled // Layout Actions in overflow menu when editor actions enabled in title bar
-                );
-            }
             // --- Activity Actions
             if (this.activityActionsEnabled) {
                 if (isAccountsActionVisible(this.storageService)) {
                     actions.primary.push(ACCOUNTS_ACTIVITY_TILE_ACTION);
                 }
                 actions.primary.push(GLOBAL_ACTIVITY_TITLE_ACTION);
+            }
+            // --- Layout Actions
+            if (this.layoutToolbarMenu) {
+                fillInActionBarActions(this.layoutToolbarMenu.getActions(), actions, () => !this.editorActionsEnabled // Layout Actions in overflow menu when editor actions enabled in title bar
+                );
             }
             this.actionToolBar.setActions(prepareActions(actions.primary), prepareActions(actions.secondary));
         };

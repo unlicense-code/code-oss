@@ -21,7 +21,7 @@ import { URI } from '../../../../../base/common/uri.js';
 import { IEditorService } from '../../../../services/editor/common/editorService.js';
 import { FuzzyScore } from '../../../../../base/common/filters.js';
 import { Emitter, Event } from '../../../../../base/common/event.js';
-import { ITreeCompressionDelegate } from '../../../../../base/browser/ui/tree/asyncDataTree.js';
+import { IAsyncFindProvider, IAsyncFindResultMetadata, IAsyncFindToggles, ITreeCompressionDelegate } from '../../../../../base/browser/ui/tree/asyncDataTree.js';
 import { ICompressibleTreeRenderer } from '../../../../../base/browser/ui/tree/objectTree.js';
 import { ICompressedTreeNode } from '../../../../../base/browser/ui/tree/compressedObjectTreeModel.js';
 import { ILabelService } from '../../../../../platform/label/common/label.js';
@@ -29,6 +29,11 @@ import { IUriIdentityService } from '../../../../../platform/uriIdentity/common/
 import { IExplorerService } from '../files.js';
 import { IFilesConfigurationService } from '../../../../services/filesConfiguration/common/filesConfigurationService.js';
 import { IExplorerFileContribution } from '../explorerFileContrib.js';
+import { WorkbenchCompressibleAsyncDataTree } from '../../../../../platform/list/browser/listService.js';
+import { ISearchService } from '../../../../services/search/common/search.js';
+import { CancellationToken } from '../../../../../base/common/cancellation.js';
+import { TreeFindMatchType } from '../../../../../base/browser/ui/tree/abstractTree.js';
+import { IContextKeyService } from '../../../../../platform/contextkey/common/contextkey.js';
 export declare class ExplorerDelegate implements IListVirtualDelegate<ExplorerItem> {
     static readonly ITEM_HEIGHT = 22;
     getHeight(element: ExplorerItem): number;
@@ -36,7 +41,8 @@ export declare class ExplorerDelegate implements IListVirtualDelegate<ExplorerIt
 }
 export declare const explorerRootErrorEmitter: Emitter<URI>;
 export declare class ExplorerDataSource implements IAsyncDataSource<ExplorerItem | ExplorerItem[], ExplorerItem> {
-    private fileFilter;
+    private readonly fileFilter;
+    private readonly findProvider;
     private readonly progressService;
     private readonly configService;
     private readonly notificationService;
@@ -45,10 +51,53 @@ export declare class ExplorerDataSource implements IAsyncDataSource<ExplorerItem
     private readonly explorerService;
     private readonly contextService;
     private readonly filesConfigService;
-    constructor(fileFilter: FilesFilter, progressService: IProgressService, configService: IConfigurationService, notificationService: INotificationService, layoutService: IWorkbenchLayoutService, fileService: IFileService, explorerService: IExplorerService, contextService: IWorkspaceContextService, filesConfigService: IFilesConfigurationService);
+    constructor(fileFilter: FilesFilter, findProvider: ExplorerFindProvider, progressService: IProgressService, configService: IConfigurationService, notificationService: INotificationService, layoutService: IWorkbenchLayoutService, fileService: IFileService, explorerService: IExplorerService, contextService: IWorkspaceContextService, filesConfigService: IFilesConfigurationService);
     getParent(element: ExplorerItem): ExplorerItem;
     hasChildren(element: ExplorerItem | ExplorerItem[]): boolean;
     getChildren(element: ExplorerItem | ExplorerItem[]): ExplorerItem[] | Promise<ExplorerItem[]>;
+}
+export declare class PhantomExplorerItem extends ExplorerItem {
+    constructor(resource: URI, fileService: IFileService, configService: IConfigurationService, filesConfigService: IFilesConfigurationService, _parent: ExplorerItem | undefined, _isDirectory?: boolean);
+}
+interface IExplorerFindHighlightTree {
+    get(item: ExplorerItem): number;
+}
+export declare class ExplorerFindProvider implements IAsyncFindProvider<ExplorerItem> {
+    private readonly treeProvider;
+    private readonly searchService;
+    private readonly fileService;
+    private readonly configurationService;
+    private readonly filesConfigService;
+    private readonly progressService;
+    private readonly explorerService;
+    private sessionId;
+    private filterSessionStartState;
+    private highlightSessionStartState;
+    private explorerFindActiveContextKey;
+    private phantomParents;
+    private findHighlightTree;
+    get highlightTree(): IExplorerFindHighlightTree;
+    constructor(treeProvider: () => WorkbenchCompressibleAsyncDataTree<ExplorerItem | ExplorerItem[], ExplorerItem, FuzzyScore>, searchService: ISearchService, fileService: IFileService, configurationService: IConfigurationService, filesConfigService: IFilesConfigurationService, progressService: IProgressService, explorerService: IExplorerService, contextKeyService: IContextKeyService);
+    isShowingFilterResults(): boolean;
+    isVisible(element: ExplorerItem): boolean;
+    startSession(): void;
+    endSession(): Promise<void>;
+    find(pattern: string, toggles: IAsyncFindToggles, token: CancellationToken): Promise<IAsyncFindResultMetadata>;
+    doFind(pattern: string, toggles: IAsyncFindToggles, token: CancellationToken): Promise<IAsyncFindResultMetadata>;
+    private startFilterSession;
+    doFilterFind(pattern: string, matchType: TreeFindMatchType, token: CancellationToken): Promise<IAsyncFindResultMetadata>;
+    private addWorkspaceFilterResults;
+    private createPhantomItems;
+    endFilterSession(): Promise<void>;
+    private clearPhantomElements;
+    private startHighlightSession;
+    doHighlightFind(pattern: string, matchType: TreeFindMatchType, token: CancellationToken): Promise<IAsyncFindResultMetadata>;
+    private addWorkspaceHighlightResults;
+    private endHighlightSession;
+    private clearHighlights;
+    private searchSupportsScheme;
+    private getSearchResults;
+    private searchInWorkspace;
 }
 export interface ICompressedNavigationController {
     readonly current: ExplorerItem;
@@ -101,6 +150,7 @@ export interface IFileTemplateData {
 }
 export declare class FilesRenderer implements ICompressibleTreeRenderer<ExplorerItem, FuzzyScore, IFileTemplateData>, IListAccessibilityProvider<ExplorerItem>, IDisposable {
     private labels;
+    private highlightTree;
     private updateWidth;
     private readonly contextViewService;
     private readonly themeService;
@@ -116,7 +166,7 @@ export declare class FilesRenderer implements ICompressibleTreeRenderer<Explorer
     private compressedNavigationControllers;
     private _onDidChangeActiveDescendant;
     readonly onDidChangeActiveDescendant: Event<void>;
-    constructor(container: HTMLElement, labels: ResourceLabels, updateWidth: (stat: ExplorerItem) => void, contextViewService: IContextViewService, themeService: IThemeService, configurationService: IConfigurationService, explorerService: IExplorerService, labelService: ILabelService, contextService: IWorkspaceContextService, contextMenuService: IContextMenuService, instantiationService: IInstantiationService);
+    constructor(container: HTMLElement, labels: ResourceLabels, highlightTree: IExplorerFindHighlightTree, updateWidth: (stat: ExplorerItem) => void, contextViewService: IContextViewService, themeService: IThemeService, configurationService: IConfigurationService, explorerService: IExplorerService, labelService: ILabelService, contextService: IWorkspaceContextService, contextMenuService: IContextMenuService, instantiationService: IInstantiationService);
     getWidgetAriaLabel(): string;
     get templateId(): string;
     renderTemplate(container: HTMLElement): IFileTemplateData;
@@ -206,3 +256,4 @@ export declare function isCompressedFolderName(target: HTMLElement | EventTarget
 export declare class ExplorerCompressionDelegate implements ITreeCompressionDelegate<ExplorerItem> {
     isIncompressible(stat: ExplorerItem): boolean;
 }
+export {};

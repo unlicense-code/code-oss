@@ -50,4 +50,5 @@ export declare class CodeApplication extends Disposable {
     private installMutex;
     private resolveShellEnvironment;
     private updateCrashReporterEnablement;
+    private eventuallyAfterWindowOpen;
 }

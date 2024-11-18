@@ -3,6 +3,7 @@ import { IContextViewProvider } from '../contextview/contextview.js';
 import { Widget } from '../widget.js';
 import { IAction } from '../../../common/actions.js';
 import { Event } from '../../../common/event.js';
+import { IHistory } from '../../../common/history.js';
 import './inputBox.css';
 export interface IInputOptions {
     readonly placeholder?: string;
@@ -16,6 +17,7 @@ export interface IInputOptions {
     readonly flexibleMaxHeight?: number;
     readonly actions?: ReadonlyArray<IAction>;
     readonly inputBoxStyles: IInputBoxStyles;
+    readonly history?: IHistory<string>;
 }
 export interface IInputBoxStyles {
     readonly inputBackground: string | undefined;
@@ -121,7 +123,6 @@ export declare class InputBox extends Widget {
     dispose(): void;
 }
 export interface IHistoryInputOptions extends IInputOptions {
-    history: string[];
     readonly showHistoryHint?: () => boolean;
 }
 export declare class HistoryInputBox extends InputBox implements IHistoryNavigationWidget {

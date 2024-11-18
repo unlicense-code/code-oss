@@ -59,6 +59,7 @@ import { TextAreaEditContext } from './controller/editContext/textArea/textAreaE
 import { NativeEditContext } from './controller/editContext/native/nativeEditContext.js';
 import { RulersGpu } from './viewParts/rulersGpu/rulersGpu.js';
 import { EditContext } from './controller/editContext/native/editContextFactory.js';
+import { GpuMarkOverlay } from './viewParts/gpuMark/gpuMark.js';
 let View = class View extends ViewEventHandler {
     constructor(commandDelegate, configuration, colorTheme, model, userInputEvents, overflowWidgetsDomNode, _instantiationService) {
         super();
@@ -119,6 +120,9 @@ let View = class View extends ViewEventHandler {
         marginViewOverlays.addDynamicOverlay(new MarginViewLineDecorationsOverlay(this._context));
         marginViewOverlays.addDynamicOverlay(new LinesDecorationsOverlay(this._context));
         marginViewOverlays.addDynamicOverlay(new LineNumbersOverlay(this._context));
+        if (this._viewGpuContext) {
+            marginViewOverlays.addDynamicOverlay(new GpuMarkOverlay(this._context));
+        }
         // Glyph margin widgets
         this._glyphMarginWidgets = new GlyphMarginWidgets(this._context);
         this._viewParts.push(this._glyphMarginWidgets);
@@ -231,6 +235,7 @@ let View = class View extends ViewEventHandler {
             viewDomNode: this.domNode.domNode,
             linesContentDomNode: this._linesContent.domNode,
             viewLinesDomNode: this._viewLines.getDomNode().domNode,
+            viewLinesGpu: this._viewLinesGpu,
             focusTextArea: () => {
                 this.focus();
             },
@@ -257,10 +262,17 @@ let View = class View extends ViewEventHandler {
             },
             visibleRangeForPosition: (lineNumber, column) => {
                 this._flushAccumulatedAndRenderNow();
-                return this._viewLines.visibleRangeForPosition(new Position(lineNumber, column));
+                const position = new Position(lineNumber, column);
+                return this._viewLines.visibleRangeForPosition(position) ?? this._viewLinesGpu?.visibleRangeForPosition(position) ?? null;
             },
             getLineWidth: (lineNumber) => {
                 this._flushAccumulatedAndRenderNow();
+                if (this._viewLinesGpu) {
+                    const result = this._viewLinesGpu.getLineWidth(lineNumber);
+                    if (result !== undefined) {
+                        return result;
+                    }
+                }
                 return this._viewLines.getLineWidth(lineNumber);
             }
         };

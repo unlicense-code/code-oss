@@ -17,27 +17,27 @@ class TestTelemetryLogger extends AbstractLogger {
         this.setLevel(logLevel);
     }
     trace(message, ...args) {
-        if (this.checkLogLevel(LogLevel.Trace)) {
+        if (this.canLog(LogLevel.Trace)) {
             this.logs.push(message + JSON.stringify(args));
         }
     }
     debug(message, ...args) {
-        if (this.checkLogLevel(LogLevel.Debug)) {
+        if (this.canLog(LogLevel.Debug)) {
             this.logs.push(message);
         }
     }
     info(message, ...args) {
-        if (this.checkLogLevel(LogLevel.Info)) {
+        if (this.canLog(LogLevel.Info)) {
             this.logs.push(message);
         }
     }
     warn(message, ...args) {
-        if (this.checkLogLevel(LogLevel.Warning)) {
+        if (this.canLog(LogLevel.Warning)) {
             this.logs.push(message.toString());
         }
     }
     error(message, ...args) {
-        if (this.checkLogLevel(LogLevel.Error)) {
+        if (this.canLog(LogLevel.Error)) {
             this.logs.push(message);
         }
     }

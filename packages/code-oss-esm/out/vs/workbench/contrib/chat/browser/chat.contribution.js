@@ -86,6 +86,7 @@ import { ILanguageModelIgnoredFilesService, LanguageModelIgnoredFilesService } f
 import { ChatGettingStartedContribution } from './actions/chatGettingStarted.js';
 import { Extensions } from '../../../common/configuration.js';
 import { ChatEditorOverlayController } from './chatEditorOverlay.js';
+import { ChatRelatedFilesContribution } from './contrib/chatInputRelatedFilesContrib.js';
 // Register configuration
 const configurationRegistry = Registry.as(ConfigurationExtensions.Configuration);
 configurationRegistry.registerConfiguration({
@@ -294,8 +295,9 @@ registerWorkbenchContribution2(ChatSlashStaticSlashCommandsContribution.ID, Chat
 registerWorkbenchContribution2(ChatExtensionPointHandler.ID, ChatExtensionPointHandler, 1 /* WorkbenchPhase.BlockStartup */);
 registerWorkbenchContribution2(LanguageModelToolsExtensionPointHandler.ID, LanguageModelToolsExtensionPointHandler, 2 /* WorkbenchPhase.BlockRestore */);
 registerWorkbenchContribution2(ChatCompatibilityNotifier.ID, ChatCompatibilityNotifier, 4 /* WorkbenchPhase.Eventually */);
-registerWorkbenchContribution2(ChatCommandCenterRendering.ID, ChatCommandCenterRendering, 3 /* WorkbenchPhase.AfterRestored */);
+registerWorkbenchContribution2(ChatCommandCenterRendering.ID, ChatCommandCenterRendering, 2 /* WorkbenchPhase.BlockRestore */);
 registerWorkbenchContribution2(ChatImplicitContextContribution.ID, ChatImplicitContextContribution, 4 /* WorkbenchPhase.Eventually */);
+registerWorkbenchContribution2(ChatRelatedFilesContribution.ID, ChatRelatedFilesContribution, 4 /* WorkbenchPhase.Eventually */);
 registerWorkbenchContribution2(ChatEditorSaving.ID, ChatEditorSaving, 3 /* WorkbenchPhase.AfterRestored */);
 registerWorkbenchContribution2(ChatViewsWelcomeHandler.ID, ChatViewsWelcomeHandler, 1 /* WorkbenchPhase.BlockStartup */);
 registerWorkbenchContribution2(ChatGettingStartedContribution.ID, ChatGettingStartedContribution, 4 /* WorkbenchPhase.Eventually */);

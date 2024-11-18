@@ -5,8 +5,8 @@
 import { mock } from '../../../../../../base/test/common/mock.js';
 import assert from 'assert';
 import { VSBuffer } from '../../../../../../base/common/buffer.js';
-import { copyCellOutput } from '../../../browser/contrib/clipboard/cellOutputClipboard.js';
 import { ensureNoDisposablesAreLeakedInTestSuite } from '../../../../../../base/test/common/utils.js';
+import { copyCellOutput } from '../../../browser/viewModel/cellOutputTextHelper.js';
 suite('Cell Output Clipboard Tests', () => {
     ensureNoDisposablesAreLeakedInTestSuite();
     class ClipboardService {
@@ -93,5 +93,19 @@ suite('Cell Output Clipboard Tests', () => {
         createOutputViewModel([{ data: VSBuffer.fromString('non-adjacent'), mime: 'application/vnd.code.notebook.stdout' }], output.cellViewModel);
         await copyCellOutput('application/vnd.code.notebook.stdout', output, clipboard, logService);
         assert.strictEqual(clipboard.clipboardContent, 'stdoutstderr');
+    });
+    test('error output uses the value in the stack', async () => {
+        const clipboard = new ClipboardService();
+        const data = VSBuffer.fromString(`{"name":"Error Name","message":"error message","stack":"error stack"}`);
+        const output = createOutputViewModel([{ data, mime: 'application/vnd.code.notebook.error' }]);
+        await copyCellOutput('application/vnd.code.notebook.error', output, clipboard, logService);
+        assert.strictEqual(clipboard.clipboardContent, 'error stack');
+    });
+    test('error without stack uses the name and message', async () => {
+        const clipboard = new ClipboardService();
+        const data = VSBuffer.fromString(`{"name":"Error Name","message":"error message"}`);
+        const output = createOutputViewModel([{ data, mime: 'application/vnd.code.notebook.error' }]);
+        await copyCellOutput('application/vnd.code.notebook.error', output, clipboard, logService);
+        assert.strictEqual(clipboard.clipboardContent, 'Error Name: error message');
     });
 });

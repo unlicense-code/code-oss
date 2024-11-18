@@ -13,10 +13,7 @@ export class MockChatWidgetService {
     getWidgetBySessionId(sessionId) {
         return undefined;
     }
-    getWidgetByLocation(location) {
-        return [];
-    }
-    getAllWidgets(location) {
+    getWidgetsByLocations(location) {
         return [];
     }
 }

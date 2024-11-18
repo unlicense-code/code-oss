@@ -1,8 +1,7 @@
-/*---------------------------------------------------------------------------------------------
- *  Copyright (c) Microsoft Corporation. All rights reserved.
- *  Licensed under the MIT License. See License.txt in the project root for license information.
- *--------------------------------------------------------------------------------------------*/
 import { FileAccess } from '../common/network.js';
+function asFragment(raw) {
+    return raw;
+}
 export function asCssValueWithDefault(cssPropertyValue, dflt) {
     if (cssPropertyValue !== undefined) {
         const variableMatch = cssPropertyValue.match(/^\s*var\((.+)\)$/);
@@ -17,15 +16,65 @@ export function asCssValueWithDefault(cssPropertyValue, dflt) {
     }
     return dflt;
 }
-export function asCSSPropertyValue(value) {
-    return `'${value.replace(/'/g, '%27')}'`;
+export function sizeValue(value) {
+    const out = value.replaceAll(/[^\w.%+-]/gi, '');
+    if (out !== value) {
+        console.warn(`CSS size ${value} modified to ${out} to be safe for CSS`);
+    }
+    return asFragment(out);
+}
+export function hexColorValue(value) {
+    const out = value.replaceAll(/[^[0-9a-fA-F#]]/gi, '');
+    if (out !== value) {
+        console.warn(`CSS hex color ${value} modified to ${out} to be safe for CSS`);
+    }
+    return asFragment(out);
+}
+export function identValue(value) {
+    const out = value.replaceAll(/[^_\-a-z0-9]/gi, '');
+    if (out !== value) {
+        console.warn(`CSS ident value ${value} modified to ${out} to be safe for CSS`);
+    }
+    return asFragment(out);
+}
+export function stringValue(value) {
+    return asFragment(`'${value.replaceAll(/'/g, '\\000027')}'`);
 }
 /**
  * returns url('...')
  */
 export function asCSSUrl(uri) {
     if (!uri) {
-        return `url('')`;
+        return asFragment(`url('')`);
     }
-    return `url('${FileAccess.uriToBrowserUri(uri).toString(true).replace(/'/g, '%27')}')`;
+    return inline `url(${stringValue(FileAccess.uriToBrowserUri(uri).toString(true))})`;
+}
+export function className(value) {
+    const out = CSS.escape(value);
+    if (out !== value) {
+        console.warn(`CSS class name ${value} modified to ${out} to be safe for CSS`);
+    }
+    return asFragment(out);
+}
+/**
+ * Template string tag that that constructs a CSS fragment.
+ *
+ * All expressions in the template must be css safe values.
+ */
+export function inline(strings, ...values) {
+    return asFragment(strings.reduce((result, str, i) => {
+        const value = values[i] || '';
+        return result + str + value;
+    }, ''));
+}
+export class Builder {
+    constructor() {
+        this._parts = [];
+    }
+    push(...parts) {
+        this._parts.push(...parts);
+    }
+    join(joiner = '\n') {
+        return asFragment(this._parts.join(joiner));
+    }
 }

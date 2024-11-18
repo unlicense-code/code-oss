@@ -30,7 +30,7 @@ export class TextureAtlasSlabAllocator {
         this._ctx = ensureNonNullable(this._canvas.getContext('2d', {
             willReadFrequently: true
         }));
-        this._slabW = Math.min(options?.slabW ?? (64 << (Math.floor(getActiveWindow().devicePixelRatio) - 1)), this._canvas.width);
+        this._slabW = Math.min(options?.slabW ?? (64 << Math.max(Math.floor(getActiveWindow().devicePixelRatio) - 1, 0)), this._canvas.width);
         this._slabH = Math.min(options?.slabH ?? this._slabW, this._canvas.height);
         this._slabsPerRow = Math.floor(this._canvas.width / this._slabW);
         this._slabsPerColumn = Math.floor(this._canvas.height / this._slabH);

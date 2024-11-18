@@ -264,6 +264,7 @@ class ChatAgentResponseStream {
 export class ExtHostChatAgents2 extends Disposable {
     static { this._idPool = 0; }
     static { this._participantDetectionProviderIdPool = 0; }
+    static { this._relatedFilesProviderIdPool = 0; }
     constructor(mainContext, _logService, _commands, _documents, _languageModels) {
         super();
         this._logService = _logService;
@@ -272,6 +273,7 @@ export class ExtHostChatAgents2 extends Disposable {
         this._languageModels = _languageModels;
         this._agents = new Map();
         this._participantDetectionProviders = new Map();
+        this._relatedFilesProviders = new Map();
         this._sessionDisposables = this._register(new DisposableMap());
         this._completionDisposables = this._register(new DisposableMap());
         this._proxy = mainContext.getProxy(MainContext.MainThreadChatAgents2);
@@ -310,6 +312,23 @@ export class ExtHostChatAgents2 extends Disposable {
             this._participantDetectionProviders.delete(handle);
             this._proxy.$unregisterChatParticipantDetectionProvider(handle);
         });
+    }
+    registerRelatedFilesProvider(extension, provider, metadata) {
+        const handle = ExtHostChatAgents2._relatedFilesProviderIdPool++;
+        this._relatedFilesProviders.set(handle, new ExtHostRelatedFilesProvider(extension, provider));
+        this._proxy.$registerRelatedFilesProvider(handle, metadata);
+        return toDisposable(() => {
+            this._relatedFilesProviders.delete(handle);
+            this._proxy.$unregisterRelatedFilesProvider(handle);
+        });
+    }
+    async $provideRelatedFiles(handle, request, token) {
+        const provider = this._relatedFilesProviders.get(handle);
+        if (!provider) {
+            return Promise.resolve([]);
+        }
+        const extRequestDraft = typeConvert.ChatRequestDraft.to(request);
+        return await provider.provider.provideRelatedFiles(extRequestDraft, token) ?? undefined;
     }
     async $detectChatParticipant(handle, requestDto, context, options, token) {
         const { request, location, history } = await this._createRequest(requestDto, context);
@@ -529,6 +548,12 @@ export class ExtHostChatAgents2 extends Disposable {
     }
 }
 class ExtHostParticipantDetector {
+    constructor(extension, provider) {
+        this.extension = extension;
+        this.provider = provider;
+    }
+}
+class ExtHostRelatedFilesProvider {
     constructor(extension, provider) {
         this.extension = extension;
         this.provider = provider;

@@ -14,7 +14,13 @@ export var WorkingSetEntryState;
     WorkingSetEntryState[WorkingSetEntryState["Transient"] = 3] = "Transient";
     WorkingSetEntryState[WorkingSetEntryState["Attached"] = 4] = "Attached";
     WorkingSetEntryState[WorkingSetEntryState["Sent"] = 5] = "Sent";
+    WorkingSetEntryState[WorkingSetEntryState["Suggested"] = 6] = "Suggested";
 })(WorkingSetEntryState || (WorkingSetEntryState = {}));
+export var ChatEditingSessionChangeType;
+(function (ChatEditingSessionChangeType) {
+    ChatEditingSessionChangeType[ChatEditingSessionChangeType["WorkingSet"] = 0] = "WorkingSet";
+    ChatEditingSessionChangeType[ChatEditingSessionChangeType["Other"] = 1] = "Other";
+})(ChatEditingSessionChangeType || (ChatEditingSessionChangeType = {}));
 export var ChatEditingSessionState;
 (function (ChatEditingSessionState) {
     ChatEditingSessionState[ChatEditingSessionState["Initial"] = 0] = "Initial";

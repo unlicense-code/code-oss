@@ -9,12 +9,16 @@ import { IFilesConfigurationService } from '../../../services/filesConfiguration
 import { ITextFileService } from '../../../services/textfile/common/textfiles.js';
 import { IChatAgentService } from '../common/chatAgents.js';
 import { IChatEditingService } from '../common/chatEditingService.js';
+import { IChatService } from '../common/chatService.js';
 export declare class ChatEditorSaving extends Disposable implements IWorkbenchContribution {
+    private readonly _chatService;
     private readonly _fileConfigService;
     static readonly ID: string;
     static readonly _config = "chat.editing.alwaysSaveWithGeneratedChanges";
     private readonly _sessionStore;
-    constructor(configService: IConfigurationService, chatEditingService: IChatEditingService, chatAgentService: IChatAgentService, textFileService: ITextFileService, labelService: ILabelService, dialogService: IDialogService, _fileConfigService: IFilesConfigurationService);
+    constructor(configService: IConfigurationService, chatEditingService: IChatEditingService, chatAgentService: IChatAgentService, textFileService: ITextFileService, labelService: ILabelService, dialogService: IDialogService, _chatService: IChatService, _fileConfigService: IFilesConfigurationService);
+    private _reportSaved;
+    private _reportSavedWhenReady;
     private _handleNewEditingSession;
 }
 export declare class ChatEditingSaveAllAction extends Action2 {

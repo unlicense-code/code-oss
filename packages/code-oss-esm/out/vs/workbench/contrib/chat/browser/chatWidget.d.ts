@@ -197,9 +197,8 @@ export declare class ChatWidgetService extends Disposable implements IChatWidget
     private readonly _onDidAddWidget;
     readonly onDidAddWidget: Event<IChatWidget>;
     get lastFocusedWidget(): IChatWidget | undefined;
-    getAllWidgets(location: ChatAgentLocation): ReadonlyArray<IChatWidget>;
+    getWidgetsByLocations(location: ChatAgentLocation): ReadonlyArray<IChatWidget>;
     getWidgetByInputUri(uri: URI): ChatWidget | undefined;
-    getWidgetByLocation(location: ChatAgentLocation): ChatWidget[];
     getWidgetBySessionId(sessionId: string): ChatWidget | undefined;
     private setLastFocusedWidget;
     register(newWidget: ChatWidget): IDisposable;

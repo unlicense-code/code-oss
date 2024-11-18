@@ -101,7 +101,11 @@ export class ExtHostLanguageModelTools {
                 title: result.confirmationMessages.title,
                 message: typeof result.confirmationMessages.message === 'string' ? result.confirmationMessages.message : typeConvert.MarkdownString.from(result.confirmationMessages.message),
             } : undefined,
-            invocationMessage: result.invocationMessage
+            invocationMessage: typeof result.invocationMessage === 'string' ?
+                result.invocationMessage :
+                (result.invocationMessage ?
+                    typeConvert.MarkdownString.from(result.invocationMessage) :
+                    undefined),
         };
     }
     registerTool(extension, id, tool) {

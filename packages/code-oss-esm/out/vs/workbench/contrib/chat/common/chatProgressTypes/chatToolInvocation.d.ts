@@ -1,8 +1,9 @@
 import { DeferredPromise } from '../../../../../base/common/async.js';
+import { IMarkdownString } from '../../../../../base/common/htmlContent.js';
 import { IChatToolInvocation, IChatToolInvocationSerialized } from '../chatService.js';
 import { IToolConfirmationMessages } from '../languageModelToolsService.js';
 export declare class ChatToolInvocation implements IChatToolInvocation {
-    readonly invocationMessage: string;
+    readonly invocationMessage: string | IMarkdownString;
     private _confirmationMessages;
     readonly kind: 'toolInvocation';
     private _isComplete;
@@ -15,7 +16,7 @@ export declare class ChatToolInvocation implements IChatToolInvocation {
     get confirmed(): DeferredPromise<boolean>;
     private _isConfirmed;
     get isConfirmed(): boolean | undefined;
-    constructor(invocationMessage: string, _confirmationMessages: IToolConfirmationMessages | undefined);
+    constructor(invocationMessage: string | IMarkdownString, _confirmationMessages: IToolConfirmationMessages | undefined);
     get confirmationMessages(): IToolConfirmationMessages | undefined;
     toJSON(): IChatToolInvocationSerialized;
 }

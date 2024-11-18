@@ -125,10 +125,11 @@ let FilterWidget = class FilterWidget extends Widget {
         }
     }
     createInput(container) {
+        const history = this.options.history || [];
         const inputBox = this._register(this.instantiationService.createInstance(ContextScopedHistoryInputBox, container, this.contextViewService, {
             placeholder: this.options.placeholder,
             ariaLabel: this.options.ariaLabel,
-            history: this.options.history || [],
+            history: new Set(history),
             showHistoryHint: () => showHistoryKeybindingHint(this.keybindingService),
             inputBoxStyles: defaultInputBoxStyles
         }));

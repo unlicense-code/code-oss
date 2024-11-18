@@ -42,7 +42,6 @@ export class FindInput extends Widget {
         const appendCaseSensitiveLabel = options.appendCaseSensitiveLabel || '';
         const appendWholeWordsLabel = options.appendWholeWordsLabel || '';
         const appendRegexLabel = options.appendRegexLabel || '';
-        const history = options.history || [];
         const flexibleHeight = !!options.flexibleHeight;
         const flexibleWidth = !!options.flexibleWidth;
         const flexibleMaxHeight = options.flexibleMaxHeight;
@@ -54,12 +53,12 @@ export class FindInput extends Widget {
             validationOptions: {
                 validation: this.validation
             },
-            history,
             showHistoryHint: options.showHistoryHint,
             flexibleHeight,
             flexibleWidth,
             flexibleMaxHeight,
             inputBoxStyles: options.inputBoxStyles,
+            history: options.history
         }));
         const hoverDelegate = this._register(createInstantHoverDelegate());
         if (this.showCommonFindToggles) {

@@ -18,6 +18,7 @@ import { INotebookEditorService } from '../../notebook/browser/services/notebook
 import { IEditorService } from '../../../services/editor/common/editorService.js';
 import { IInlineChatSavingService } from './inlineChatSavingService.js';
 import { IInlineChatSessionService } from './inlineChatSessionService.js';
+import { IStorageService } from '../../../../platform/storage/common/storage.js';
 export declare const enum State {
     CREATE_SESSION = "CREATE_SESSION",
     INIT_UI = "INIT_UI",
@@ -50,11 +51,12 @@ export declare class InlineChatController implements IEditorContribution {
     private readonly _dialogService;
     private readonly _chatService;
     private readonly _editorService;
+    private readonly _storageService;
     static get(editor: ICodeEditor): InlineChatController | null;
+    private static readonly _storageKey;
     private _isDisposed;
     private readonly _store;
     private readonly _ui;
-    private _uiInitViewState;
     private readonly _ctxVisible;
     private readonly _ctxEditing;
     private readonly _ctxResponseType;
@@ -71,10 +73,8 @@ export declare class InlineChatController implements IEditorContribution {
     private readonly _stashedSession;
     private _session?;
     private _strategy?;
-    constructor(_editor: ICodeEditor, _instaService: IInstantiationService, _inlineChatSessionService: IInlineChatSessionService, _inlineChatSavingService: IInlineChatSavingService, _editorWorkerService: IEditorWorkerService, _logService: ILogService, _configurationService: IConfigurationService, _dialogService: IDialogService, contextKeyService: IContextKeyService, _chatService: IChatService, _editorService: IEditorService, notebookEditorService: INotebookEditorService);
+    constructor(_editor: ICodeEditor, _instaService: IInstantiationService, _inlineChatSessionService: IInlineChatSessionService, _inlineChatSavingService: IInlineChatSavingService, _editorWorkerService: IEditorWorkerService, _logService: ILogService, _configurationService: IConfigurationService, _dialogService: IDialogService, contextKeyService: IContextKeyService, _chatService: IChatService, _editorService: IEditorService, _storageService: IStorageService, notebookEditorService: INotebookEditorService);
     dispose(): void;
-    saveViewState(): any;
-    restoreViewState(state: any): void;
     private _log;
     getMessage(): string | undefined;
     getId(): string;
@@ -92,13 +92,11 @@ export declare class InlineChatController implements IEditorContribution {
     private [State.CANCEL];
     private _showWidget;
     private _resetWidget;
+    private _retrieveWidgetState;
     private _updateCtxResponseType;
     private _createChatTextEditGroupState;
     private _makeChanges;
-    private _forcedPlaceholder;
     private _updatePlaceholder;
-    private _getPlaceholderText;
-    showSaveHint(): void;
     acceptInput(): Promise<import("../../chat/common/chatModel.js").IChatResponseModel | undefined>;
     updateInput(text: string, selectAll?: boolean): void;
     cancelCurrentRequest(): void;

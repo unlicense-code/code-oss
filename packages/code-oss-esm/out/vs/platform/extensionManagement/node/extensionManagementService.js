@@ -277,6 +277,15 @@ let ExtensionManagementService = class ExtensionManagementService extends Abstra
                     : options.installPreReleaseVersion || gallery.properties.isPreReleaseVersion,
                 source: 'gallery',
             }, false, token);
+            if (verificationStatus !== ExtensionSignatureVerificationCode.Success && this.environmentService.isBuilt) {
+                try {
+                    await this.extensionsDownloader.delete(location);
+                }
+                catch (e) {
+                    /* Ignore */
+                    this.logService.warn(`Error while deleting the downloaded file`, location.toString(), getErrorMessage(e));
+                }
+            }
             return { local, verificationStatus };
         }
         catch (error) {
@@ -297,6 +306,13 @@ let ExtensionManagementService = class ExtensionManagementService extends Abstra
         }
         const { location, verificationStatus } = await this.extensionsDownloader.download(extension, operation, verifySignature, clientTargetPlatform);
         if (verificationStatus !== ExtensionSignatureVerificationCode.Success && verifySignature && this.environmentService.isBuilt && !isLinux) {
+            try {
+                await this.extensionsDownloader.delete(location);
+            }
+            catch (e) {
+                /* Ignore */
+                this.logService.warn(`Error while deleting the downloaded file`, location.toString(), getErrorMessage(e));
+            }
             if (!extension.isSigned) {
                 throw new ExtensionManagementError(nls.localize('not signed', "Extension is not signed."), "PackageNotSigned" /* ExtensionManagementErrorCode.PackageNotSigned */);
             }
@@ -328,7 +344,7 @@ let ExtensionManagementService = class ExtensionManagementService extends Abstra
             installedTimestamp: Date.now(),
             pinned: options.installGivenVersion ? true : !!options.pinned,
             source: 'vsix',
-        }, options.keepExisting ?? true, token);
+        }, isBoolean(options.keepExisting) ? !options.keepExisting : true, token);
         return { local };
     }
     async collectFiles(extension) {

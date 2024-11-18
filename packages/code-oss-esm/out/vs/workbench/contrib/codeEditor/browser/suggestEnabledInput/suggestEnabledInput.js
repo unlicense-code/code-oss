@@ -224,7 +224,7 @@ export { SuggestEnabledInput };
 let SuggestEnabledInputWithHistory = class SuggestEnabledInputWithHistory extends SuggestEnabledInput {
     constructor({ id, parent, ariaLabel, suggestionProvider, resourceHandle, suggestOptions, history }, instantiationService, modelService, contextKeyService, languageFeaturesService, configurationService) {
         super(id, parent, suggestionProvider, ariaLabel, resourceHandle, suggestOptions, instantiationService, modelService, contextKeyService, languageFeaturesService, configurationService);
-        this.history = new HistoryNavigator(history, 100);
+        this.history = new HistoryNavigator(new Set(history), 100);
     }
     addToHistory() {
         const value = this.getValue();

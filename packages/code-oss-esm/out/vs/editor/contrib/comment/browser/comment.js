@@ -56,8 +56,7 @@ class ToggleCommentLineAction extends CommentLineAction {
     constructor() {
         super(0 /* Type.Toggle */, {
             id: 'editor.action.commentLine',
-            label: nls.localize('comment.line', "Toggle Line Comment"),
-            alias: 'Toggle Line Comment',
+            label: nls.localize2('comment.line', "Toggle Line Comment"),
             precondition: EditorContextKeys.writable,
             kbOpts: {
                 kbExpr: EditorContextKeys.editorTextFocus,
@@ -77,8 +76,7 @@ class AddLineCommentAction extends CommentLineAction {
     constructor() {
         super(1 /* Type.ForceAdd */, {
             id: 'editor.action.addCommentLine',
-            label: nls.localize('comment.line.add', "Add Line Comment"),
-            alias: 'Add Line Comment',
+            label: nls.localize2('comment.line.add', "Add Line Comment"),
             precondition: EditorContextKeys.writable,
             kbOpts: {
                 kbExpr: EditorContextKeys.editorTextFocus,
@@ -92,8 +90,7 @@ class RemoveLineCommentAction extends CommentLineAction {
     constructor() {
         super(2 /* Type.ForceRemove */, {
             id: 'editor.action.removeCommentLine',
-            label: nls.localize('comment.line.remove', "Remove Line Comment"),
-            alias: 'Remove Line Comment',
+            label: nls.localize2('comment.line.remove', "Remove Line Comment"),
             precondition: EditorContextKeys.writable,
             kbOpts: {
                 kbExpr: EditorContextKeys.editorTextFocus,
@@ -107,8 +104,7 @@ class BlockCommentAction extends EditorAction {
     constructor() {
         super({
             id: 'editor.action.blockComment',
-            label: nls.localize('comment.block', "Toggle Block Comment"),
-            alias: 'Toggle Block Comment',
+            label: nls.localize2('comment.block', "Toggle Block Comment"),
             precondition: EditorContextKeys.writable,
             kbOpts: {
                 kbExpr: EditorContextKeys.editorTextFocus,

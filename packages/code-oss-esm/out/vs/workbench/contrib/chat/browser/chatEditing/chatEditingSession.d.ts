@@ -16,7 +16,7 @@ import { IEditorGroupsService } from '../../../../services/editor/common/editorG
 import { IEditorService } from '../../../../services/editor/common/editorService.js';
 import { MultiDiffEditor } from '../../../multiDiffEditor/browser/multiDiffEditor.js';
 import { IChatAgentService } from '../../common/chatAgents.js';
-import { ChatEditingSessionState, IChatEditingSession, WorkingSetEntryState } from '../../common/chatEditingService.js';
+import { ChatEditingSessionChangeType, ChatEditingSessionState, IChatEditingSession, WorkingSetDisplayMetadata, WorkingSetEntryState } from '../../common/chatEditingService.js';
 import { IChatResponseModel } from '../../common/chatModel.js';
 import { IChatWidgetService } from '../chat.js';
 import { ChatEditingModifiedFileEntry, ISnapshotEntry } from './chatEditingModifiedFileEntry.js';
@@ -48,14 +48,14 @@ export declare class ChatEditingSession extends Disposable implements IChatEditi
     get entries(): IObservable<readonly ChatEditingModifiedFileEntry[]>;
     private readonly _sequencer;
     private _workingSet;
-    get workingSet(): ResourceMap<WorkingSetEntryState>;
+    get workingSet(): ResourceMap<WorkingSetDisplayMetadata>;
     private _removedTransientEntries;
     get state(): IObservable<ChatEditingSessionState>;
     readonly canUndo: IObservable<boolean, unknown>;
     readonly canRedo: IObservable<boolean, unknown>;
     hiddenRequestIds: IObservable<string[], unknown>;
     private readonly _onDidChange;
-    get onDidChange(): import("../../../../../base/common/event.js").Event<void>;
+    get onDidChange(): import("../../../../../base/common/event.js").Event<ChatEditingSessionChangeType>;
     private readonly _onDidDispose;
     get onDidDispose(): import("../../../../../base/common/event.js").Event<void>;
     get isVisible(): boolean;
@@ -82,7 +82,7 @@ export declare class ChatEditingSession extends Disposable implements IChatEditi
     acceptStreamingEditsStart(): void;
     acceptTextEdits(resource: URI, textEdits: TextEdit[], isLastEdits: boolean, responseModel: IChatResponseModel): void;
     resolve(): void;
-    addFileToWorkingSet(resource: URI): void;
+    addFileToWorkingSet(resource: URI, description?: string, proposedState?: WorkingSetEntryState.Suggested): void;
     undoInteraction(): Promise<void>;
     redoInteraction(): Promise<void>;
     private _acceptStreamingEditsStart;
@@ -94,6 +94,6 @@ export declare class ChatEditingSession extends Disposable implements IChatEditi
 }
 export interface IChatEditingSessionSnapshot {
     requestId: string | undefined;
-    workingSet: ResourceMap<WorkingSetEntryState>;
+    workingSet: ResourceMap<WorkingSetDisplayMetadata>;
     entries: ResourceMap<ISnapshotEntry>;
 }

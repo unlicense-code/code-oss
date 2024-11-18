@@ -12,16 +12,7 @@ export declare class ChatAttachmentModel extends Disposable {
     clear(): void;
     delete(variableEntryId: string): void;
     addFile(uri: URI, range?: IRange): void;
-    asVariableEntry(uri: URI, range?: IRange): {
-        value: URI | {
-            uri: URI;
-            range: IRange;
-        };
-        id: string;
-        name: string;
-        isFile: boolean;
-        isDynamic: boolean;
-    };
+    asVariableEntry(uri: URI, range?: IRange): IChatRequestVariableEntry;
     addContext(...attachments: IChatRequestVariableEntry[]): void;
     clearAndSetContext(...attachments: IChatRequestVariableEntry[]): void;
 }

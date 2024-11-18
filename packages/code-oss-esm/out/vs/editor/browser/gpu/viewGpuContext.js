@@ -25,6 +25,11 @@ import { INotificationService, Severity } from '../../../platform/notification/c
 import { GPULifecycle } from './gpuDisposable.js';
 import { ensureNonNullable, observeDevicePixelDimensions } from './gpuUtils.js';
 import { RectangleRenderer } from './rectangleRenderer.js';
+var GpuRenderLimits;
+(function (GpuRenderLimits) {
+    GpuRenderLimits[GpuRenderLimits["maxGpuLines"] = 3000] = "maxGpuLines";
+    GpuRenderLimits[GpuRenderLimits["maxGpuCols"] = 200] = "maxGpuCols";
+})(GpuRenderLimits || (GpuRenderLimits = {}));
 let ViewGpuContext = class ViewGpuContext extends Disposable {
     static { ViewGpuContext_1 = this; }
     /**
@@ -52,6 +57,16 @@ let ViewGpuContext = class ViewGpuContext extends Disposable {
         this._instantiationService = _instantiationService;
         this._notificationService = _notificationService;
         this.configurationService = configurationService;
+        /**
+         * The temporary hard cap for lines rendered by the GPU renderer. This can be removed once more
+         * dynamic allocation is implemented in https://github.com/microsoft/vscode/issues/227091
+         */
+        this.maxGpuLines = 3000 /* GpuRenderLimits.maxGpuLines */;
+        /**
+         * The temporary hard cap for line columns rendered by the GPU renderer. This can be removed
+         * once more dynamic allocation is implemented in https://github.com/microsoft/vscode/issues/227108
+         */
+        this.maxGpuCols = 200 /* GpuRenderLimits.maxGpuCols */;
         this.canvas = createFastDomNode(document.createElement('canvas'));
         this.canvas.setClassName('editorCanvas');
         this.ctx = ensureNonNullable(this.canvas.domNode.getContext('webgpu'));
@@ -90,12 +105,36 @@ let ViewGpuContext = class ViewGpuContext extends Disposable {
     static canRender(options, viewportData, lineNumber) {
         const data = viewportData.getViewLineRenderingData(lineNumber);
         if (data.containsRTL ||
-            data.maxColumn > 200 ||
+            data.maxColumn > 200 /* GpuRenderLimits.maxGpuCols */ ||
             data.continuesWithWrappedLine ||
-            data.inlineDecorations.length > 0) {
+            data.inlineDecorations.length > 0 ||
+            lineNumber >= 3000 /* GpuRenderLimits.maxGpuLines */) {
             return false;
         }
         return true;
+    }
+    /**
+     * Like {@link canRender} but returned detailed information about why the line cannot be rendered.
+     */
+    static canRenderDetailed(options, viewportData, lineNumber) {
+        const data = viewportData.getViewLineRenderingData(lineNumber);
+        const reasons = [];
+        if (data.containsRTL) {
+            reasons.push('containsRTL');
+        }
+        if (data.maxColumn > 200 /* GpuRenderLimits.maxGpuCols */) {
+            reasons.push('maxColumn > maxGpuCols');
+        }
+        if (data.continuesWithWrappedLine) {
+            reasons.push('continuesWithWrappedLine');
+        }
+        if (data.inlineDecorations.length > 0) {
+            reasons.push('inlineDecorations > 0');
+        }
+        if (lineNumber >= 3000 /* GpuRenderLimits.maxGpuLines */) {
+            reasons.push('lineNumber >= maxGpuLines');
+        }
+        return reasons;
     }
 };
 ViewGpuContext = ViewGpuContext_1 = __decorate([

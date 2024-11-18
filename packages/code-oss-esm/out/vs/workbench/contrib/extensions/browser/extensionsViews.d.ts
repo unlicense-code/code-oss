@@ -118,7 +118,6 @@ export declare class ExtensionsListView extends ViewPane {
     protected updateSize(): void;
     private openExtension;
     private onError;
-    private getPagedModel;
     dispose(): void;
     static isLocalExtensionsQuery(query: string, sortBy?: string): boolean;
     static isSearchBuiltInExtensionsQuery(query: string): boolean;

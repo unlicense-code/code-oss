@@ -56,6 +56,7 @@ export interface IExtensionHostInitData {
     };
     uiKind: UIKind;
     messagePorts?: ReadonlyMap<string, MessagePortLike>;
+    handle?: string;
 }
 export interface IEnvironment {
     isExtensionDevelopmentDebug: boolean;

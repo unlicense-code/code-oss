@@ -10,7 +10,8 @@ import { MultiDiffEditorItem } from '../../../multiDiffEditor/browser/multiDiffS
 import { IDiffElementViewModelBase } from './diffElementViewModel.js';
 import { NotebookDiffEditorEventDispatcher } from './eventDispatcher.js';
 import { INotebookDiffViewModel, INotebookDiffViewModelUpdateEvent } from './notebookDiffEditorBrowser.js';
-import { INotebookDiffEditorModel } from '../../common/notebookCommon.js';
+import { NotebookTextModel } from '../../common/model/notebookTextModel.js';
+import { INotebookDiffEditorModel, INotebookDiffResult } from '../../common/notebookCommon.js';
 import { INotebookService } from '../../common/notebookService.js';
 import { INotebookEditorWorkerService } from '../../common/services/notebookWorkerService.js';
 import { IDiffEditorHeightCalculatorService } from './editorHeightCalculator.js';
@@ -54,7 +55,22 @@ export declare class NotebookDiffViewModel extends Disposable implements INotebo
 /**
  * making sure that swapping cells are always translated to `insert+delete`.
  */
-export declare function prettyChanges(model: INotebookDiffEditorModel, diffResult: IDiffResult): void;
+export declare function prettyChanges(original: NotebookTextModel, modified: NotebookTextModel, diffResult: IDiffResult): void;
+export type CellDiffInfo = {
+    originalCellIndex: number;
+    modifiedCellIndex: number;
+    type: 'unchanged' | 'modified';
+} | {
+    originalCellIndex: number;
+    type: 'delete';
+} | {
+    modifiedCellIndex: number;
+    type: 'insert';
+};
+export declare function computeDiff(originalModel: NotebookTextModel, modifiedModel: NotebookTextModel, diffResult: INotebookDiffResult): {
+    cellDiffInfo: CellDiffInfo[];
+    firstChangeIndex: number;
+};
 export declare abstract class NotebookMultiDiffEditorItem extends MultiDiffEditorItem {
     readonly type: IDiffElementViewModelBase['type'];
     readonly containerType: IDiffElementViewModelBase['type'];

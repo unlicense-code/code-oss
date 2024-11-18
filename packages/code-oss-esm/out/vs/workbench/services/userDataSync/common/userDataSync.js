@@ -32,7 +32,7 @@ export const SYNC_VIEW_ICON = registerIcon('settings-sync-view-icon', Codicon.sy
 // Contexts
 export const CONTEXT_SYNC_STATE = new RawContextKey('syncStatus', "uninitialized" /* SyncStatus.Uninitialized */);
 export const CONTEXT_SYNC_ENABLEMENT = new RawContextKey('syncEnabled', false);
-export const CONTEXT_ACCOUNT_STATE = new RawContextKey('userDataSyncAccountStatus', "unavailable" /* AccountStatus.Unavailable */);
+export const CONTEXT_ACCOUNT_STATE = new RawContextKey('userDataSyncAccountStatus', "uninitialized" /* AccountStatus.Uninitialized */);
 export const CONTEXT_ENABLE_ACTIVITY_VIEWS = new RawContextKey(`enableSyncActivityViews`, false);
 export const CONTEXT_ENABLE_SYNC_CONFLICTS_VIEW = new RawContextKey(`enableSyncConflictsView`, false);
 export const CONTEXT_HAS_CONFLICTS = new RawContextKey('hasConflicts', false);

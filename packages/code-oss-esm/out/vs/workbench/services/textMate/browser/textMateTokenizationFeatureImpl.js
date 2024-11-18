@@ -13,7 +13,7 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 };
 var TextMateTokenizationFeature_1;
 import { canASAR, importAMDNodeModule, resolveAmdNodeModulePath } from '../../../../amdX.js';
-import * as dom from '../../../../base/browser/dom.js';
+import * as domStylesheets from '../../../../base/browser/domStylesheets.js';
 import { equals as equalArray } from '../../../../base/common/arrays.js';
 import { Color } from '../../../../base/common/color.js';
 import { onUnexpectedError } from '../../../../base/common/errors.js';
@@ -67,7 +67,7 @@ let TextMateTokenizationFeature = class TextMateTokenizationFeature extends Disp
         this._currentTokenColorMap = null;
         this._threadedBackgroundTokenizerFactory = this._instantiationService.createInstance(ThreadedBackgroundTokenizerFactory, (timeMs, languageId, sourceExtensionId, lineLength, isRandomSample) => this._reportTokenizationTime(timeMs, languageId, sourceExtensionId, lineLength, true, isRandomSample), () => this.getAsyncTokenizationEnabled());
         this._vscodeOniguruma = null;
-        this._styleElement = dom.createStyleSheet();
+        this._styleElement = domStylesheets.createStyleSheet();
         this._styleElement.className = 'vscode-tokens-styles';
         grammarsExtPoint.setHandler((extensions) => this._handleGrammarsExtPoint(extensions));
         this._updateTheme(this._themeService.getColorTheme(), true);

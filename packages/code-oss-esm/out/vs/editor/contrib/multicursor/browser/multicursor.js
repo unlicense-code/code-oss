@@ -40,8 +40,7 @@ export class InsertCursorAbove extends EditorAction {
     constructor() {
         super({
             id: 'editor.action.insertCursorAbove',
-            label: nls.localize('mutlicursor.insertAbove', "Add Cursor Above"),
-            alias: 'Add Cursor Above',
+            label: nls.localize2('mutlicursor.insertAbove', "Add Cursor Above"),
             precondition: undefined,
             kbOpts: {
                 kbExpr: EditorContextKeys.editorTextFocus,
@@ -83,8 +82,7 @@ export class InsertCursorBelow extends EditorAction {
     constructor() {
         super({
             id: 'editor.action.insertCursorBelow',
-            label: nls.localize('mutlicursor.insertBelow', "Add Cursor Below"),
-            alias: 'Add Cursor Below',
+            label: nls.localize2('mutlicursor.insertBelow', "Add Cursor Below"),
             precondition: undefined,
             kbOpts: {
                 kbExpr: EditorContextKeys.editorTextFocus,
@@ -126,8 +124,7 @@ class InsertCursorAtEndOfEachLineSelected extends EditorAction {
     constructor() {
         super({
             id: 'editor.action.insertCursorAtEndOfEachLineSelected',
-            label: nls.localize('mutlicursor.insertAtEndOfEachLineSelected', "Add Cursors to Line Ends"),
-            alias: 'Add Cursors to Line Ends',
+            label: nls.localize2('mutlicursor.insertAtEndOfEachLineSelected', "Add Cursors to Line Ends"),
             precondition: undefined,
             kbOpts: {
                 kbExpr: EditorContextKeys.editorTextFocus,
@@ -174,8 +171,7 @@ class InsertCursorAtEndOfLineSelected extends EditorAction {
     constructor() {
         super({
             id: 'editor.action.addCursorsToBottom',
-            label: nls.localize('mutlicursor.addCursorsToBottom', "Add Cursors To Bottom"),
-            alias: 'Add Cursors To Bottom',
+            label: nls.localize2('mutlicursor.addCursorsToBottom', "Add Cursors To Bottom"),
             precondition: undefined
         });
     }
@@ -201,8 +197,7 @@ class InsertCursorAtTopOfLineSelected extends EditorAction {
     constructor() {
         super({
             id: 'editor.action.addCursorsToTop',
-            label: nls.localize('mutlicursor.addCursorsToTop', "Add Cursors To Top"),
-            alias: 'Add Cursors To Top',
+            label: nls.localize2('mutlicursor.addCursorsToTop', "Add Cursors To Top"),
             precondition: undefined
         });
     }
@@ -584,8 +579,7 @@ export class AddSelectionToNextFindMatchAction extends MultiCursorSelectionContr
     constructor() {
         super({
             id: 'editor.action.addSelectionToNextFindMatch',
-            label: nls.localize('addSelectionToNextFindMatch', "Add Selection To Next Find Match"),
-            alias: 'Add Selection To Next Find Match',
+            label: nls.localize2('addSelectionToNextFindMatch', "Add Selection To Next Find Match"),
             precondition: undefined,
             kbOpts: {
                 kbExpr: EditorContextKeys.focus,
@@ -608,8 +602,7 @@ export class AddSelectionToPreviousFindMatchAction extends MultiCursorSelectionC
     constructor() {
         super({
             id: 'editor.action.addSelectionToPreviousFindMatch',
-            label: nls.localize('addSelectionToPreviousFindMatch', "Add Selection To Previous Find Match"),
-            alias: 'Add Selection To Previous Find Match',
+            label: nls.localize2('addSelectionToPreviousFindMatch', "Add Selection To Previous Find Match"),
             precondition: undefined,
             menuOpts: {
                 menuId: MenuId.MenubarSelectionMenu,
@@ -627,8 +620,7 @@ export class MoveSelectionToNextFindMatchAction extends MultiCursorSelectionCont
     constructor() {
         super({
             id: 'editor.action.moveSelectionToNextFindMatch',
-            label: nls.localize('moveSelectionToNextFindMatch', "Move Last Selection To Next Find Match"),
-            alias: 'Move Last Selection To Next Find Match',
+            label: nls.localize2('moveSelectionToNextFindMatch', "Move Last Selection To Next Find Match"),
             precondition: undefined,
             kbOpts: {
                 kbExpr: EditorContextKeys.focus,
@@ -645,8 +637,7 @@ export class MoveSelectionToPreviousFindMatchAction extends MultiCursorSelection
     constructor() {
         super({
             id: 'editor.action.moveSelectionToPreviousFindMatch',
-            label: nls.localize('moveSelectionToPreviousFindMatch', "Move Last Selection To Previous Find Match"),
-            alias: 'Move Last Selection To Previous Find Match',
+            label: nls.localize2('moveSelectionToPreviousFindMatch', "Move Last Selection To Previous Find Match"),
             precondition: undefined
         });
     }
@@ -658,8 +649,7 @@ export class SelectHighlightsAction extends MultiCursorSelectionControllerAction
     constructor() {
         super({
             id: 'editor.action.selectHighlights',
-            label: nls.localize('selectAllOccurrencesOfFindMatch', "Select All Occurrences of Find Match"),
-            alias: 'Select All Occurrences of Find Match',
+            label: nls.localize2('selectAllOccurrencesOfFindMatch', "Select All Occurrences of Find Match"),
             precondition: undefined,
             kbOpts: {
                 kbExpr: EditorContextKeys.focus,
@@ -682,8 +672,7 @@ export class CompatChangeAll extends MultiCursorSelectionControllerAction {
     constructor() {
         super({
             id: 'editor.action.changeAll',
-            label: nls.localize('changeAll.label', "Change All Occurrences"),
-            alias: 'Change All Occurrences',
+            label: nls.localize2('changeAll.label', "Change All Occurrences"),
             precondition: ContextKeyExpr.and(EditorContextKeys.writable, EditorContextKeys.editorTextFocus),
             kbOpts: {
                 kbExpr: EditorContextKeys.editorTextFocus,
@@ -935,12 +924,11 @@ export class FocusNextCursor extends EditorAction {
     constructor() {
         super({
             id: 'editor.action.focusNextCursor',
-            label: nls.localize('mutlicursor.focusNextCursor', "Focus Next Cursor"),
+            label: nls.localize2('mutlicursor.focusNextCursor', "Focus Next Cursor"),
             metadata: {
                 description: nls.localize('mutlicursor.focusNextCursor.description', "Focuses the next cursor"),
                 args: [],
             },
-            alias: 'Focus Next Cursor',
             precondition: undefined
         });
     }
@@ -968,12 +956,11 @@ export class FocusPreviousCursor extends EditorAction {
     constructor() {
         super({
             id: 'editor.action.focusPreviousCursor',
-            label: nls.localize('mutlicursor.focusPreviousCursor', "Focus Previous Cursor"),
+            label: nls.localize2('mutlicursor.focusPreviousCursor', "Focus Previous Cursor"),
             metadata: {
                 description: nls.localize('mutlicursor.focusPreviousCursor.description', "Focuses the previous cursor"),
                 args: [],
             },
-            alias: 'Focus Previous Cursor',
             precondition: undefined
         });
     }

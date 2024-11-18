@@ -13,6 +13,7 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 };
 var Repl_1, ReplOptions_1;
 import * as dom from '../../../../base/browser/dom.js';
+import * as domStylesheetsJs from '../../../../base/browser/domStylesheets.js';
 import * as aria from '../../../../base/browser/ui/aria/aria.js';
 import { MOUSE_CURSOR_TEXT_CSS_CLASS_NAME } from '../../../../base/browser/ui/mouseCursor/mouseCursor.js';
 import { RunOnceScheduler } from '../../../../base/common/async.js';
@@ -483,10 +484,7 @@ let Repl = class Repl extends FilterViewPane {
     get refreshScheduler() {
         const autoExpanded = new Set();
         return new RunOnceScheduler(async () => {
-            if (!this.tree) {
-                return;
-            }
-            if (!this.tree.getInput()) {
+            if (!this.tree || !this.tree.getInput() || !this.isVisible()) {
                 return;
             }
             await this.tree.updateChildren(undefined, true, false, { diffIdentityProvider: identityProvider });
@@ -602,7 +600,7 @@ let Repl = class Repl extends FilterViewPane {
         }));
         // Make sure to select the session if debugging is already active
         this.selectSession();
-        this.styleElement = dom.createStyleSheet(this.container);
+        this.styleElement = domStylesheetsJs.createStyleSheet(this.container);
         this.onDidStyleChange();
     }
     createReplInput(container) {
@@ -801,8 +799,7 @@ class AcceptReplInputAction extends EditorAction {
     constructor() {
         super({
             id: 'repl.action.acceptInput',
-            label: localize({ key: 'actions.repl.acceptInput', comment: ['Apply input from the debug console input box'] }, "Debug Console: Accept Input"),
-            alias: 'Debug Console: Accept Input',
+            label: localize2({ key: 'actions.repl.acceptInput', comment: ['Apply input from the debug console input box'] }, "Debug Console: Accept Input"),
             precondition: CONTEXT_IN_DEBUG_REPL,
             kbOpts: {
                 kbExpr: EditorContextKeys.textInputFocus,

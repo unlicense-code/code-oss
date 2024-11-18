@@ -1,9 +1,17 @@
 import { INavigator } from './navigator.js';
+export interface IHistory<T> {
+    delete(t: T): boolean;
+    add(t: T): this;
+    has(t: T): boolean;
+    clear(): void;
+    forEach(callbackfn: (value: T, value2: T, set: Set<T>) => void, thisArg?: any): void;
+    replace?(t: T[]): void;
+}
 export declare class HistoryNavigator<T> implements INavigator<T> {
     private _history;
     private _limit;
     private _navigator;
-    constructor(history?: readonly T[], limit?: number);
+    constructor(_history?: IHistory<T>, limit?: number);
     getHistory(): T[];
     add(t: T): void;
     next(): T | null;
@@ -19,7 +27,6 @@ export declare class HistoryNavigator<T> implements INavigator<T> {
     private _onChange;
     private _reduceToLimit;
     private _currentPosition;
-    private _initialize;
     private get _elements();
 }
 /**

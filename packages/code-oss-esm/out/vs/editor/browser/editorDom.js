@@ -3,6 +3,7 @@
  *  Licensed under the MIT License. See License.txt in the project root for license information.
  *--------------------------------------------------------------------------------------------*/
 import * as dom from '../../base/browser/dom.js';
+import * as domStylesheetsJs from '../../base/browser/domStylesheets.js';
 import { GlobalPointerMoveMonitor } from '../../base/browser/globalPointerMoveMonitor.js';
 import { StandardMouseEvent } from '../../base/browser/mouseEvent.js';
 import { RunOnceScheduler } from '../../base/common/async.js';
@@ -242,7 +243,7 @@ class RefCountedCssRule {
         this.properties = properties;
         this._referenceCount = 0;
         this._styleElementDisposables = new DisposableStore();
-        this._styleElement = dom.createStyleSheet(_containerElement, undefined, this._styleElementDisposables);
+        this._styleElement = domStylesheetsJs.createStyleSheet(_containerElement, undefined, this._styleElementDisposables);
         this._styleElement.textContent = this.getCssText(this.className, this.properties);
     }
     getCssText(className, properties) {

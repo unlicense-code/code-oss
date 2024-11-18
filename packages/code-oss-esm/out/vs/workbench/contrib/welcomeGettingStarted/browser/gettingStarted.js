@@ -607,6 +607,10 @@ let GettingStartedPage = class GettingStartedPage extends EditorPane {
                 if (node.getAttribute('data-step-id') !== id) {
                     node.classList.remove('expanded');
                     node.setAttribute('aria-expanded', 'false');
+                    const codiconElement = node.querySelector('.codicon');
+                    if (codiconElement) {
+                        codiconElement.removeAttribute('tabindex');
+                    }
                 }
             });
             setTimeout(() => stepElement.focus(), delayFocus && this.shouldAnimate() ? SLIDE_TRANSITION_TIME_MS : 0);
@@ -614,6 +618,10 @@ let GettingStartedPage = class GettingStartedPage extends EditorPane {
             stepElement.classList.add('expanded');
             stepElement.setAttribute('aria-expanded', 'true');
             this.buildMediaComponent(id, true);
+            const codiconElement = stepElement.querySelector('.codicon');
+            if (codiconElement) {
+                codiconElement.setAttribute('tabindex', '0');
+            }
             this.gettingStartedService.progressByEvent('stepSelected:' + id);
             const step = this.currentWalkthrough?.steps?.find(step => step.id === id);
             if (step) {
@@ -1165,7 +1173,6 @@ let GettingStartedPage = class GettingStartedPage extends EditorPane {
                     'data-done-step-id': step.id,
                     'x-dispatch': 'toggleStepCompletion:' + step.id,
                     'role': 'checkbox',
-                    'tabindex': '0',
                     'aria-checked': step.done ? 'true' : 'false'
                 });
                 const container = $('.step-description-container', { 'x-step-description-for': step.id });

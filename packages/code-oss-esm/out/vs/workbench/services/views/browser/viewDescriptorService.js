@@ -30,6 +30,7 @@ import { registerAction2, Action2, MenuId } from '../../../../platform/actions/c
 import { localize, localize2 } from '../../../../nls.js';
 import { ILoggerService } from '../../../../platform/log/common/log.js';
 import { Lazy } from '../../../../base/common/lazy.js';
+import { IViewsService } from '../common/viewsService.js';
 function getViewContainerStorageId(viewContainerId) { return `${viewContainerId}.state`; }
 let ViewDescriptorService = class ViewDescriptorService extends Disposable {
     static { ViewDescriptorService_1 = this; }
@@ -379,7 +380,7 @@ let ViewDescriptorService = class ViewDescriptorService extends Disposable {
         const container = this.viewContainersRegistry.registerViewContainer({
             id,
             ctorDescriptor: new SyncDescriptor(ViewPaneContainer, [id, { mergeViewWithContainerWhenSingleView: true }]),
-            title: { value: id, original: id }, // we don't want to see this so using id
+            title: { value: localize('user', "User View Container"), original: 'User View Container' }, // having a placeholder title - this should not be shown anywhere
             icon: location === 0 /* ViewContainerLocation.Sidebar */ ? defaultViewIcon : undefined,
             storageId: getViewContainerStorageId(id),
             hideIfEmpty: true
@@ -668,12 +669,14 @@ let ViewDescriptorService = class ViewDescriptorService extends Disposable {
                     title: localize2('resetViewLocation', "Reset Location"),
                     menu: [{
                             id: MenuId.ViewContainerTitleContext,
+                            group: '1_viewActions',
                             when: ContextKeyExpr.or(ContextKeyExpr.and(ContextKeyExpr.equals('viewContainer', viewContainer.id), ContextKeyExpr.equals(`${viewContainer.id}.defaultViewContainerLocation`, false)))
                         }],
                 });
             }
-            run() {
+            run(accessor) {
                 that.moveViewContainerToLocation(viewContainer, that.getDefaultViewContainerLocation(viewContainer), undefined, this.desc.id);
+                accessor.get(IViewsService).openViewContainer(viewContainer.id, true);
             }
         });
     }

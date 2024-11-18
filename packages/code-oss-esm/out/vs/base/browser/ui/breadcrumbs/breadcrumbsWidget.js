@@ -3,6 +3,7 @@
  *  Licensed under the MIT License. See License.txt in the project root for license information.
  *--------------------------------------------------------------------------------------------*/
 import * as dom from '../../dom.js';
+import * as domStylesheetsJs from '../../domStylesheets.js';
 import { DomScrollableElement } from '../scrollbar/scrollableElement.js';
 import { commonPrefixLength } from '../../../common/arrays.js';
 import { ThemeIcon } from '../../../common/themables.js';
@@ -41,7 +42,7 @@ export class BreadcrumbsWidget {
         this._disposables.add(this._scrollable);
         this._disposables.add(dom.addStandardDisposableListener(this._domNode, 'click', e => this._onClick(e)));
         container.appendChild(this._scrollable.getDomNode());
-        const styleElement = dom.createStyleSheet(this._domNode);
+        const styleElement = domStylesheetsJs.createStyleSheet(this._domNode);
         this._style(styleElement, styles);
         const focusTracker = dom.trackFocus(this._domNode);
         this._disposables.add(focusTracker);

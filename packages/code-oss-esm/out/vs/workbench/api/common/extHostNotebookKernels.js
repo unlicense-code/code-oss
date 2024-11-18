@@ -618,17 +618,7 @@ class NotebookCellExecutionTask extends Disposable {
                 // The last update needs to be ordered correctly and applied immediately,
                 // so we use updateSoon and immediately flush.
                 that._collector.flush();
-                const error = executionError ? {
-                    message: executionError.message,
-                    stack: executionError.stack,
-                    location: executionError?.location ? {
-                        startLineNumber: executionError.location.start.line,
-                        startColumn: executionError.location.start.character,
-                        endLineNumber: executionError.location.end.line,
-                        endColumn: executionError.location.end.character
-                    } : undefined,
-                    uri: executionError.uri
-                } : undefined;
+                const error = createSerializeableError(executionError);
                 that._proxy.$completeExecution(that._handle, new SerializableObjectWithBuffers({
                     runEndTime: endTime,
                     lastRunSuccess: success,
@@ -658,6 +648,29 @@ class NotebookCellExecutionTask extends Disposable {
         };
         return Object.freeze(result);
     }
+}
+function createSerializeableError(executionError) {
+    const convertRange = (range) => (range ? {
+        startLineNumber: range.start.line,
+        startColumn: range.start.character,
+        endLineNumber: range.end.line,
+        endColumn: range.end.character
+    } : undefined);
+    const convertStackFrame = (frame) => ({
+        uri: frame.uri,
+        position: frame.position,
+        label: frame.label
+    });
+    const error = executionError ? {
+        name: executionError.name,
+        message: executionError.message,
+        stack: executionError.stack instanceof Array
+            ? executionError.stack.map(frame => convertStackFrame(frame))
+            : executionError.stack,
+        location: convertRange(executionError.location),
+        uri: executionError.uri
+    } : undefined;
+    return error;
 }
 var NotebookExecutionTaskState;
 (function (NotebookExecutionTaskState) {

@@ -177,7 +177,7 @@ export class SettingsEditorModel extends AbstractSettingsModel {
             allGroups: this.settingsGroups,
             filteredGroups: filteredGroup ? [filteredGroup] : [],
             matches,
-            metadata
+            metadata: metadata ?? undefined
         };
     }
 }
@@ -750,7 +750,7 @@ export class DefaultSettingsEditorModel extends AbstractSettingsModel {
                 allGroups: this.settingsGroups,
                 filteredGroups,
                 matches,
-                metadata
+                metadata: metadata ?? undefined
             } :
             undefined;
     }

@@ -5,15 +5,18 @@ import { IKeybindingService } from '../../../../platform/keybinding/common/keybi
 import { AccessibilityVerbositySettingId } from '../../accessibility/browser/accessibilityConfiguration.js';
 import { CellViewModel, NotebookViewModel } from './viewModel/notebookViewModelImpl.js';
 import { INotebookExecutionStateService } from '../common/notebookExecutionStateService.js';
+import { IAccessibilityService } from '../../../../platform/accessibility/common/accessibility.js';
 export declare class NotebookAccessibilityProvider extends Disposable implements IListAccessibilityProvider<CellViewModel> {
-    private readonly notebookExecutionStateService;
     private readonly viewModel;
+    private readonly isReplHistory;
+    private readonly notebookExecutionStateService;
     private readonly keybindingService;
     private readonly configurationService;
-    private readonly isReplHistory;
+    private readonly accessibilityService;
     private readonly _onDidAriaLabelChange;
     private readonly onDidAriaLabelChange;
-    constructor(notebookExecutionStateService: INotebookExecutionStateService, viewModel: () => NotebookViewModel | undefined, keybindingService: IKeybindingService, configurationService: IConfigurationService, isReplHistory: boolean);
+    constructor(viewModel: () => NotebookViewModel | undefined, isReplHistory: boolean, notebookExecutionStateService: INotebookExecutionStateService, keybindingService: IKeybindingService, configurationService: IConfigurationService, accessibilityService: IAccessibilityService);
+    private shouldReadCellOutputs;
     get verbositySettingId(): AccessibilityVerbositySettingId.Notebook | AccessibilityVerbositySettingId.ReplEditor;
     getAriaLabel(element: CellViewModel): import("../../../../base/common/observable.js").IObservable<string, unknown>;
     private createItemLabel;

@@ -108,6 +108,10 @@ export declare class ExplorerItem {
      */
     find(resource: URI): ExplorerItem | null;
     private findByPath;
+    private markedAsFindResult;
+    isMarkedAsFiltered(): boolean;
+    markItemAndParentsAsFiltered(): void;
+    unmarkItemAndChildren(): void;
 }
 export declare class NewExplorerItem extends ExplorerItem {
     constructor(fileService: IFileService, configService: IConfigurationService, filesConfigService: IFilesConfigurationService, parent: ExplorerItem, isDirectory: boolean);

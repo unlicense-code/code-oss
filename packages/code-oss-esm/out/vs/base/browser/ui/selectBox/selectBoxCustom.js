@@ -3,6 +3,7 @@
  *  Licensed under the MIT License. See License.txt in the project root for license information.
  *--------------------------------------------------------------------------------------------*/
 import * as dom from '../../dom.js';
+import * as domStylesheetsJs from '../../domStylesheets.js';
 import * as cssJs from '../../cssValue.js';
 import { DomEmitter } from '../../event.js';
 import { StandardKeyboardEvent } from '../../keyboardEvent.js';
@@ -122,7 +123,7 @@ export class SelectBoxList extends Disposable {
         // Always default to below position
         this._dropDownPosition = 0 /* AnchorPosition.BELOW */;
         // Inline stylesheet for themes
-        this.styleElement = dom.createStyleSheet(this.selectDropDownContainer);
+        this.styleElement = domStylesheetsJs.createStyleSheet(this.selectDropDownContainer);
         // Prevent dragging of dropdown #114329
         this.selectDropDownContainer.setAttribute('draggable', 'true');
         this._register(dom.addDisposableListener(this.selectDropDownContainer, dom.EventType.DRAG_START, (e) => {

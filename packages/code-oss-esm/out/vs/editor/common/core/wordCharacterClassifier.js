@@ -2,6 +2,7 @@
  *  Copyright (c) Microsoft Corporation. All rights reserved.
  *  Licensed under the MIT License. See License.txt in the project root for license information.
  *--------------------------------------------------------------------------------------------*/
+import { safeIntl } from '../../../base/common/date.js';
 import { LRUCache } from '../../../base/common/map.js';
 import { CharacterClassifier } from './characterClassifier.js';
 export var WordCharacterClass;
@@ -18,7 +19,7 @@ export class WordCharacterClassifier extends CharacterClassifier {
         this._cachedSegments = [];
         this.intlSegmenterLocales = intlSegmenterLocales;
         if (this.intlSegmenterLocales.length > 0) {
-            this._segmenter = new Intl.Segmenter(this.intlSegmenterLocales, { granularity: 'word' });
+            this._segmenter = safeIntl.Segmenter(this.intlSegmenterLocales, { granularity: 'word' });
         }
         else {
             this._segmenter = null;

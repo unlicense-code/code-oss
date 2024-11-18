@@ -43,7 +43,6 @@ export declare class RectangleRenderer extends ViewEventHandler {
     private _scrollOffsetBindBuffer;
     private _scrollOffsetValueBuffer;
     private _initialized;
-    private _scrollChanged;
     private readonly _shapeCollection;
     constructor(_context: ViewContext, _canvas: HTMLCanvasElement, _ctx: GPUCanvasContext, device: Promise<GPUDevice>);
     private _initWebgpu;

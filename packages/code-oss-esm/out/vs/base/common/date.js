@@ -3,6 +3,7 @@
  *  Licensed under the MIT License. See License.txt in the project root for license information.
  *--------------------------------------------------------------------------------------------*/
 import { localize } from '../../nls.js';
+import { LANGUAGE_DEFAULT } from './platform.js';
 const minute = 60;
 const hour = minute * 60;
 const day = hour * 24;
@@ -260,3 +261,37 @@ export function toLocalISOString(date) {
         '.' + (date.getMilliseconds() / 1000).toFixed(3).slice(2, 5) +
         'Z';
 }
+export const safeIntl = {
+    DateTimeFormat(locales, options) {
+        try {
+            return new Intl.DateTimeFormat(locales, options);
+        }
+        catch {
+            return new Intl.DateTimeFormat(undefined, options);
+        }
+    },
+    Collator(locales, options) {
+        try {
+            return new Intl.Collator(locales, options);
+        }
+        catch {
+            return new Intl.Collator(undefined, options);
+        }
+    },
+    Segmenter(locales, options) {
+        try {
+            return new Intl.Segmenter(locales, options);
+        }
+        catch {
+            return new Intl.Segmenter(undefined, options);
+        }
+    },
+    Locale(tag, options) {
+        try {
+            return new Intl.Locale(tag, options);
+        }
+        catch {
+            return new Intl.Locale(LANGUAGE_DEFAULT, options);
+        }
+    }
+};

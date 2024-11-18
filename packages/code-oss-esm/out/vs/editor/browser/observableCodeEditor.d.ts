@@ -35,6 +35,8 @@ export declare class ObservableCodeEditor extends Disposable {
     readonly selections: IObservable<Selection[] | null, ICursorSelectionChangedEvent | undefined>;
     readonly positions: IObservable<readonly Position[] | null, unknown>;
     readonly isFocused: IObservable<boolean, unknown>;
+    private _inComposition;
+    readonly inComposition: IObservable<boolean, unknown>;
     readonly value: import("../../base/common/observable.js").ISettableObservable<string, void>;
     readonly valueIsEmpty: IObservable<boolean, unknown>;
     readonly cursorSelection: IObservable<Selection | null, unknown>;

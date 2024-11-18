@@ -1,6 +1,5 @@
 import { Dimension } from '../../../../base/browser/dom.js';
 import { Emitter, Event } from '../../../../base/common/event.js';
-import { IMarkdownString } from '../../../../base/common/htmlContent.js';
 import { DisposableStore } from '../../../../base/common/lifecycle.js';
 import { IObservable } from '../../../../base/common/observable.js';
 import { ICodeEditor } from '../../../../editor/browser/editorBrowser.js';
@@ -42,15 +41,6 @@ export interface IInlineChatWidgetConstructionOptions {
      */
     chatWidgetViewOptions?: IChatWidgetViewOptions;
     inZoneWidget?: boolean;
-}
-export interface IInlineChatMessage {
-    message: IMarkdownString;
-    requestId: string;
-}
-export interface IInlineChatMessageAppender {
-    appendContent(fragment: string): void;
-    cancel(): void;
-    complete(): void;
 }
 export declare class InlineChatWidget {
     private readonly _options;
@@ -99,7 +89,7 @@ export declare class InlineChatWidget {
     protected _getExtraHeight(): number;
     get value(): string;
     set value(value: string);
-    selectAll(includeSlashCommand?: boolean): void;
+    selectAll(): void;
     set placeholder(value: string);
     toggleStatus(show: boolean): void;
     updateToolbar(show: boolean): void;

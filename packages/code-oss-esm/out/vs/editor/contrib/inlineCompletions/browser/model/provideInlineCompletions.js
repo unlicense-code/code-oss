@@ -157,7 +157,8 @@ async function addRefAndCreateResult(context, inlineCompletionLists, defaultRepl
             }
             const inlineCompletionItem = InlineCompletionItem.from(item, completions, defaultReplaceRange, model, languageConfigurationService);
             itemsByHash.set(inlineCompletionItem.hash(), inlineCompletionItem);
-            if (context.triggerKind === InlineCompletionTriggerKind.Automatic) {
+            // Stop after first visible inline completion
+            if (!item.isInlineEdit && context.triggerKind === InlineCompletionTriggerKind.Automatic) {
                 const minifiedEdit = inlineCompletionItem.toSingleTextEdit().removeCommonPrefix(new TextModelText(model));
                 if (!minifiedEdit.isEmpty) {
                     shouldStop = true;
@@ -252,9 +253,9 @@ export class InlineCompletionItem {
         else {
             assertNever(inlineCompletion.insertText);
         }
-        return new InlineCompletionItem(insertText, inlineCompletion.command, range, insertText, snippetInfo, inlineCompletion.additionalTextEdits || getReadonlyEmptyArray(), inlineCompletion, source);
+        return new InlineCompletionItem(insertText, inlineCompletion.command, inlineCompletion.shownCommand, range, insertText, snippetInfo, inlineCompletion.additionalTextEdits || getReadonlyEmptyArray(), inlineCompletion, source);
     }
-    constructor(filterText, command, range, insertText, snippetInfo, additionalTextEdits, 
+    constructor(filterText, command, shownCommand, range, insertText, snippetInfo, additionalTextEdits, 
     /**
      * A reference to the original inline completion this inline completion has been constructed from.
      * Used for event data to ensure referential equality.
@@ -267,17 +268,25 @@ export class InlineCompletionItem {
     source) {
         this.filterText = filterText;
         this.command = command;
+        this.shownCommand = shownCommand;
         this.range = range;
         this.insertText = insertText;
         this.snippetInfo = snippetInfo;
         this.additionalTextEdits = additionalTextEdits;
         this.sourceInlineCompletion = sourceInlineCompletion;
         this.source = source;
+        this._didCallShow = false;
         filterText = filterText.replace(/\r\n|\r/g, '\n');
         insertText = filterText.replace(/\r\n|\r/g, '\n');
     }
+    get didShow() {
+        return this._didCallShow;
+    }
+    markAsShown() {
+        this._didCallShow = true;
+    }
     withRange(updatedRange) {
-        return new InlineCompletionItem(this.filterText, this.command, updatedRange, this.insertText, this.snippetInfo, this.additionalTextEdits, this.sourceInlineCompletion, this.source);
+        return new InlineCompletionItem(this.filterText, this.command, this.shownCommand, updatedRange, this.insertText, this.snippetInfo, this.additionalTextEdits, this.sourceInlineCompletion, this.source);
     }
     hash() {
         return JSON.stringify({ insertText: this.insertText, range: this.range.toString() });
