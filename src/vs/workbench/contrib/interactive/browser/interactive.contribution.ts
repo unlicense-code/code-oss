@@ -752,13 +752,8 @@ registerAction2(class extends Action2 {
 			category: interactiveWindowCategory,
 			menu: {
 				id: MenuId.CommandPalette,
-				when: InteractiveWindowOpen,
+				when: InteractiveWindowOpen
 			},
-			keybinding: {
-				when: ContextKeyExpr.and(IS_COMPOSITE_NOTEBOOK, NOTEBOOK_EDITOR_FOCUSED),
-				weight: KeybindingWeight.WorkbenchContrib + 5,
-				primary: KeyMod.CtrlCmd | KeyCode.DownArrow
-			}
 		});
 	}
 
@@ -865,12 +860,6 @@ Registry.as<IConfigurationRegistry>(ConfigurationExtensions.Configuration).regis
 			default: true,
 			markdownDescription: localize('interactiveWindow.showExecutionHint', "Display a hint in the Interactive Window (REPL) input box to indicate how to execute code."),
 			tags: ['replExecute']
-		},
-		[ReplEditorSettings.autoFocusAppendedCell]: {
-			type: 'string',
-			enum: ['auto', 'never', 'always'],
-			default: 'auto',
-			description: localize('interactive.autoFocusAppendedCell', "Control whether focus should automatically go to a newly appended cell in the REPL editor."),
 		}
 	}
 });

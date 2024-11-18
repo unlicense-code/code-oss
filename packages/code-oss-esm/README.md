@@ -3,6 +3,10 @@ the parts inside ./out/ are generated from typescript code-oss/src/*
 
 update ./out
 ```shell
+cd ../..
+wget https://github.com/microsoft/vscode/archive/refs/heads/main.tar.gz
+tar -xf main.tar.gz
+
 tsc -p .\src\tsconfig.json --outDir packages/code-oss-esm/out --declaration --target esnext
 ```
 

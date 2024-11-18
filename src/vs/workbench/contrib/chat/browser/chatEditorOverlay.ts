@@ -5,19 +5,27 @@
 
 import './media/chatEditorOverlay.css';
 import { DisposableStore, MutableDisposable } from '../../../../base/common/lifecycle.js';
-import { autorun, IReader, ISettableObservable, ITransaction, observableFromEvent, observableSignal, observableValue } from '../../../../base/common/observable.js';
+import { autorun, IReader, ISettableObservable, ITransaction, observableFromEvent, observableSignal, observableValue, transaction } from '../../../../base/common/observable.js';
 import { isEqual } from '../../../../base/common/resources.js';
 import { ICodeEditor, IOverlayWidget, IOverlayWidgetPosition, OverlayWidgetPositionPreference } from '../../../../editor/browser/editorBrowser.js';
 import { IEditorContribution } from '../../../../editor/common/editorCommon.js';
-import { MenuWorkbenchToolBar, WorkbenchToolBar } from '../../../../platform/actions/browser/toolbar.js';
+import { HiddenItemStrategy, MenuWorkbenchToolBar, WorkbenchToolBar } from '../../../../platform/actions/browser/toolbar.js';
 import { IInstantiationService } from '../../../../platform/instantiation/common/instantiation.js';
-import { ChatEditingSessionState, IChatEditingService, IModifiedFileEntry, WorkingSetEntryState } from '../common/chatEditingService.js';
-import { MenuId } from '../../../../platform/actions/common/actions.js';
+import { ChatEditingSessionState, IChatEditingService, IChatEditingSession, IModifiedFileEntry, WorkingSetEntryState } from '../common/chatEditingService.js';
+import { MenuId, MenuRegistry } from '../../../../platform/actions/common/actions.js';
 import { ActionViewItem } from '../../../../base/browser/ui/actionbar/actionViewItems.js';
 import { ACTIVE_GROUP, IEditorService } from '../../../services/editor/common/editorService.js';
 import { Range } from '../../../../editor/common/core/range.js';
 import { IActionRunner } from '../../../../base/common/actions.js';
-import { getWindow, scheduleAtNextAnimationFrame } from '../../../../base/browser/dom.js';
+import { getWindow, reset, scheduleAtNextAnimationFrame } from '../../../../base/browser/dom.js';
+import { EditorOption } from '../../../../editor/common/config/editorOptions.js';
+import { renderIcon } from '../../../../base/browser/ui/iconLabel/iconLabels.js';
+import { ThemeIcon } from '../../../../base/common/themables.js';
+import { Codicon } from '../../../../base/common/codicons.js';
+import { assertType } from '../../../../base/common/types.js';
+import { localize } from '../../../../nls.js';
+import { ContextKeyExpr } from '../../../../platform/contextkey/common/contextkey.js';
+import { ctxNotebookHasEditorModification } from '../../notebook/browser/chatEdit/notebookChatEditController.js';
 
 class ChatEditorOverlayWidget implements IOverlayWidget {
 
@@ -31,6 +39,8 @@ class ChatEditorOverlayWidget implements IOverlayWidget {
 	private readonly _showStore = new DisposableStore();
 
 	private readonly _entry = observableValue<{ entry: IModifiedFileEntry; next: IModifiedFileEntry } | undefined>(this, undefined);
+
+	private readonly _navigationBearings = observableValue<{ changeCount: number; activeIdx: number }>(this, { changeCount: -1, activeIdx: -1 });
 
 	constructor(
 		private readonly _editor: ICodeEditor,
@@ -50,6 +60,7 @@ class ChatEditorOverlayWidget implements IOverlayWidget {
 
 		this._toolbar = instaService.createInstance(MenuWorkbenchToolBar, toolbarNode, MenuId.ChatEditingEditorContent, {
 			telemetrySource: 'chatEditor.overlayToolbar',
+			hiddenItemStrategy: HiddenItemStrategy.Ignore,
 			toolbarOptions: {
 				primaryGroup: () => true,
 				useSeparatorsInPrimaryActions: true
@@ -57,6 +68,34 @@ class ChatEditorOverlayWidget implements IOverlayWidget {
 			menuOptions: { renderShortTitle: true },
 			actionViewItemProvider: (action, options) => {
 				const that = this;
+
+				if (action.id === navigationBearingFakeActionId) {
+					return new class extends ActionViewItem {
+
+						constructor() {
+							super(undefined, action, { ...options, icon: false, label: true, keybindingNotRenderedWithLabel: true });
+						}
+
+						override render(container: HTMLElement) {
+							super.render(container);
+
+							container.classList.add('label-item');
+
+							this._store.add(autorun(r => {
+								assertType(this.label);
+
+								const { changeCount, activeIdx } = that._navigationBearings.read(r);
+								const n = activeIdx === -1 ? '?' : `${activeIdx + 1}`;
+								const m = changeCount === -1 ? '?' : `${changeCount}`;
+								this.label.innerText = localize('nOfM', "{0} of {1}", n, m);
+							}));
+						}
+
+						protected override getTooltip(): string | undefined {
+							return undefined;
+						}
+					};
+				}
 
 				if (action.id === 'chatEditor.action.accept' || action.id === 'chatEditor.action.reject') {
 					return new class extends ActionViewItem {
@@ -124,21 +163,21 @@ class ChatEditorOverlayWidget implements IOverlayWidget {
 		return { preference: OverlayWidgetPositionPreference.BOTTOM_RIGHT_CORNER };
 	}
 
-	show(entry: IModifiedFileEntry, next: IModifiedFileEntry) {
+	show(session: IChatEditingSession, activeEntry: IModifiedFileEntry, next: IModifiedFileEntry) {
 
 		this._showStore.clear();
 
-		this._entry.set({ entry, next }, undefined);
+		this._entry.set({ entry: activeEntry, next }, undefined);
 
 		this._showStore.add(autorun(r => {
-			const busy = entry.isCurrentlyBeingModified.read(r);
+			const busy = activeEntry.isCurrentlyBeingModified.read(r);
 			this._domNode.classList.toggle('busy', busy);
 		}));
 
 		const slickRatio = ObservableAnimatedValue.const(0);
 		let t = Date.now();
 		this._showStore.add(autorun(r => {
-			const value = entry.rewriteRatio.read(r);
+			const value = activeEntry.rewriteRatio.read(r);
 
 			slickRatio.changeAnimation(prev => {
 				const result = new AnimatedValue(prev.getValue(), value, Date.now() - t);
@@ -147,7 +186,44 @@ class ChatEditorOverlayWidget implements IOverlayWidget {
 			}, undefined);
 
 			const value2 = slickRatio.getValue(r);
-			this._progressNode.innerText = `${Math.round(value2 * 100)}%`;
+			reset(this._progressNode, value === 0
+				? renderIcon(ThemeIcon.modify(Codicon.loading, 'spin'))
+				: `${Math.round(value2 * 100)}%`
+			);
+		}));
+
+
+		const editorPositionObs = observableFromEvent(this._editor.onDidChangeCursorPosition, () => this._editor.getPosition());
+
+		this._showStore.add(autorun(r => {
+			const position = editorPositionObs.read(r);
+
+			if (!position) {
+				return;
+			}
+
+			const entries = session.entries.read(r);
+
+			let changes = 0;
+			let activeIdx = -1;
+			for (const entry of entries) {
+				const diffInfo = entry.diffInfo.read(r);
+
+				if (activeIdx !== -1 || entry !== activeEntry) {
+					// just add up
+					changes += diffInfo.changes.length;
+
+				} else {
+					for (const change of diffInfo.changes) {
+						if (change.modified.includes(position.lineNumber)) {
+							activeIdx = changes;
+						}
+						changes += 1;
+					}
+				}
+			}
+
+			this._navigationBearings.set({ changeCount: changes, activeIdx }, undefined);
 		}));
 
 		if (!this._isAdded) {
@@ -158,7 +234,10 @@ class ChatEditorOverlayWidget implements IOverlayWidget {
 
 	hide() {
 
-		this._entry.set(undefined, undefined);
+		transaction(tx => {
+			this._entry.set(undefined, tx);
+			this._navigationBearings.set({ changeCount: -1, activeIdx: -1 }, tx);
+		});
 
 		if (this._isAdded) {
 			this._editor.removeOverlayWidget(this);
@@ -167,6 +246,20 @@ class ChatEditorOverlayWidget implements IOverlayWidget {
 		}
 	}
 }
+
+export const navigationBearingFakeActionId = 'chatEditor.navigation.bearings';
+
+MenuRegistry.appendMenuItem(MenuId.ChatEditingEditorContent, {
+	command: {
+		id: navigationBearingFakeActionId,
+		title: localize('label', "Navigation Status"),
+		precondition: ContextKeyExpr.false(),
+	},
+	when: ctxNotebookHasEditorModification.negate(),
+	group: 'navigate',
+	order: -1
+});
+
 
 export class ObservableAnimatedValue {
 	public static const(value: number): ObservableAnimatedValue {
@@ -218,7 +311,7 @@ class Scheduler {
 	}
 }
 
-class AnimatedValue {
+export class AnimatedValue {
 
 	static const(value: number): AnimatedValue {
 		return new AnimatedValue(value, value, 0);
@@ -275,6 +368,10 @@ export class ChatEditorOverlayController implements IEditorContribution {
 		const modelObs = observableFromEvent(this._editor.onDidChangeModel, () => this._editor.getModel());
 		const widget = instaService.createInstance(ChatEditorOverlayWidget, this._editor);
 
+		if (this._editor.getOption(EditorOption.inDiffEditor)) {
+			return;
+		}
+
 		this._store.add(autorun(r => {
 			const model = modelObs.read(r);
 			const session = chatEditingService.currentEditingSessionObs.read(r);
@@ -303,7 +400,7 @@ export class ChatEditorOverlayController implements IEditorContribution {
 			}
 
 			const entry = entries[idx];
-			widget.show(entry, entries[(idx + 1) % entries.length]);
+			widget.show(session, entry, entries[(idx + 1) % entries.length]);
 
 		}));
 	}

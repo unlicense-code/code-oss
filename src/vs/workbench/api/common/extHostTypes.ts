@@ -3907,6 +3907,19 @@ export class NotebookCellOutput {
 	}
 }
 
+export class CellErrorStackFrame {
+	/**
+	 * @param label The name of the stack frame
+	 * @param file The file URI of the stack frame
+	 * @param position The position of the stack frame within the file
+	 */
+	constructor(
+		public label: string,
+		public uri?: vscode.Uri,
+		public position?: Position,
+	) { }
+}
+
 export enum NotebookCellKind {
 	Markup = 1,
 	Code = 2
@@ -4345,7 +4358,8 @@ export class ChatCompletionItem implements vscode.ChatCompletionItem {
 
 export enum ChatEditingSessionActionOutcome {
 	Accepted = 1,
-	Rejected = 2
+	Rejected = 2,
+	Saved = 3
 }
 
 //#endregion
