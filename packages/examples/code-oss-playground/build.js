@@ -1,8 +1,9 @@
-/* eslint-disable header/header */
-import process from "process";
-import child_process from "child_process";
-import fs from "fs";
-import fse from "fs-extra";
+// TODO: that should now not need a build process anymore.
+
+import process from "node:process";
+import child_process from "node:child_process";
+import fs from "node:fs";
+
 import { version } from "../../code-oss-dev/package.json";
 
 const vscodeVersion = version.split("-")[0];
@@ -79,18 +80,18 @@ note("copying workbench file");
 // );
 
 // Compile
-note("starting compile");
-exec("npm run gulp vscode-web-min", { stdio: "inherit" });
-ok("compile completed");
+// note("starting compile");
+// exec("npm run gulp vscode-web-min", { stdio: "inherit" });
+// ok("compile completed");
 
-// Extract compiled files
-if (fs.existsSync("../dist")) {
-	note("cleaning ../dist");
-	fs.rmdirSync("../dist", { recursive: true });
-} else {
-	ok("../dist did not exist. No need to clean");
-}
+// // Extract compiled files
+// if (fs.existsSync("../dist")) {
+// 	note("cleaning ../dist");
+// 	fs.rmdirSync("../dist", { recursive: true });
+// } else {
+// 	ok("../dist did not exist. No need to clean");
+// }
 
-fs.mkdirSync("../dist");
-fse.copySync("../vscode-web", "../dist");
-ok("copied ../vscode-web to ../dist");
+// fs.mkdirSync("../dist");
+// fse.copySync("../vscode-web", "../dist");
+// ok("copied ../vscode-web to ../dist");
